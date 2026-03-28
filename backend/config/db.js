@@ -1,13 +1,19 @@
 const { Sequelize } = require('sequelize');
 const initModels = require('../models/init-models');
+require('dotenv').config();
+
+const env = (key, fallback) => {
+  const value = process.env[key];
+  return value && value.trim() !== '' ? value : fallback;
+};
 
 const sequelize = new Sequelize(
-  process.env.DB_NAME || 'ims',
-  process.env.DB_USER || 'root',
-  process.env.DB_PASSWORD || '1234',
+  env('DB_NAME', 'ims'),
+  env('DB_USER', 'root'),
+  env('DB_PASSWORD', ''),
   {
-    host: process.env.DB_HOST || 'localhost',
-    dialect: 'mysql',
+    host: env('DB_HOST', 'localhost'),
+    dialect: env('DB_DIALECT', 'mysql'),
     logging: false,
   }
 );
@@ -20,6 +26,7 @@ const connectDB = async () => {
     console.log('MySQL connected');
   } catch (error) {
     console.error('MySQL connection error:', error.message);
+    throw error;
   }
 };
 
