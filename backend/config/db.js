@@ -1,27 +1,30 @@
-import { Sequelize } from 'sequelize';
+const { Sequelize } = require('sequelize');
+const initModels = require('../models/init-models');
 
-// Create sequelize instance
-export const sequelize = new Sequelize(
-  'ims',       // database name
-  'root',       // username
-  '1234',   // password
+const sequelize = new Sequelize(
+  process.env.DB_NAME || 'ims',
+  process.env.DB_USER || 'root',
+  process.env.DB_PASSWORD || '1234',
   {
-    host: 'localhost',
+    host: process.env.DB_HOST || 'localhost',
     dialect: 'mysql',
-    logging: false, // Disable SQL logs
+    logging: false,
   }
 );
 
-export const connectDB = async () => {
+const models = initModels(sequelize);
+
+const connectDB = async () => {
   try {
     await sequelize.authenticate();
-    
-    // Initialize models after connection is established
-    const { initializeModels } = await import('../models');
-    initializeModels();
-    
-    console.log('✅ MySQL connected!');
+    console.log('MySQL connected');
   } catch (error) {
-    console.error('❌ MySQL connection error:', error);
+    console.error('MySQL connection error:', error.message);
   }
+};
+
+module.exports = {
+  sequelize,
+  models,
+  connectDB,
 };
