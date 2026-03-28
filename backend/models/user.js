@@ -46,8 +46,6 @@ module.exports = function(sequelize, DataTypes) {
     sequelize,
     tableName: 'user',
     timestamps: false,
-    createdAt: 'created_at',
-    updatedAt: false,
     indexes: [
       {
         name: "PRIMARY",
