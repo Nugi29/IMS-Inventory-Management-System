@@ -47,7 +47,7 @@ const Login = () => {
     if (token) {
       navigate('/');
     }
-  }, [token]);
+  }, [token, navigate]);
 
   return (
     <form onSubmit={onSubmitHandler} className='min-h-[80vh] flex items-center justify-center bg-gradient-to-br px-4'>
