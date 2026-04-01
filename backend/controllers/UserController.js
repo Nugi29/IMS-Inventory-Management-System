@@ -96,12 +96,41 @@ const getProfile = async (req, res) => {
             "id": userData.id,
             "name": userData.name,
             "username": userData.username,
-            "role": role ? role.toJSON() : null ,
+            "role": role ? role.toJSON() : null,
             "user_status": userStatus ? userStatus.toJSON() : null,
             "createdAt": userData.createdAt,
         };
-        
+
         return res.json({ success: true, userData: modUserData });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+const getAllProfiles = async (req, res) => {
+    try {
+        const users = await User.findAll({
+            attributes: { exclude: ['password'] },
+        });
+
+        const usersData = await Promise.all(users.map(async (userData) => {
+            const [role, userStatus] = await Promise.all([
+                userData.getRole({ attributes: ['id', 'name'] }),
+                userData.getUser_status({ attributes: ['id', 'name'] }),
+            ]);
+
+            return {
+                "id": userData.id,
+                "name": userData.name,
+                "username": userData.username,
+                "role": role ? role.toJSON() : null,
+                "user_status": userStatus ? userStatus.toJSON() : null,
+                "createdAt": userData.createdAt,
+            };
+        }));
+
+        return res.json({ success: true, usersData });
     } catch (error) {
         console.error(error);
         return res.status(500).json({ success: false, message: error.message });
@@ -112,4 +141,5 @@ module.exports = {
     registerUser,
     loginUser,
     getProfile,
+    getAllProfiles,
 };
