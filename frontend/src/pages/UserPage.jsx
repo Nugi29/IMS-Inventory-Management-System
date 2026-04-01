@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useUser } from '../services/useUser';
 import { useLookup } from '../services/useLookup';
+import { useNavigate } from 'react-router-dom';
 
 export const UserPage = () => {
     const { users, isLoadingUsers } = useUser();
     const { roles: roleLookup, statuses: statusLookup, loadLookupData } = useLookup();
+    const navigate = useNavigate();
 
     const getLookupLabel = (item) => {
         if (typeof item === 'string') {
@@ -154,7 +156,7 @@ export const UserPage = () => {
                     >
                         Reset Filters
                     </button>
-                    <button className="bg-[var(--color-primary)] text-[var(--color-on-primary)] px-5 py-3 rounded-xl font-bold flex items-center gap-2 shadow-sm hover:brightness-95 transition-all active:scale-95 duration-150 whitespace-nowrap" type="button">
+                    <button className="bg-[var(--color-primary)] text-[var(--color-on-primary)] px-5 py-3 rounded-xl font-bold flex items-center gap-2 shadow-sm hover:brightness-95 transition-all active:scale-95 duration-150 whitespace-nowrap" type="button" onClick={() => navigate('/userform', { state: { mode: 'add' } })}>
                         <span className="material-symbols-outlined" data-icon="add">add</span>
                         Add New User
                     </button>
@@ -207,7 +209,7 @@ export const UserPage = () => {
                                     <td className="px-6 py-4 text-right rounded-r-xl">
                                         <div className="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                             <button className="p-2 hover:bg-white rounded-lg transition-colors text-slate-400 hover:text-primary" aria-label={`View ${user.username}`} type="button"><span className="material-symbols-outlined text-[20px]" data-icon="visibility">visibility</span></button>
-                                            <button className="p-2 hover:bg-white rounded-lg transition-colors text-slate-400 hover:text-primary" aria-label={`Edit ${user.username}`} type="button"><span className="material-symbols-outlined text-[20px]" data-icon="edit">edit</span></button>
+                                            <button className="p-2 hover:bg-white rounded-lg transition-colors text-slate-400 hover:text-primary" aria-label={`Edit ${user.username}`} type="button" onClick={() => navigate('/userform', { state: { mode: 'update', user } })}><span className="material-symbols-outlined text-[20px]" data-icon="edit">edit</span></button>
                                             <button className="p-2 hover:bg-white rounded-lg transition-colors text-slate-400 hover:text-error" aria-label={`Delete ${user.username}`} type="button"><span className="material-symbols-outlined text-[20px]" data-icon="delete">delete</span></button>
                                         </div>
                                     </td>

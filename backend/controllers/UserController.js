@@ -6,7 +6,9 @@ const { user: User } = models;
 
 const registerUser = async (req, res) => {
     try {
-        const { username, password, name } = req.body;
+        const { username, password, name, role_id, user_status_id } = req.body;
+        console.log(req.body);
+        
 
         if (!username || !password || !name) {
             return res.status(400).json({ success: false, message: 'Name, username and password are required' });
@@ -27,8 +29,8 @@ const registerUser = async (req, res) => {
             name,
             username,
             password: hashedPassword,
-            role_id: Number(process.env.DEFAULT_USER_ROLE_ID || 1),
-            user_status_id: Number(process.env.DEFAULT_USER_STATUS_ID || 1),
+            role_id: Number(role_id),
+            user_status_id: Number(user_status_id),
         });
 
         const token = jwt.sign(
@@ -137,9 +139,40 @@ const getAllProfiles = async (req, res) => {
     }
 };
 
+// New function to update all users profiles to admin
+
+const updateProfile = async (req, res) => {
+    try {
+        const userId = req.userId || req.body.userId;
+        if (!userId) {
+            return res.status(401).json({ success: false, message: 'Unauthorized' });
+        }
+        const { name, password } = req.body;
+        const userData = await User.findByPk(userId);
+        if (!userData) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+        if (name) {
+            userData.name = name;
+        }
+        if (password) {
+            if (password.length < 8) {
+                return res.status(400).json({ success: false, message: 'Password must be at least 8 characters long' });
+            }
+            userData.password = await bcrypt.hash(password, 10);
+        }
+        await userData.save();
+        return res.json({ success: true, message: 'Profile updated successfully' });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
     registerUser,
     loginUser,
     getProfile,
     getAllProfiles,
+    updateProfile,
 };
