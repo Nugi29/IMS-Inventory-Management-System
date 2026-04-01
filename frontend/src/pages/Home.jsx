@@ -1,15 +1,29 @@
 import React from 'react'
 import SideNavbar from '../components/SideNavbar'
 import Header from '../components/Header'
-import HomeContent from '../components/HomeContent'
+import { Outlet, useLocation } from 'react-router-dom'
 
 const Home = () => {
+  const location = useLocation()
+  // Determine the header title based on current string route path
+  let currentModule = "Dashboard"
+  if (location.pathname.includes('/users')) currentModule = "User Management"
+  else if (location.pathname.includes('/items')) currentModule = "Item Management"
+  else if (location.pathname.includes('/categories')) currentModule = "Categories"
+  else if (location.pathname.includes('/suppliers')) currentModule = "Suppliers"
+  else if (location.pathname.includes('/grn')) currentModule = "GRN"
+  else if (location.pathname.includes('/sales')) currentModule = "Sales"
+  else if (location.pathname.includes('/stock-movement')) currentModule = "Stock Movement"
+  else if (location.pathname.includes('/reports')) currentModule = "Reports"
+  else if (location.pathname.includes('/settings')) currentModule = "Settings"
+  else if (location.pathname.includes('/profile')) currentModule = "Profile"
+
   return (
     <div>
       <SideNavbar />
-      <Header />
+      <Header loadedModule={currentModule} />
       <main className="pt-16 ml-64">
-        <HomeContent />
+        <Outlet />
       </main>
     </div>
   )
