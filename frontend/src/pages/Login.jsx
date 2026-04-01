@@ -11,7 +11,7 @@ const Login = () => {
   const { backendUrl, token, setToken } = useContext(AppContext);
   const navigate = useNavigate();
 
-  const [state, setState] = useState('Sign Up');
+  const [state, setState] = useState('Login');
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -50,8 +50,8 @@ const Login = () => {
   }, [token, navigate]);
 
   return (
-    <form onSubmit={onSubmitHandler} className='min-h-[80vh] flex items-center justify-center bg-gradient-to-br px-4'>
-      <div className='flex flex-col gap-6 m-auto items-start p-10 min-w-[340px] sm:min-w-96 bg-white border border-gray-200 rounded-2xl text-zinc-600 text-sm shadow-2xl backdrop-blur-sm'>
+    <form onSubmit={onSubmitHandler} className='min-h-[80vh] flex items-center justify-center bg-linear-to-br px-4'>
+      <div className='flex flex-col gap-6 m-auto items-start p-10 min-w-85 sm:min-w-96 bg-white border border-gray-200 rounded-2xl text-zinc-600 text-sm shadow-2xl backdrop-blur-sm'>
         <div className='w-full text-center'>
           <p className='text-3xl font-bold text-gray-800 mb-2'>{state === 'Sign Up' ? 'Create Account' : 'Welcome Back'}</p>
           <p className='text-gray-500 capitalize'>please {state === 'Sign Up' ? 'sign up' : 'log in'} </p>
@@ -92,15 +92,15 @@ const Login = () => {
             required
           />
         </div>
-        <button type='submit' className='bg-primary hover:bg-primary/90 text-white w-full py-3 rounded-lg text-base font-semibold transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 mt-2'>
+        <button type='submit' className='bg-blue-700 hover:bg-blue-600 text-white w-full py-3 rounded-lg text-base font-semibold transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 mt-2'>
           {state === 'Sign Up' ? 'Create Account' : 'Login'}
         </button>
 
         <div className='w-full text-center'>
           {
             state === 'Sign Up'
-              ? <p className='text-gray-600'>Already have an account? <span onClick={() => setState('Login')} className='text-primary font-semibold hover:text-primary/80 cursor-pointer transition-colors duration-200'>Login here</span></p>
-              : <p className='text-gray-600'>Create an account? <span onClick={() => setState('Sign Up')} className='text-primary font-semibold hover:text-primary/80 cursor-pointer transition-colors duration-200'>Sign up here</span></p>
+              ? <p className='text-gray-600'>Already have an account? <span onClick={() => setState('Login')} className='text-blue-800 font-semibold hover:text-blue-700 cursor-pointer transition-colors duration-200'>Login here</span></p>
+              : <p className='text-gray-600'>Create an account? <span onClick={() => setState('Sign Up')} className='text-blue-800 font-semibold hover:text-blue-700 cursor-pointer transition-colors duration-200'>Sign up here</span></p>
           }
         </div>
       </div>

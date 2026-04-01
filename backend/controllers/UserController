@@ -60,7 +60,6 @@ const loginUser = async (req, res) => {
             return res.status(401).json({ success: false, message: 'Invalid username or password' });
         }
 
-
         const token = jwt.sign(
             { id: existingUser.id },
             process.env.JWT_SECRET || 'dev_secret',
@@ -88,8 +87,21 @@ const getProfile = async (req, res) => {
         if (!userData) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
+        const [role, userStatus] = await Promise.all([
+            userData.getRole({ attributes: ['id', 'name'] }),
+            userData.getUser_status({ attributes: ['id', 'name'] }),
+        ]);
 
-        return res.json({ success: true, userData });
+        const modUserData = {
+            "id": userData.id,
+            "name": userData.name,
+            "username": userData.username,
+            "role": role ? role.toJSON() : null ,
+            "user_status": userStatus ? userStatus.toJSON() : null,
+            "createdAt": userData.createdAt,
+        };
+        
+        return res.json({ success: true, userData: modUserData });
     } catch (error) {
         console.error(error);
         return res.status(500).json({ success: false, message: error.message });
