@@ -24,7 +24,7 @@ const SideNavbar = ({ defaultActive = "Dashboard" }) => {
 
     const menuRef = useRef();
 
-    const { userData, setToken, setUserData } = useContext(AppContext);
+    const { userData, logout } = useContext(AppContext);
     const navigate = useNavigate();
 
     /* close dropdown when clicking outside */
@@ -44,10 +44,8 @@ const SideNavbar = ({ defaultActive = "Dashboard" }) => {
         navigate(item.path);
     };
 
-    const logout = () => {
-        localStorage.removeItem("token");
-        setToken(false);
-        setUserData(false);
+    const onLogout = () => {
+        logout();
         navigate("/login", { replace: true });
     };
 
@@ -150,7 +148,7 @@ const SideNavbar = ({ defaultActive = "Dashboard" }) => {
                             </button>
 
                             <button
-                                onClick={logout}
+                                onClick={onLogout}
                                 className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-red-50 rounded-lg"
                             >
                                 Log Out
