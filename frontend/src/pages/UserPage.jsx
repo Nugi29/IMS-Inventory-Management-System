@@ -115,7 +115,7 @@ export const UserPage = () => {
                     </div>
                     <div className="relative">
                         <select
-                            className="appearance-none bg-white border border-slate-200 dark:border-slate-800 rounded-xl px-6 pr-12 py-4 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none min-w-[200px]"
+                            className="appearance-none bg-white border border-slate-200 dark:border-slate-800 rounded-xl px-6 pr-12 py-4 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none min-w-50"
                             value={selectedRole}
                             onChange={(event) => {
                                 setSelectedRole(event.target.value)
@@ -156,14 +156,14 @@ export const UserPage = () => {
                     >
                         Reset Filters
                     </button>
-                    <button className="bg-[var(--color-primary)] text-[var(--color-on-primary)] px-5 py-3 rounded-xl font-bold flex items-center gap-2 shadow-sm hover:brightness-95 transition-all active:scale-95 duration-150 whitespace-nowrap" type="button" onClick={() => navigate('/userform', { state: { mode: 'add' } })}>
+                    <button className="bg-primary text-(--color-on-primary) px-5 py-3 rounded-xl font-bold flex items-center gap-2 shadow-sm hover:brightness-95 transition-all active:scale-95 duration-150 whitespace-nowrap" type="button" onClick={() => navigate('/userform', { state: { mode: 'add' } })}>
                         <span className="material-symbols-outlined" data-icon="add">add</span>
                         Add New User
                     </button>
                 </div>
             </div>
             {/* User Data Table Section */}
-            <div className="bg-white border border-slate-200 dark:border-slate-800 rounded-[2rem] shadow-sm overflow-hidden p-2">
+            <div className="bg-white border border-slate-200 dark:border-slate-800 rounded-4xl shadow-sm overflow-hidden p-2">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-separate border-spacing-y-1">
                         <thead>
@@ -208,9 +208,7 @@ export const UserPage = () => {
                                     </td>
                                     <td className="px-6 py-4 text-right rounded-r-xl">
                                         <div className="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                            <button className="p-2 hover:bg-white rounded-lg transition-colors text-slate-400 hover:text-primary" aria-label={`View ${user.username}`} type="button"><span className="material-symbols-outlined text-[20px]" data-icon="visibility">visibility</span></button>
                                             <button className="p-2 hover:bg-white rounded-lg transition-colors text-slate-400 hover:text-primary" aria-label={`Edit ${user.username}`} type="button" onClick={() => navigate('/userform', { state: { mode: 'update', user } })}><span className="material-symbols-outlined text-[20px]" data-icon="edit">edit</span></button>
-                                            <button className="p-2 hover:bg-white rounded-lg transition-colors text-slate-400 hover:text-error" aria-label={`Delete ${user.username}`} type="button"><span className="material-symbols-outlined text-[20px]" data-icon="delete">delete</span></button>
                                         </div>
                                     </td>
                                 </tr>

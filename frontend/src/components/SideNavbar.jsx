@@ -1,31 +1,89 @@
 import { useState, useRef, useEffect, useContext } from "react";
 import { AppContext } from "../context/AppContext";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const NAV_ITEMS = [
-    { label: "Dashboard", icon: "dashboard", path: "/" },
-    { label: "Items", icon: "inventory_2", path: "/items" },
-    { label: "Categories", icon: "category", path: "/categories" },
-    { label: "Suppliers", icon: "local_shipping", path: "/suppliers" },
-    { label: "GRN", icon: "input", path: "/grn" },
-    { label: "Sales", icon: "point_of_sale", path: "/sales" },
-    { label: "Stock Movement", icon: "compare_arrows", path: "/stock-movement" },
-    { label: "Users", icon: "group", path: "/users" },
-    { label: "Reports", icon: "assessment", path: "/reports" },
-    { label: "Settings", icon: "settings", path: "/settings" },
-];
+  {
+    label: "Dashboard",
+    icon: "dashboard",
+    path: "/",
+    access: ["Admin", "Manager", "StoreKeeper", "Cashier"],
+  },
 
+  {
+    label: "Items",
+    icon: "inventory_2",
+    path: "/items",
+    access: ["Admin", "Manager", "StoreKeeper"],
+  },
+
+  {
+    label: "Categories",
+    icon: "category",
+    path: "/categories",
+    access: ["Admin", "Manager"],
+  },
+
+  {
+    label: "Suppliers",
+    icon: "local_shipping",
+    path: "/suppliers",
+    access: ["Admin", "Manager", "StoreKeeper"],
+  },
+
+  {
+    label: "GRN",
+    icon: "input",
+    path: "/grn",
+    access: ["Admin", "StoreKeeper"],
+  },
+
+  {
+    label: "Sales",
+    icon: "point_of_sale",
+    path: "/sales",
+    access: ["Admin", "Cashier"],
+  },
+
+  {
+    label: "Stock Movement",
+    icon: "compare_arrows",
+    path: "/stock-movement",
+    access: ["Admin", "Manager"],
+  },
+
+  {
+    label: "Users",
+    icon: "group",
+    path: "/users",
+    access: ["Admin"],
+  },
+
+  {
+    label: "Reports",
+    icon: "assessment",
+    path: "/reports",
+    access: ["Admin", "Manager"],
+  },
+
+  {
+    label: "Settings",
+    icon: "settings",
+    path: "/settings",
+    access: ["Admin"],
+  },
+];
 const FALLBACK_AVATAR =
     "https://lh3.googleusercontent.com/aida-public/AB6AXuDDomMYVtyZqZfIRbfYixjbaAmONSiEZhd1dcpKXZ7s87rXXbP8-qi1KSmghPkvKjpyzNPjetvI9Xx-P_YTwjOcXVj51L2DOreNWfouW9ptN3-UNzoQPwNmslkY3TRM5bRIvawgvj0gXoYCjZymLNhzQ0qM09dS29xYJUU81yuPBQVxxWWv0V9KceclekCDVtMqd0RmatB7mQ0yDlLAbeWVluJ6W-6F10SPDi5HeOmNswbE5J9Cz05zvpkK5ZT0Aw3LTtAGtNw-7HBr";
 
-const SideNavbar = ({ defaultActive = "Dashboard" }) => {
-    const [active, setActive] = useState(defaultActive);
+const SideNavbar = () => {
     const [menuOpen, setMenuOpen] = useState(false);
 
     const menuRef = useRef();
 
     const { userData, logout } = useContext(AppContext);
     const navigate = useNavigate();
+    const location = useLocation();
 
     /* close dropdown when clicking outside */
     useEffect(() => {
@@ -40,8 +98,20 @@ const SideNavbar = ({ defaultActive = "Dashboard" }) => {
     }, []);
 
     const selectNav = (item) => {
-        setActive(item.label);
         navigate(item.path);
+    };
+
+    const isItemActive = (itemPath) => {
+        if (itemPath === "/") {
+            return location.pathname === "/";
+        }
+
+        // Keep Users highlighted for related user-management routes.
+        if (itemPath === "/users" && location.pathname.startsWith("/userform")) {
+            return true;
+        }
+
+        return location.pathname === itemPath || location.pathname.startsWith(`${itemPath}/`);
     };
 
     const onLogout = () => {
@@ -80,7 +150,14 @@ const SideNavbar = ({ defaultActive = "Dashboard" }) => {
             {/* Navigation */}
             <nav className="flex-1 space-y-0.5">
                 {NAV_ITEMS.map((item) => {
-                    const isActive = active === item.label;
+                    // Check if the user has access to this navigation item
+                    const hasAccess = userData?.role && item.access.includes(userData.role.name);
+
+                    if (!hasAccess) {
+                        return null;
+                    }
+
+                    const isActive = isItemActive(item.path);
 
                     return (
                         <button

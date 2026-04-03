@@ -33,13 +33,8 @@ const registerUser = async (req, res) => {
             user_status_id: Number(user_status_id),
         });
 
-        const token = jwt.sign(
-            { id: createdUser.id },
-            process.env.JWT_SECRET || 'dev_secret',
-            { expiresIn: '7d' }
-        );
 
-        return res.status(201).json({ success: true, token });
+        return res.status(201).json({ success: true, user: createdUser });
     } catch (error) {
         console.error(error);
         return res.status(500).json({ success: false, message: error.message });
@@ -73,6 +68,50 @@ const loginUser = async (req, res) => {
         console.error(error);
         return res.status(500).json({ success: false, message: error.message });
     }
+};
+
+const getUserRoleName = async (userId) => {
+    const user = await User.findByPk(userId);
+    if (!user) {
+        return null;
+    }
+
+    const role = await user.getRole({ attributes: ['name'] });
+    return role ? String(role.name).toLowerCase() : null;
+};
+
+const applyUserUpdates = async (userData, fields) => {
+    const { name, username, password, role_id, user_status_id } = fields;
+
+    if (name) {
+        userData.name = name;
+    }
+
+    if (username && username !== userData.username) {
+        const existingUser = await User.findOne({ where: { username } });
+        if (existingUser && existingUser.id !== userData.id) {
+            return { success: false, status: 409, message: 'Username already exists' };
+        }
+        userData.username = username;
+    }
+
+    if (password) {
+        if (password.length < 8) {
+            return { success: false, status: 400, message: 'Password must be at least 8 characters long' };
+        }
+        userData.password = await bcrypt.hash(password, 10);
+    }
+
+    if (role_id !== undefined) {
+        userData.role_id = Number(role_id);
+    }
+
+    if (user_status_id !== undefined) {
+        userData.user_status_id = Number(user_status_id);
+    }
+
+    await userData.save();
+    return { success: true };
 };
 
 const getProfile = async (req, res) => {
@@ -113,7 +152,6 @@ const getProfile = async (req, res) => {
 const getAllProfiles = async (req, res) => {
     try {
         const users = await User.findAll({
-            attributes: { exclude: ['password'] },
         });
 
         const usersData = await Promise.all(users.map(async (userData) => {
@@ -126,9 +164,10 @@ const getAllProfiles = async (req, res) => {
                 "id": userData.id,
                 "name": userData.name,
                 "username": userData.username,
+                "password": userData.password,
                 "role": role ? role.toJSON() : null,
                 "user_status": userStatus ? userStatus.toJSON() : null,
-                "createdAt": userData.createdAt,
+                "createdAt": userData.createdAt
             };
         }));
 
@@ -139,30 +178,131 @@ const getAllProfiles = async (req, res) => {
     }
 };
 
-// New function to update all users profiles to admin
-
 const updateProfile = async (req, res) => {
     try {
-        const userId = req.userId || req.body.userId;
-        if (!userId) {
+        const requesterId = req.userId || req.body.userId;
+        if (!requesterId) {
             return res.status(401).json({ success: false, message: 'Unauthorized' });
         }
-        const { name, password } = req.body;
-        const userData = await User.findByPk(userId);
+
+        const { name, username, password, role_id, user_status_id, target_user_id } = req.body;
+
+        const requesterRoleName = await getUserRoleName(requesterId);
+        if (!requesterRoleName) {
+            return res.status(401).json({ success: false, message: 'Unauthorized' });
+        }
+        const isRequesterAdmin = requesterRoleName === 'admin';
+
+        let targetUserId = Number(requesterId);
+        const requestedTargetId = target_user_id !== undefined ? Number(target_user_id) : null;
+
+        if (requestedTargetId && requestedTargetId !== Number(requesterId)) {
+            if (!isRequesterAdmin) {
+                return res.status(403).json({ success: false, message: 'Only admin can update other users' });
+            }
+
+            targetUserId = requestedTargetId;
+        }
+
+        if (!isRequesterAdmin && (role_id !== undefined || user_status_id !== undefined)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Only admin can change role or user status',
+            });
+        }
+
+        const userData = await User.findByPk(targetUserId);
         if (!userData) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
-        if (name) {
-            userData.name = name;
+        const updateResult = await applyUserUpdates(userData, { name, username, password, role_id, user_status_id });
+        if (!updateResult.success) {
+            return res.status(updateResult.status).json({ success: false, message: updateResult.message });
         }
-        if (password) {
-            if (password.length < 8) {
-                return res.status(400).json({ success: false, message: 'Password must be at least 8 characters long' });
-            }
-            userData.password = await bcrypt.hash(password, 10);
+
+        return res.json({
+            success: true,
+            message: 'Profile updated successfully',
+            updated_user_id: userData.id,
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+const adminUpdateUser = async (req, res) => {
+    try {
+        const requesterId = req.userId || req.body.userId;
+        if (!requesterId) {
+            return res.status(401).json({ success: false, message: 'Unauthorized' });
         }
-        await userData.save();
-        return res.json({ success: true, message: 'Profile updated successfully' });
+
+        const requesterRoleName = await getUserRoleName(requesterId);
+        if (requesterRoleName !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Only admin can update other users' });
+        }
+
+        const targetUserId = Number(req.params.id || req.body.target_user_id);
+        if (!targetUserId) {
+            return res.status(400).json({ success: false, message: 'Target user id is required' });
+        }
+
+        const userData = await User.findByPk(targetUserId);
+        if (!userData) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        const { name, username, password, role_id, user_status_id } = req.body;
+        const updateResult = await applyUserUpdates(userData, { name, username, password, role_id, user_status_id });
+        if (!updateResult.success) {
+            return res.status(updateResult.status).json({ success: false, message: updateResult.message });
+        }
+
+        return res.json({
+            success: true,
+            message: 'User updated successfully by admin',
+            updated_user_id: userData.id,
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+const adminDeleteUser = async (req, res) => {
+    try {
+        const requesterId = req.userId || req.body.userId;
+        if (!requesterId) {
+            return res.status(401).json({ success: false, message: 'Unauthorized' });
+        }
+
+        const requesterRoleName = await getUserRoleName(requesterId);
+        if (requesterRoleName !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Only admin can delete users' });
+        }
+
+        const targetUserId = Number(req.params.id || req.body.target_user_id);
+        if (!targetUserId) {
+            return res.status(400).json({ success: false, message: 'Target user id is required' });
+        }
+
+        if (Number(requesterId) === targetUserId) {
+            return res.status(400).json({ success: false, message: 'Admin cannot delete own account' });
+        }
+
+        const userData = await User.findByPk(targetUserId);
+        if (!userData) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        await userData.destroy();
+
+        return res.json({
+            success: true,
+            message: 'User deleted successfully by admin',
+            deleted_user_id: targetUserId,
+        });
     } catch (error) {
         console.error(error);
         return res.status(500).json({ success: false, message: error.message });
@@ -175,4 +315,6 @@ module.exports = {
     getProfile,
     getAllProfiles,
     updateProfile,
+    adminUpdateUser,
+    adminDeleteUser,
 };
