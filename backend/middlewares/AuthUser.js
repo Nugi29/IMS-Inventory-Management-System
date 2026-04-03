@@ -1,4 +1,7 @@
 const jwt = require('jsonwebtoken');
+const { models } = require('../config/db');
+
+const { user: User } = models;
 
 // user authentication middleware
 const authUser = async (req, res, next) => {
@@ -28,4 +31,30 @@ const authUser = async (req, res, next) => {
     }
 };
 
+const requireAdmin = async (req, res, next) => {
+    try {
+        const requesterId = req.userId || (req.body && req.body.userId);
+        if (!requesterId) {
+            return res.status(401).json({ success: false, message: 'Unauthorized' });
+        }
+
+        const requester = await User.findByPk(requesterId);
+        if (!requester) {
+            return res.status(401).json({ success: false, message: 'Unauthorized' });
+        }
+
+        const requesterRole = await requester.getRole({ attributes: ['name'] });
+        const isAdmin = requesterRole && String(requesterRole.name).toLowerCase() === 'admin';
+        if (!isAdmin) {
+            return res.status(403).json({ success: false, message: 'Only admin can perform this action' });
+        }
+
+        next();
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = authUser;
+module.exports.requireAdmin = requireAdmin;

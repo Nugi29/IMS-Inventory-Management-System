@@ -26,6 +26,12 @@ const AppContextProvider = (props) => {
         }
     };
 
+    const logout = () => {
+        localStorage.removeItem('token');
+        setToken(false);
+        setUserData(false);
+    };
+
     const value = {
         token,
         setToken,
@@ -33,6 +39,7 @@ const AppContextProvider = (props) => {
         userData,
         setUserData,
         loadUserProfileData,
+        logout,
     };
 
     useEffect(() => {

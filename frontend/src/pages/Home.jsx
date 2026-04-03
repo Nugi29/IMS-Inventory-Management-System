@@ -8,6 +8,7 @@ const Home = () => {
   // Determine the header title based on current string route path
   let currentModule = "Dashboard"
   if (location.pathname.includes('/users')) currentModule = "User Management"
+  if (location.pathname.includes('/userform')) currentModule = "User Profile Management"
   else if (location.pathname.includes('/items')) currentModule = "Item Management"
   else if (location.pathname.includes('/categories')) currentModule = "Categories"
   else if (location.pathname.includes('/suppliers')) currentModule = "Suppliers"

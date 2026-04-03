@@ -7,6 +7,7 @@ import "react-toastify/dist/ReactToastify.css"
 import { AppContext } from "./context/AppContext"
 import { UserPage } from "./pages/UserPage"
 import HomeContent from "./components/HomeContent"
+import { Userform } from "./components/Userform"
 
 const ProtectedRoute = () => {
   const { token } = useContext(AppContext)
@@ -28,6 +29,7 @@ function App() {
           <Route element={<Home />}>
             <Route path="/" element={<HomeContent />} />
             <Route path="/profile" element={<HomeContent />} />
+            <Route path="/userform" element={<Userform />} />
             <Route path="/items" element={<HomeContent />} />
             <Route path="/categories" element={<HomeContent />} />
             <Route path="/suppliers" element={<HomeContent />} />
