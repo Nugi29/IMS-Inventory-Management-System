@@ -41,7 +41,6 @@ function App() {
             <Route path="/items" element={<ItemPage />} />
             <Route path="/itemform" element={<ItemForm />} />
             <Route path="/categories" element={<HomeContent />} />
-            <Route path="/suppliers" element={<HomeContent />} />
             <Route path="/po" element={<PoPage />} />
             <Route path="/poform" element={<PoForm />} />
             <Route path="/sales" element={<SalesPage />} />
