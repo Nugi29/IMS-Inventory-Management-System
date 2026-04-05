@@ -1,8 +1,6 @@
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
 const { models } = require('../config/db');
 
-const { user: User } = models;
+const { supplier: Supplier } = models;
 
 //create Supplier
 const createSupplier = async (req, res) => {
@@ -15,7 +13,7 @@ const createSupplier = async (req, res) => {
         return res.status(201).json({ success: true, supplier: newSupplier, message: 'Supplier created successfully' });
     } catch (error) {
         console.error(error);
-        return res.status(500).json({ success: false, message: 'Failed to create supplier' });
+        return res.status(500).json({ success: false, message: error.message || 'Failed to create supplier' });
     }
 };
 
@@ -26,7 +24,7 @@ const getAllSuppliers = async (req, res) => {
         return res.status(200).json({ success: true, suppliers });
     } catch (error) {
         console.error(error);
-        return res.status(500).json({ success: false, message: 'Failed to fetch suppliers' });
+        return res.status(500).json({ success: false, message: error.message || 'Failed to fetch suppliers' });
     }
 };
 
@@ -41,13 +39,16 @@ const getSupplierById = async (req, res) => {
         return res.status(200).json({ success: true, supplier });
     } catch (error) {
         console.error(error);
-        return res.status(500).json({ success: false, message: 'Failed to fetch supplier' });
+        return res.status(500).json({ success: false, message: error.message || 'Failed to fetch supplier' });
     }
 };
 
 //Get supplier by name
 const getSupplierByName = async (req, res) => {
-    const { name } = req.query;
+    const name = (req.params && req.params.name) || (req.query && req.query.name);
+    if (!name) {
+        return res.status(400).json({ success: false, message: 'Name is required' });
+    }
     try {
         const suppliers = await Supplier.findAll({ where: { name } });
         if (suppliers.length === 0) {
@@ -56,7 +57,7 @@ const getSupplierByName = async (req, res) => {
         return res.status(200).json({ success: true, suppliers });
     }catch (error) {
         console.error(error);
-        return res.status(500).json({ success: false, message: 'Failed to fetch suppliers' });
+        return res.status(500).json({ success: false, message: error.message || 'Failed to fetch suppliers' });
     }   
 };
 
@@ -73,7 +74,7 @@ const updateSupplier = async (req, res) => {
         return res.status(200).json({ success: true, supplier, message: 'Supplier updated successfully' });
     } catch (error) {
         console.error(error);
-        return res.status(500).json({ success: false, message: 'Failed to update supplier' });
+        return res.status(500).json({ success: false, message: error.message || 'Failed to update supplier' });
     }
 };
 
@@ -89,7 +90,7 @@ const deleteSupplier = async (req, res) => {
         return res.status(200).json({ success: true, message: 'Supplier deleted successfully' });
     } catch (error) {
         console.error(error);
-        return res.status(500).json({ success: false, message: 'Failed to delete supplier' });
+        return res.status(500).json({ success: false, message: error.message || 'Failed to delete supplier' });
     }
 };
 
