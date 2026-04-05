@@ -1,6 +1,11 @@
 const { models } = require('../config/db');
 
 const { supplier: Supplier } = models;
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const { models } = require('../config/db');
+
+const { user: User } = models;
 
 //create Supplier
 const createSupplier = async (req, res) => {

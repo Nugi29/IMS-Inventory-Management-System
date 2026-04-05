@@ -8,6 +8,8 @@ const router = express.Router();
 router.post('/', authUser, authUser.requireAdmin, createSupplier);
 router.get('/', authUser, getAllSuppliers);
 router.get('/search/:name', authUser, getSupplierByName);
+router.post('/create', authUser, authUser.requireAdmin, createSupplier);
+router.get('/all', authUser, getAllSuppliers);
 router.get('/:id', authUser, getSupplierById);
 router.get('/search', authUser, getSupplierByName);
 router.put('/update/:id', authUser, authUser.requireAdmin, updateSupplier);
