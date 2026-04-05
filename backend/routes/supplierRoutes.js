@@ -1,5 +1,6 @@
 const express = require('express');
 const { createSupplier, getAllSuppliers, getSupplierById, getSupplierByName, updateSupplier, deleteSupplier } = require('../controllers/SupplierController');
+const { createSupplier, getAllSuppliers, getSupplierById, getSupplierByName, updateSupplier, deleteSupplier } = require('../controllers/Supplier');
 const authUser = require('../middlewares/AuthUser');
 
 const router = express.Router();
