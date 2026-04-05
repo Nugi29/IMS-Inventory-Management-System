@@ -2,6 +2,7 @@ import { useContext } from "react"
 import { Navigate, Outlet, Route, Routes } from "react-router-dom"
 import Login from "./pages/Login"
 import Home from "./pages/Home"
+import SupplierPage from "./pages/SupplierPage"
 import { ToastContainer } from "react-toastify"
 import "react-toastify/dist/ReactToastify.css"
 import { AppContext } from "./context/AppContext"
@@ -32,13 +33,13 @@ function App() {
             <Route path="/userform" element={<Userform />} />
             <Route path="/items" element={<HomeContent />} />
             <Route path="/categories" element={<HomeContent />} />
-            <Route path="/suppliers" element={<HomeContent />} />
             <Route path="/grn" element={<HomeContent />} />
             <Route path="/sales" element={<HomeContent />} />
             <Route path="/stock-movement" element={<HomeContent />} />
             <Route path="/users" element={<UserPage />} />
             <Route path="/reports" element={<HomeContent />} />
             <Route path="/settings" element={<HomeContent />} />
+            <Route path="/suppliers" element={<SupplierPage />} />
           </Route>
         </Route>
         <Route element={<AuthRoute />}>
