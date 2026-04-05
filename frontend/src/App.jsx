@@ -45,6 +45,8 @@ function App() {
             <Route path="/poform" element={<PoForm />} />
             <Route path="/sales" element={<SalesPage />} />
             <Route path="/grns" element={<GrnPage />} />
+            <Route path="/grn" element={<HomeContent />} />
+            <Route path="/sales" element={<HomeContent />} />
             <Route path="/stock-movement" element={<HomeContent />} />
             <Route path="/users" element={<UserPage />} />
             <Route path="/reports" element={<HomeContent />} />
