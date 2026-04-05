@@ -5,7 +5,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { models } = require('../config/db');
 
-const { user: User } = models;
+const { supplier: Supplier } = models;
 
 //create Supplier
 const createSupplier = async (req, res) => {
