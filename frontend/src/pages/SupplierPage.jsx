@@ -64,14 +64,14 @@ const SupplierPage = () => {
                     <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Suppliers</p>
                     <p className="mt-2 text-3xl font-bold text-slate-900">{totalSuppliers}</p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                {/* <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                     <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">With Contact</p>
                     <p className="mt-2 text-3xl font-bold text-emerald-600">{suppliersWithContact}</p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                     <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">With Address</p>
                     <p className="mt-2 text-3xl font-bold text-slate-500">{suppliersWithAddress}</p>
-                </div>
+                </div> */}
             </div>
 
             <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
