@@ -261,7 +261,6 @@ const SupplierPage = () => {
                             {isLoadingSuppliers && (
                                 <tr>
                                     <td colSpan={6} className="px-6 py-10 text-center text-slate-500">
-                                    <td colSpan={5} className="px-6 py-16 text-center text-slate-500">
                                         Loading suppliers...
                                     </td>
                                 </tr>
@@ -269,10 +268,7 @@ const SupplierPage = () => {
 
                             {!isLoadingSuppliers && paginatedSuppliers.map((supplier) => (
                                 <tr key={supplier.id || supplier.name} className="bg-slate-50/50 hover:bg-slate-100/50 transition-colors group">
-                                    <td className="px-6 py-4 rounded-l-xl text-sm font-bold text-on-surface">
-                            {!isLoadingSuppliers && filteredSuppliers.map((supplier) => (
-                                <tr key={supplier.id || supplier.name} className="group bg-slate-50/40 transition hover:bg-slate-50">
-                                    <td className="px-6 py-4 rounded-l-2xl">
+                                    <td className="px-6 py-4 rounded-l-xl">
                                         <div className="flex items-center gap-4">
                                             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-sm font-bold text-white">
                                                 {supplier.name
@@ -292,7 +288,7 @@ const SupplierPage = () => {
                                     <td className="px-6 py-4 text-sm text-slate-500">{supplier.email || '-'}</td>
                                     <td className="px-6 py-4 text-sm text-slate-500">{supplier.address || '-'}</td>
                                     <td className="px-6 py-4 text-center">
-                                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 ${supplier.supplier_status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-600'} font-bold text-[10px] rounded-full uppercase tracking-tight font-label`}>
+                                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 ${getStatusClasses(supplier.supplier_status)} font-bold text-[10px] rounded-full uppercase tracking-tight font-label`}>
                                             <span className={`w-1.5 h-1.5 rounded-full ${supplier.supplier_status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`}></span>
                                             {formatSupplierStatus(supplier.supplier_status)}
                                         </span>
@@ -308,16 +304,6 @@ const SupplierPage = () => {
                                                 <span className="material-symbols-outlined text-[20px]">edit</span>
                                             </button>
                                         </div>
-                                                <p className="text-sm font-semibold text-slate-900">{supplier.name || '-'}</p>
-                                                <p className="text-xs text-slate-400">Backend supplier record</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-slate-700">{supplier.phone || '-'}</td>
-                                    <td className="px-6 py-4 text-sm text-slate-700">{supplier.email || '-'}</td>
-                                    <td className="px-6 py-4 text-sm text-slate-700">{supplier.address || '-'}</td>
-                                    <td className="px-6 py-4 rounded-r-2xl text-right text-xs font-semibold uppercase tracking-wider text-slate-400">
-                                        {supplier.id || '-'}
                                     </td>
                                 </tr>
                             ))}
@@ -326,9 +312,6 @@ const SupplierPage = () => {
                                 <tr>
                                     <td colSpan={6} className="px-6 py-14 text-center text-slate-500">
                                         <p className="text-sm font-semibold text-on-surface">No suppliers found</p>
-                                    <td colSpan={5} className="px-6 py-16 text-center text-slate-500">
-                                        <p className="text-sm font-semibold text-slate-900">No suppliers found</p>
-                                        <p className="mt-1 text-xs">The backend returned no matching supplier records.</p>
                                     </td>
                                 </tr>
                             )}
@@ -375,9 +358,8 @@ const SupplierPage = () => {
                 </div>
             </div>
         </main>
-            </div>
-        </section>
     )
 }
+
 
 export default SupplierPage
