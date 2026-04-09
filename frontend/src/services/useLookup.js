@@ -8,6 +8,7 @@ export function useLookup() {
     const [roles, setRoles] = useState([]);
     const [statuses, setStatuses] = useState([]);
     const [categories, setCategories] = useState([]);
+    const [itemStatuses, setItemStatuses] = useState([]);
     const [isLoadingLookup, setIsLoadingLookup] = useState(false);
 
     const normalizeLookupItem = (item) => ({
@@ -94,6 +95,28 @@ export function useLookup() {
         }
     }, [backendUrl]);
 
+    const getItemStatuses = useCallback(async () => {
+        try {
+            const { data } = await axios.get(`${backendUrl}/api/list/get-all-item-statuses`);
+            if (data?.success || Array.isArray(data)) {
+                const statusList = pickFirstArray(data, ['itemStatuses', 'statuses', 'statusData', 'data'])
+                    .map(normalizeLookupItem)
+                    .filter((status) => status.id !== undefined && status.id !== null && status.label);
+
+                setItemStatuses(statusList);
+                return true;
+            }
+
+            setItemStatuses([]);
+            toast.error(data?.message || "Failed to load item statuses");
+            return false;
+        } catch (error) {
+            setItemStatuses([]);
+            toast.error(error?.response?.data?.message || error?.message || "Failed to load lookup data");
+            return false;
+        }
+    }, [backendUrl]);
+
     // Auto-load categories on mount
     useEffect(() => {
         getCategories();
@@ -102,18 +125,20 @@ export function useLookup() {
     const loadLookupData = useCallback(async () => {
         setIsLoadingLookup(true);
         try {
-            const [rolesLoaded, statusesLoaded, categoriesLoaded] = await Promise.all([getUserRoles(), getUserStatuses(), getCategories()]);
-            return rolesLoaded && statusesLoaded && categoriesLoaded;
+            const [rolesLoaded, statusesLoaded, categoriesLoaded, itemStatusesLoaded] = await Promise.all([getUserRoles(), getUserStatuses(), getCategories(), getItemStatuses()]);
+            return rolesLoaded && statusesLoaded && categoriesLoaded && itemStatusesLoaded;
         } finally {
             setIsLoadingLookup(false);
         }
-    }, [getUserRoles, getUserStatuses, getCategories]);
+    }, [getUserRoles, getUserStatuses, getCategories, getItemStatuses]);
 
     return {
         roles,
         statuses,
         categories,
+        itemStatuses,
         getCategories,
+        getItemStatuses,
         refreshCategories: getCategories,
         isLoadingLookup,
         getUserRoles,

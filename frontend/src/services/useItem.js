@@ -60,7 +60,9 @@ export function useItem() {
         sku:            item.sku?.trim(),
         category_id:    item.category_id,
         supplier_id:    item.supplier_id,
+        item_status_id: item.item_status_id,
         selling_price:  item.selling_price,
+        quantity:       item.quantity,
         reorder_level:  item.reorder_level,
       }).filter(([, v]) => v !== undefined && v !== null && v !== "")
     );

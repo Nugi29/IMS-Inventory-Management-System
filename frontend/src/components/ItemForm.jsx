@@ -8,7 +8,7 @@ export const ItemForm = () => {
     const navigate = useNavigate()
     const location = useLocation()
     const { items, addItem, updateItem, deleteItem } = useItem()
-    const { categories: fetchedCategories, refreshCategories } = useLookup()
+    const { categories: fetchedCategories, itemStatuses, refreshCategories, getItemStatuses } = useLookup()
 
     const mode = location.state?.mode === 'update' ? 'update' : location.state?.mode === 'view' ? 'view' : 'add'
     const selectedItem = location.state?.item
@@ -19,7 +19,9 @@ export const ItemForm = () => {
         sku: selectedItem?.sku || '',
         category_id: selectedItem?.category?.id || selectedItem?.category?.categoryId || selectedItem?.category_id || '',
         supplier_id: selectedItem?.supplier?.id || selectedItem?.supplier?.supplierId || selectedItem?.supplier_id || '',
+        item_status_id: selectedItem?.item_status?.id || selectedItem?.item_status_id || 1,
         selling_price: selectedItem?.selling_price || '',
+        quantity: selectedItem?.current_stock || selectedItem?.quantity || 0,
         reorder_level: selectedItem?.reorder_level || '',
         createdAt: selectedItem?.createdAt ? new Date(selectedItem.createdAt).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
     })
@@ -27,7 +29,8 @@ export const ItemForm = () => {
 
     useEffect(() => {
         refreshCategories?.()
-    }, [refreshCategories])
+        getItemStatuses?.()
+    }, [refreshCategories, getItemStatuses])
 
     const categories = useMemo(() => {
         if (fetchedCategories && fetchedCategories.length > 0) {
@@ -91,6 +94,11 @@ export const ItemForm = () => {
             return
         }
 
+        if (!formData.item_status_id) {
+            toast.error('Please select item status')
+            return
+        }
+
         if (!formData.selling_price) {
             toast.error('Selling price is required')
             return
@@ -105,7 +113,9 @@ export const ItemForm = () => {
             sku: formData.sku.trim(),
             category_id: Number(formData.category_id),
             supplier_id: Number(formData.supplier_id),
+            item_status_id: Number(formData.item_status_id),
             selling_price: parseFloat(formData.selling_price),
+            quantity: parseInt(formData.quantity) || 0,
             reorder_level: parseInt(formData.reorder_level) || 0,
             createdAt: createdAtValue,
         }
@@ -235,9 +245,9 @@ export const ItemForm = () => {
 
                         {/* Category & Supplier */}
                         <div className="space-y-3 border-b border-slate-200 pb-4">
-                            <h2 className="text-sm font-semibold text-slate-900">Category & Supplier</h2>
+                            <h2 className="text-sm font-semibold text-slate-900">Item Condition</h2>
                             
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-2">
                                     <label htmlFor="category_id" className="text-xs font-semibold uppercase tracking-wide text-slate-600">Category *</label>
                                     <select
@@ -251,6 +261,22 @@ export const ItemForm = () => {
                                         <option value="">Select a category</option>
                                         {categories.map((cat) => (
                                             <option key={cat.id} value={cat.id}>{cat.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <label htmlFor="item_status_id" className="text-xs font-semibold uppercase tracking-wide text-slate-600">Item Status *</label>
+                                    <select
+                                        id="item_status_id"
+                                        name="item_status_id"
+                                        value={formData.item_status_id}
+                                        onChange={handleChange}
+                                        disabled={isReadOnly}
+                                        className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
+                                    >
+                                        <option value="">Select item status</option>
+                                        {itemStatuses.map((status) => (
+                                            <option key={status.id} value={status.id}>{status.label}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -277,7 +303,7 @@ export const ItemForm = () => {
                         <div className="space-y-3">
                             <h2 className="text-sm font-semibold text-slate-900">Pricing & Stock</h2>
                             
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-2">
                                     <label htmlFor="selling_price" className="text-xs font-semibold uppercase tracking-wide text-slate-600">Selling Price *</label>
                                     <input
@@ -289,6 +315,21 @@ export const ItemForm = () => {
                                         readOnly={isReadOnly}
                                         placeholder="0.00"
                                         step="0.01"
+                                        min="0"
+                                        className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm placeholder-slate-400 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
+                                        disabled={isReadOnly}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label htmlFor="quantity" className="text-xs font-semibold uppercase tracking-wide text-slate-600">Quantity</label>
+                                    <input
+                                        id="quantity"
+                                        type="number"
+                                        name="quantity"
+                                        value={formData.quantity}
+                                        onChange={handleChange}
+                                        readOnly={isReadOnly}
+                                        placeholder="0"
                                         min="0"
                                         className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm placeholder-slate-400 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
                                         disabled={isReadOnly}

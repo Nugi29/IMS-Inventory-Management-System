@@ -3,12 +3,26 @@ import { useItem } from '../services/useItem';
 import { useLookup } from '../services/useLookup';
 import { useNavigate } from 'react-router-dom';
 
+const ITEM_STATUS_FALLBACK = {
+    1: 'Active',
+    2: 'Inactive',
+    3: 'Discontinued',
+    4: 'Out of Stock',
+}
+
 export const ItemPage = () => {
     const { items, isLoadingItems } = useItem();
-    const { categories: lookupCategories } = useLookup();
+    const { categories: lookupCategories, itemStatuses } = useLookup();
     const navigate = useNavigate();
 
     const getCategoryName = (item) => item?.category?.name || item?.category?.categoryName || item?.category_name || item?.categoryName || 'N/A'
+
+    const getItemStatusName = (item) => {
+        const itemStatusId = Number(item?.item_status_id ?? item?.item_status?.id)
+        const lookupStatus = itemStatuses.find((status) => Number(status?.id) === itemStatusId)
+
+        return lookupStatus?.label || item?.item_status?.name || item?.item_status_name || ITEM_STATUS_FALLBACK[itemStatusId] || 'Unknown'
+    }
 
 
     const [searchTerm, setSearchTerm] = useState('')
@@ -65,32 +79,6 @@ export const ItemPage = () => {
         setSearchTerm('')
         setSelectedCategory('All Categories')
         setCurrentPage(1)
-    }
-
-    const getStockStatusColor = (status) => {
-        switch (status) {
-            case 'Low':
-                return 'bg-tertiary-container/10 text-tertiary'
-            case 'In Transit':
-                return 'bg-blue-50 text-blue-600'
-            case 'Healthy':
-                return 'bg-emerald-50 text-emerald-600'
-            default:
-                return 'bg-slate-50 text-slate-600'
-        }
-    }
-
-    const getStockStatusDot = (status) => {
-        switch (status) {
-            case 'Low':
-                return 'bg-tertiary animate-pulse'
-            case 'In Transit':
-                return 'bg-blue-600'
-            case 'Healthy':
-                return 'bg-emerald-500'
-            default:
-                return 'bg-slate-500'
-        }
     }
 
     return (
@@ -160,14 +148,13 @@ export const ItemPage = () => {
                                 <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider font-label">Supplier</th>
                                 <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider font-label text-right">Selling Price</th>
                                 <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider font-label text-center">Stock Status</th>
-                                <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider font-label">Reorder Level</th>
                                 <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider font-label text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="space-y-2">
                             {isLoadingItems && (
                                 <tr>
-                                    <td colSpan={8} className="px-6 py-10 text-center text-slate-500">
+                                    <td colSpan={7} className="px-6 py-10 text-center text-slate-500">
                                         Loading items...
                                     </td>
                                 </tr>
@@ -192,13 +179,9 @@ export const ItemPage = () => {
                                         Rs {parseFloat(item.selling_price || 0).toFixed(2)}
                                     </td>
                                     <td className="px-6 py-4 text-center">
-                                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 ${getStockStatusColor(item.stock_status)} font-bold text-[10px] rounded-full uppercase tracking-tight font-label`}>
-                                            <span className={`w-1.5 h-1.5 rounded-full ${getStockStatusDot(item.stock_status)}`}></span>
-                                            {item.stock_status || 'Unknown'}: {item.current_stock || 0}
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-50 text-slate-600 font-bold text-[10px] rounded-full uppercase tracking-tight font-label">
+                                            {getItemStatusName(item)}
                                         </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-slate-500">
-                                        {item.reorder_level || 0}
                                     </td>
                                     <td className="px-6 py-4 text-right rounded-r-xl">
                                         <div className="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
@@ -224,7 +207,7 @@ export const ItemPage = () => {
                             ))}
                             {!filteredItems.length && !isLoadingItems && (
                                 <tr>
-                                    <td colSpan={8} className="px-6 py-14 text-center text-slate-500">
+                                    <td colSpan={7} className="px-6 py-14 text-center text-slate-500">
                                         <p className="text-sm font-semibold text-on-surface">No items found</p>
                                         <p className="text-xs mt-1">Try changing your filters or reset them to view all items.</p>
                                     </td>
