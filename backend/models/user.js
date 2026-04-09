@@ -35,17 +35,11 @@ module.exports = function(sequelize, DataTypes) {
         model: 'user_status',
         key: 'id'
       }
-    },
-    createdAt: {
-      type: DataTypes.DATE,
-      field: 'created_at',
-      allowNull: false,
-      defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
     }
   }, {
     sequelize,
     tableName: 'user',
-    timestamps: false,
+    timestamps: true,
     indexes: [
       {
         name: "PRIMARY",
