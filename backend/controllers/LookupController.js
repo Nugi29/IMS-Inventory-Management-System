@@ -1,5 +1,6 @@
 const { models } = require('../config/db');
-const { user_role, user_status } = models;
+//const category = require('../models/category');
+const { user_role, user_status,category } = models;
 
 const getAllUserRoles = async (req, res) => {
     try {
@@ -39,7 +40,29 @@ const getAllUserStatuses = async (req, res) => {
     }
 };
 
+
+const getAllCategories = async (req, res) => {
+    try {
+        const categories = await category.findAll();
+        console.log(categories);
+
+
+        const data = categories.map((item) => {
+            return {
+                "id": item.id,
+                "name": item.name,
+            };
+        });
+
+        return res.json({ success: true, data });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
     getAllUserRoles,
     getAllUserStatuses,
+    getAllCategories,
 };
