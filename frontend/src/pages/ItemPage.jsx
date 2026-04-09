@@ -29,7 +29,7 @@ export const ItemPage = () => {
     const [selectedCategory, setSelectedCategory] = useState('All Categories')
     const [currentPage, setCurrentPage] = useState(1)
 
-    const ITEMS_PER_PAGE = 4
+    const ITEMS_PER_PAGE = 3
 
     const categories = useMemo(() => {
         const lookupNames = lookupCategories
