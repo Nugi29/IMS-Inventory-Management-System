@@ -56,6 +56,11 @@ const SupplierPage = () => {
         await reloadSuppliers()
     }
 
+    const handleRefresh = async () => {
+        setSearchTerm('')
+        await reloadSuppliers()
+    }
+
     const normalizedSuppliers = useMemo(() => {
         return suppliers.map((supplier) => {
             const normalizedStatus = normalizeSupplierStatus(
@@ -244,7 +249,20 @@ const SupplierPage = () => {
                 </button>
             </div>
 
-            <div className="bg-white border border-slate-200 dark:border-slate-800 rounded-4xl shadow-sm overflow-hidden p-2">
+            <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="relative max-w-xl flex-1">
+                    <span className="material-symbols-outlined absolute left-4 top-9 -translate-y-1/2 text-slate-400">search</span>
+                    <input
+                        className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-12 pr-4 text-sm shadow-sm outline-none transition focus:ring-2 focus:ring-slate-200"
+                        placeholder="Search supplier name, phone, email, or address..."
+                        type="text"
+                        value={searchTerm}
+                        onChange={(event) => setSearchTerm(event.target.value)}
+                    />
+                </div>
+            </div>
+
+            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
                 <div className="overflow-x-auto">
                     <table className="w-full border-separate border-spacing-y-1 text-left">
                         <thead>
@@ -280,7 +298,8 @@ const SupplierPage = () => {
                                                     .toUpperCase() || 'S'}
                                             </div>
                                             <div>
-                                                <p className="text-sm font-semibold text-on-surface">{supplier.name || '-'}</p>
+                                                <p className="text-sm font-semibold text-slate-900">{supplier.name || '-'}</p>
+                                                {/* <p className="text-xs text-slate-400">Backend supplier record</p> */}
                                             </div>
                                         </div>
                                     </td>
