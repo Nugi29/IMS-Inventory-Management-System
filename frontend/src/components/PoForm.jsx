@@ -24,6 +24,8 @@ const formatCurrency = (value) => {
     return `Rs ${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
+const normalizeMatchValue = (value) => String(value || '').trim().toLowerCase()
+
 const getOrderTimestamp = (dateInput) => {
     if (!dateInput) return new Date().toISOString()
 
@@ -44,17 +46,136 @@ const getOrderTimestamp = (dateInput) => {
     return localDateTime.toISOString()
 }
 
+const PO_OVERRIDE_KEY_PREFIX = 'po_form_override_'
+
+const getPoOverride = (poId) => {
+    if (!poId) return null
+    try {
+        const raw = window.sessionStorage.getItem(`${PO_OVERRIDE_KEY_PREFIX}${poId}`)
+        if (!raw) return null
+        const parsed = JSON.parse(raw)
+        return parsed && typeof parsed === 'object' ? parsed : null
+    } catch {
+        return null
+    }
+}
+
+const setPoOverride = (poId, payload) => {
+    if (!poId || !payload) return
+    try {
+        window.sessionStorage.setItem(`${PO_OVERRIDE_KEY_PREFIX}${poId}`, JSON.stringify(payload))
+    } catch {
+        // Ignore storage failures and keep normal UX flow.
+    }
+}
+
+const buildPoLinePayloadItem = (item) => {
+    const quantity = Number(item.quantity)
+    const unitPrice = Number(item.unitPrice)
+    const lineTotal = quantity * unitPrice
+
+    return {
+        item_id: Number(item.itemId),
+        item_description: item.description.trim(),
+        sku: item.sku.trim(),
+        quantity,
+        ordered_quantity: quantity,
+        po_quantity: quantity,
+        qty: quantity,
+        expected_price: unitPrice,
+        unit_price: unitPrice,
+        price: unitPrice,
+        line_total: lineTotal,
+        total_price: lineTotal,
+    }
+}
+
+const buildPoLinePayload = (items) => items.map(buildPoLinePayloadItem)
+
+const scoreLineItemArray = (arrayValue) => {
+    if (!Array.isArray(arrayValue) || !arrayValue.length) return -1
+
+    let score = 0
+    const sample = arrayValue.slice(0, Math.min(arrayValue.length, 5))
+
+    sample.forEach((entry) => {
+        if (!entry || typeof entry !== 'object') return
+
+        if (entry.item_id != null || entry.itemId != null || entry.item?.id != null) score += 2
+        if (entry.ordered_quantity != null || entry.po_quantity != null || entry.qty != null || entry.quantity != null || entry.pivot?.quantity != null) score += 3
+        if (entry.expected_price != null || entry.unit_price != null || entry.price != null || entry.unitPrice != null || entry.pivot?.unit_price != null) score += 2
+        if (entry.line_total != null || entry.total_price != null) score += 1
+    })
+
+    return score
+}
+
+const extractArrays = (value) => {
+    const found = []
+    if (!value) return found
+
+    if (Array.isArray(value)) {
+        found.push(value)
+        return found
+    }
+
+    if (typeof value === 'string') {
+        try {
+            const parsed = JSON.parse(value)
+            return extractArrays(parsed)
+        } catch {
+            return found
+        }
+    }
+
+    if (typeof value === 'object') {
+        const prioritizedKeys = [
+            'po_items',
+            'line_items',
+            'purchase_order_items',
+            'poItems',
+            'poItemsData',
+            'item_details',
+            'itemDetails',
+            'items',
+            'data',
+            'rows',
+        ]
+
+        prioritizedKeys.forEach((key) => {
+            if (value[key] !== undefined) {
+                found.push(...extractArrays(value[key]))
+            }
+        })
+
+        Object.values(value).forEach((entry) => {
+            found.push(...extractArrays(entry))
+        })
+    }
+
+    return found
+}
+
 const normalizeLineItem = (item, index) => ({
     key: String(item?.id || item?.po_item_id || item?.item_id || item?.item?.id || `line-${index + 1}`),
-    itemId: String(item?.item_id || item?.item?.item_id || item?.item?.id || item?.itemId || ''),
+    itemId: String(item?.item_id || item?.item?.item_id || item?.item?.id || item?.itemId || item?.product_id || item?.inventory_item_id || item?.stock_item_id || item?.pivot?.item_id || item?.pivot?.itemId || ''),
     description: item?.description || item?.item_description || item?.item_name || item?.item?.item_name || item?.item?.name || item?.name || '',
-    sku: item?.sku || item?.item_code || item?.item?.sku || '',
-    quantity: Number(item?.quantity ?? item?.ordered_quantity ?? item?.qty ?? item?.po_quantity ?? 0),
-    unitPrice: Number(item?.expected_price ?? item?.unit_price ?? item?.unitPrice ?? item?.price ?? 0),
+    sku: item?.sku || item?.item_code || item?.itemCode || item?.item?.sku || item?.item?.item_code || item?.item?.itemCode || item?.code || '',
+    quantity: Number(item?.ordered_quantity ?? item?.po_quantity ?? item?.qty ?? item?.quantity ?? item?.pivot?.ordered_quantity ?? item?.pivot?.po_quantity ?? item?.pivot?.qty ?? item?.pivot?.quantity ?? 0),
+    unitPrice: Number(item?.expected_price ?? item?.unit_price ?? item?.price ?? item?.unitPrice ?? item?.pivot?.expected_price ?? item?.pivot?.unit_price ?? item?.pivot?.price ?? item?.pivot?.unitPrice ?? 0),
 })
 
 const emptyLineItem = (index) => ({
     key: `line-${Date.now()}-${index}`,
+    itemId: '',
+    description: '',
+    sku: '',
+    quantity: 0,
+    unitPrice: 0,
+})
+
+const createClearedLineItem = (line) => ({
+    ...line,
     itemId: '',
     description: '',
     sku: '',
@@ -89,7 +210,6 @@ const ensureEmptyLineItem = (items) => {
 
 const getPoSourceItems = (po) => {
     const candidates = [
-        po?.items,
         po?.po_items,
         po?.line_items,
         po?.poItems,
@@ -98,39 +218,25 @@ const getPoSourceItems = (po) => {
         po?.purchaseOrderItems,
         po?.item_details,
         po?.itemDetails,
+        po?.items,
+        po,
     ]
 
-    for (const value of candidates) {
-        if (Array.isArray(value)) {
-            return value
-        }
+    const allArrays = candidates.flatMap((value) => extractArrays(value))
+    if (!allArrays.length) return []
 
-        if (typeof value === 'string') {
-            try {
-                const parsed = JSON.parse(value)
-                if (Array.isArray(parsed)) {
-                    return parsed
-                }
-                if (parsed && typeof parsed === 'object') {
-                    const firstArray = Object.values(parsed).find((entry) => Array.isArray(entry))
-                    if (Array.isArray(firstArray)) {
-                        return firstArray
-                    }
-                }
-            } catch {
-                // Ignore invalid serialized item payloads and continue trying other shapes.
-            }
-        }
+    let best = allArrays[0]
+    let bestScore = scoreLineItemArray(best)
 
-        if (value && typeof value === 'object') {
-            const firstArray = Object.values(value).find((entry) => Array.isArray(entry))
-            if (Array.isArray(firstArray)) {
-                return firstArray
-            }
+    allArrays.forEach((arr) => {
+        const score = scoreLineItemArray(arr)
+        if (score > bestScore) {
+            bestScore = score
+            best = arr
         }
-    }
+    })
 
-    return []
+    return bestScore >= 0 ? best : []
 }
 
 export const PoForm = () => {
@@ -138,7 +244,7 @@ export const PoForm = () => {
     const location = useLocation()
     const { items, isLoadingItems, reloadItems } = useItem()
 
-    const { addPo, updatePo, deletePo } = usePo()
+    const { pos, isLoadingPos, reloadPos, getPoById, addPo, updatePo, deletePo } = usePo()
     const {
         suppliers: supplierLookup = [],
         poStatuses: poStatusLookup = [],
@@ -148,22 +254,45 @@ export const PoForm = () => {
 
     const mode = location.state?.mode === 'update' ? 'update' : location.state?.mode === 'view' ? 'view' : 'add'
     const selectedPo = location.state?.po
+    const selectedPoId = String(location.state?.poId || selectedPo?.id || selectedPo?.po_id || selectedPo?._id || '')
+    const [freshPoById, setFreshPoById] = useState(null)
+    const [isLoadingFreshPo, setIsLoadingFreshPo] = useState(false)
+
+    const latestPo = useMemo(() => {
+        if (!selectedPoId) return null
+
+        return pos.find((po) => String(po?.id || po?.po_id || po?._id || '') === selectedPoId) || null
+    }, [pos, selectedPoId])
+
+    const effectivePo = useMemo(() => {
+        if (mode === 'add') return selectedPo
+        const basePo = freshPoById || latestPo
+        if (!basePo || !selectedPoId) return basePo
+
+        const override = getPoOverride(selectedPoId)
+        if (!override) return basePo
+
+        return {
+            ...basePo,
+            ...override,
+            total_amount: override.total_amount ?? basePo.total_amount,
+            po_items: override.po_items ?? override.items ?? basePo.po_items,
+            line_items: override.line_items ?? override.items ?? basePo.line_items,
+            items: override.items ?? basePo.items,
+        }
+    }, [mode, freshPoById, latestPo, selectedPo, selectedPoId])
 
     const [formData, setFormData] = useState({
-        id: selectedPo?.id || selectedPo?.po_id || '',
-        supplierId: selectedPo?.supplier?.id || selectedPo?.supplier?.supplier_id || selectedPo?.supplier_id || selectedPo?.supplierId || '',
-        poStatusId: selectedPo?.po_status?.id || selectedPo?.po_status_id || '',
-        orderDate: formatDateInput(selectedPo?.createdAt || selectedPo?.order_date) || new Date().toISOString().slice(0, 10),
-        notes: selectedPo?.internal_notes || selectedPo?.internalNotes || selectedPo?.notes || '',
-        shippingTerms: selectedPo?.shipping_terms || selectedPo?.shippingTerms || SHIPPING_TERMS[0],
+        id: '',
+        supplierId: '',
+        poStatusId: '',
+        orderDate: new Date().toISOString().slice(0, 10),
+        notes: '',
+        shippingTerms: SHIPPING_TERMS[0],
         searchTerm: '',
     })
 
-    const [lineItems, setLineItems] = useState(() => {
-        const sourceItems = getPoSourceItems(selectedPo)
-        const normalized = sourceItems.map(normalizeLineItem).map((line, index) => ({ ...line, key: `${line.key}-${index}` }))
-        return ensureEmptyLineItem(normalized.length ? normalized : [emptyLineItem(1)])
-    })
+    const [lineItems, setLineItems] = useState(() => [emptyLineItem(1)])
     const [pendingAction, setPendingAction] = useState(null)
 
     useEffect(() => {
@@ -172,21 +301,52 @@ export const PoForm = () => {
     }, [loadLookupData, reloadItems])
 
     useEffect(() => {
-        if (!selectedPo || mode === 'add') return
+        if (mode === 'add') return
+        reloadPos()
+    }, [mode, reloadPos])
+
+    useEffect(() => {
+        let isCancelled = false
+
+        const loadFreshPo = async () => {
+            if (mode === 'add' || !selectedPoId) {
+                setFreshPoById(null)
+                return
+            }
+
+            setIsLoadingFreshPo(true)
+            const po = await getPoById(selectedPoId)
+            if (!isCancelled) {
+                setFreshPoById(po)
+                setIsLoadingFreshPo(false)
+            }
+        }
+
+        loadFreshPo()
+
+        return () => {
+            isCancelled = true
+        }
+    }, [mode, selectedPoId, getPoById])
+
+    useEffect(() => {
+        if (!effectivePo || mode === 'add') return
 
         setFormData((prev) => ({
             ...prev,
-            id: selectedPo?.id || selectedPo?.po_id || prev.id,
-            supplierId: selectedPo?.supplier?.id || selectedPo?.supplier?.supplier_id || selectedPo?.supplier_id || selectedPo?.supplierId || prev.supplierId,
-            poStatusId: selectedPo?.po_status?.id || selectedPo?.po_status_id || selectedPo?.poStatusId || prev.poStatusId,
-            orderDate: formatDateInput(selectedPo?.createdAt || selectedPo?.order_date || selectedPo?.orderDate) || prev.orderDate,
-            notes: selectedPo?.internal_notes || selectedPo?.internalNotes || selectedPo?.notes || '',
-            shippingTerms: selectedPo?.shipping_terms || selectedPo?.shippingTerms || prev.shippingTerms,
+            id: effectivePo?.id || effectivePo?.po_id || prev.id,
+            supplierId: effectivePo?.supplier?.id || effectivePo?.supplier?.supplier_id || effectivePo?.supplier_id || effectivePo?.supplierId || prev.supplierId,
+            poStatusId: effectivePo?.po_status?.id || effectivePo?.po_status_id || effectivePo?.poStatusId || prev.poStatusId,
+            orderDate: formatDateInput(effectivePo?.createdAt || effectivePo?.order_date || effectivePo?.orderDate) || prev.orderDate,
+            notes: effectivePo?.internal_notes || effectivePo?.internalNotes || effectivePo?.notes || '',
+            shippingTerms: effectivePo?.shipping_terms || effectivePo?.shippingTerms || prev.shippingTerms,
         }))
 
-        const normalized = getPoSourceItems(selectedPo).map(normalizeLineItem).map((line, index) => ({ ...line, key: `${line.key}-${index}` }))
+        const normalized = getPoSourceItems(effectivePo).map(normalizeLineItem).map((line, index) => ({ ...line, key: `${line.key}-${index}` }))
         setLineItems(ensureEmptyLineItem(normalized.length ? normalized : [emptyLineItem(1)]))
-    }, [selectedPo, mode])
+    }, [effectivePo, mode])
+
+    const isHydratingPo = mode !== 'add' && (isLoadingPos || isLoadingFreshPo) && !effectivePo
 
     const itemOptions = useMemo(() => {
         const mapped = items
@@ -222,14 +382,23 @@ export const PoForm = () => {
 
         setLineItems((prev) => prev.map((line) => {
             if (line.itemId && itemMap[String(line.itemId)]) {
-                return line
+                const selected = itemMap[String(line.itemId)]
+                return {
+                    ...line,
+                    description: line.description || selected.label,
+                    sku: line.sku || selected.sku,
+                    unitPrice: Number(line.unitPrice) > 0 ? Number(line.unitPrice) : (Number(selected.price) || 0),
+                }
             }
 
-            const bySku = line.sku
-                ? itemOptions.find((option) => String(option.sku).toLowerCase() === String(line.sku).toLowerCase())
+            const normalizedSku = normalizeMatchValue(line.sku)
+            const normalizedDesc = normalizeMatchValue(line.description)
+
+            const bySku = normalizedSku
+                ? itemOptions.find((option) => normalizeMatchValue(option.sku) === normalizedSku)
                 : null
-            const byName = line.description
-                ? itemOptions.find((option) => String(option.label).toLowerCase() === String(line.description).toLowerCase())
+            const byName = normalizedDesc
+                ? itemOptions.find((option) => normalizeMatchValue(option.label) === normalizedDesc)
                 : null
 
             const matched = bySku || byName
@@ -254,6 +423,20 @@ export const PoForm = () => {
         }))
     }, [itemOptions, itemMap])
 
+    const getResolvedSku = (line) => {
+        if (line?.sku) return line.sku
+
+        const byId = line?.itemId ? itemMap[String(line.itemId)] : null
+        if (byId?.sku) return byId.sku
+
+        if (line?.description) {
+            const byName = itemOptions.find((option) => normalizeMatchValue(option.label) === normalizeMatchValue(line.description))
+            if (byName?.sku) return byName.sku
+        }
+
+        return ''
+    }
+
     useEffect(() => {
         if (!formData.supplierId) return
 
@@ -271,14 +454,7 @@ export const PoForm = () => {
                 return line
             }
 
-            return {
-                ...line,
-                itemId: '',
-                description: '',
-                sku: '',
-                quantity: 0,
-                unitPrice: 0,
-            }
+            return createClearedLineItem(line)
         }))
     }, [formData.supplierId, itemMap])
 
@@ -337,20 +513,33 @@ export const PoForm = () => {
     const totals = useMemo(() => {
         const subtotal = lineItems.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0), 0)
         const computedTotal = subtotal
-        const totalFromPo = Number(selectedPo?.total_amount ?? selectedPo?.totalAmount ?? selectedPo?.amount ?? 0)
+        const totalFromPo = Number(effectivePo?.total_amount ?? effectivePo?.totalAmount ?? effectivePo?.amount ?? 0)
         const hasLineValues = lineItems.some((item) => Number(item.quantity) > 0 && Number(item.unitPrice) > 0)
         const total = hasLineValues || mode === 'add' ? computedTotal : (totalFromPo || computedTotal)
         const units = lineItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
 
         return { subtotal, total, units }
-    }, [lineItems, selectedPo, mode])
+    }, [lineItems, effectivePo, mode])
 
     const isSavingDraft = pendingAction === 'save-draft'
     const isSaving = pendingAction === 'save' || isSavingDraft
     const isDeleting = pendingAction === 'delete'
-    const isBusy = isLoadingLookup || isLoadingItems || isSaving || isDeleting
+    const isBusy = isLoadingLookup || isLoadingItems || isLoadingPos || isLoadingFreshPo || isSaving || isDeleting
     const isReadOnly = mode === 'view'
     const isFormDisabled = isBusy || isReadOnly
+
+    if (isHydratingPo) {
+        return (
+            <main className="h-full overflow-hidden bg-gradient-to-br from-slate-100 via-white to-blue-50 p-3 sm:p-4">
+                <section className="mx-auto flex h-full w-full max-w-7xl items-center justify-center rounded-3xl border border-slate-200/70 bg-white/95 shadow-xl shadow-slate-300/30 backdrop-blur-sm">
+                    <div className="px-6 py-10 text-center">
+                        <p className="text-sm font-semibold text-slate-700">Loading latest purchase order...</p>
+                        <p className="mt-1 text-xs text-slate-500">Refreshing the record before edit.</p>
+                    </div>
+                </section>
+            </main>
+        )
+    }
 
     const handleChange = (event) => {
         const { name, value } = event.target
@@ -371,14 +560,7 @@ export const PoForm = () => {
                 }
 
                 if (!selectedItem) {
-                    return {
-                        ...item,
-                        itemId: '',
-                        description: '',
-                        sku: '',
-                        quantity: 0,
-                        unitPrice: 0,
-                    }
+                    return createClearedLineItem(item)
                 }
 
                 return {
@@ -451,6 +633,8 @@ export const PoForm = () => {
             return
         }
 
+        const linePayload = buildPoLinePayload(validItems)
+
         const payload = {
             supplier_id: Number(formData.supplierId),
             po_status_id: Number(poStatusId),
@@ -458,19 +642,14 @@ export const PoForm = () => {
             shipping_terms: formData.shippingTerms,
             internal_notes: formData.notes.trim(),
             total_amount: totals.total,
-            items: validItems.map((item) => ({
-                item_id: Number(item.itemId),
-                item_description: item.description.trim(),
-                sku: item.sku.trim(),
-                quantity: Number(item.quantity),
-                expected_price: Number(item.unitPrice),
-                unit_price: Number(item.unitPrice),
-            })),
+            items: linePayload,
+            po_items: linePayload,
+            line_items: linePayload,
             createdAt: getOrderTimestamp(formData.orderDate),
         }
 
         if (mode === 'update') {
-            payload.id = Number(formData.id || selectedPo?.id || selectedPo?.po_id)
+            payload.id = Number(formData.id || effectivePo?.id || effectivePo?.po_id)
             if (!payload.id) {
                 toast.error('Missing purchase order id for update')
                 return
@@ -478,12 +657,20 @@ export const PoForm = () => {
         }
 
         setPendingAction(saveAsDraft ? 'save-draft' : 'save')
-        const response = mode === 'update' ? await updatePo(payload) : await addPo(payload)
-        setPendingAction(null)
+        let response
+        try {
+            response = mode === 'update' ? await updatePo(payload) : await addPo(payload)
+        } finally {
+            setPendingAction(null)
+        }
 
         if (!response.success) {
             toast.error(response.message)
             return
+        }
+
+        if (mode === 'update' && payload.id) {
+            setPoOverride(String(payload.id), payload)
         }
 
         toast.success(response.message)
@@ -491,7 +678,7 @@ export const PoForm = () => {
     }
 
     const handleDelete = async () => {
-        const poId = Number(formData.id || selectedPo?.id || selectedPo?.po_id)
+        const poId = Number(formData.id || effectivePo?.id || effectivePo?.po_id)
 
         if (!poId) {
             toast.error('Missing purchase order id for deletion')
@@ -503,8 +690,12 @@ export const PoForm = () => {
         }
 
         setPendingAction('delete')
-        const response = await deletePo({ id: poId })
-        setPendingAction(null)
+        let response
+        try {
+            response = await deletePo({ id: poId })
+        } finally {
+            setPendingAction(null)
+        }
 
         if (!response.success) {
             toast.error(response.message)
@@ -683,7 +874,7 @@ export const PoForm = () => {
                                                             <input
                                                                 className="w-full bg-transparent border-none rounded-lg py-1 px-0 focus:ring-0"
                                                                 type="text"
-                                                                value={item.sku}
+                                                                value={getResolvedSku(item)}
                                                                 onChange={(event) => handleLineItemChange(item.key, 'sku', event.target.value)}
                                                                 placeholder="SKU"
                                                                 disabled={isFormDisabled}

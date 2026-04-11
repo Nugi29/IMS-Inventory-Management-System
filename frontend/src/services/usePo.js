@@ -31,20 +31,48 @@ export function usePo() {
     return [];
   };
 
+  const fetchPosData = useCallback(async () => {
+    const config = {
+      ...headers(),
+      params: { _ts: Date.now() },
+      headers: {
+        ...(headers().headers || {}),
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
+    };
+
+    const { data } = await axios.get(endpoint(ENDPOINTS.list), config);
+    return parsePos(data);
+  }, [endpoint, headers]);
+
   // ── load ──────────────────────────────────────────────────────────────────
 
   const loadPos = useCallback(async () => {
     if (!token) { setPos([]); return; }
     setIsLoadingPos(true);
     try {
-      const { data } = await axios.get(endpoint(ENDPOINTS.list), headers());
-      setPos(parsePos(data));
+      const nextPos = await fetchPosData();
+      setPos(nextPos);
     } catch {
       setPos([]);
     } finally {
       setIsLoadingPos(false);
     }
-  }, [token, endpoint, headers]);
+  }, [token, fetchPosData]);
+
+  const getPoById = useCallback(async (id) => {
+    if (!token || !id) return null;
+
+    try {
+      const nextPos = await fetchPosData();
+      setPos(nextPos);
+      return nextPos.find((po) => String(po?.id ?? po?.po_id ?? po?._id ?? "") === String(id)) || null;
+    } catch {
+      return null;
+    }
+  }, [token, fetchPosData]);
 
   // ── create ────────────────────────────────────────────────────────────────
 
@@ -76,6 +104,8 @@ export function usePo() {
         shipping_cost: po.shipping_cost,
         total_amount: po.total_amount,
         items: po.items,
+        po_items: po.po_items,
+        line_items: po.line_items,
         createdAt: po.createdAt,
       }).filter(([, v]) => v !== undefined && v !== null && v !== "")
     );
@@ -108,7 +138,7 @@ export function usePo() {
 
   useEffect(() => { loadPos(); }, [loadPos]);
 
-  return { pos, isLoadingPos, reloadPos: loadPos, addPo, updatePo, deletePo };
+  return { pos, isLoadingPos, reloadPos: loadPos, getPoById, addPo, updatePo, deletePo };
 }
 
 export const usePos = usePo;
