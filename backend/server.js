@@ -5,6 +5,7 @@ const { connectDB } = require('./config/db');
 const userRoutes = require('./routes/userRoutes');
 const lookupRoutes = require('./routes/LookupRoutes');
 const itemRoutes = require('./routes/itemRoutes');
+const purchaseOrderRoutes = require('./routes/PurchaseOrderRoutes');
 
 const app = express();
 
@@ -13,6 +14,7 @@ app.use(express.json());
 app.use('/api/user', userRoutes);
 app.use('/api/list', lookupRoutes);
 app.use('/api/item', itemRoutes);
+app.use('/api/po', purchaseOrderRoutes);
 
 app.get('/', (req, res) => {
   res.send('API is running...');

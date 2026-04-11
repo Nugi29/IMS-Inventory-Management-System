@@ -30,7 +30,12 @@ const NAV_ITEMS = [
     path: "/suppliers",
     access: ["Admin", "Manager", "StoreKeeper"],
   },
-
+  {
+    label: "Purchase Orders",
+    icon: "receipt",
+    path: "/po",
+    access: ["Admin", "Manager", "StoreKeeper"],
+  },
   {
     label: "GRN",
     icon: "input",
