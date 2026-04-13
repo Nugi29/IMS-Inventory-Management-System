@@ -1,6 +1,6 @@
 const { models } = require('../config/db');
 //const category = require('../models/category');
-const { user_role, user_status, category, item_status } = models;
+const { user_role, user_status, category, item_status, po_status, user, supplier } = models;
 
 const getAllUserRoles = async (req, res) => {
     try {
@@ -79,9 +79,66 @@ const getAllItemStatuses = async (req, res) => {
     }
 };
 
+const getAllPoStatuses = async (req, res) => {
+    try {
+        const statuses = await po_status.findAll();
+
+        const data = statuses.map((item) => {
+            return {
+                "id": item.id,
+                "name": item.name,
+            };
+        });
+
+        return res.json({ success: true, data });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+const getAllUsers = async (req, res) => {
+    try {
+        const statuses = await user.findAll();
+
+        const data = statuses.map((item) => {
+            return {
+                "id": item.id,
+                "name": item.name,
+            };
+        });
+
+        return res.json({ success: true, data });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+const getAllSuppliers = async (req, res) => {
+    try {
+        const statuses = await supplier.findAll();
+
+        const data = statuses.map((item) => {
+            return {
+                "id": item.id,
+                "name": item.name,
+            };
+        });
+
+        return res.json({ success: true, data });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
     getAllUserRoles,
     getAllUserStatuses,
     getAllCategories,
     getAllItemStatuses,
+    getAllPoStatuses,
+    getAllUsers,
+    getAllSuppliers
 };
