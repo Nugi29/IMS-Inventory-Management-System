@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLookup } from '../services/useLookup'
 import { usePo } from '../services/usePo'
@@ -59,17 +59,17 @@ export const PoPage = () => {
 
     const statusLabelById = useMemo(() => buildLabelByIdMap(poStatusLookup), [poStatusLookup])
 
-    const getSupplierName = (po) => {
+    const getSupplierName = useCallback((po) => {
         const supplierId = po?.supplier_id ?? po?.supplierId ?? po?.supplier?.id
         const fromLookup = supplierId !== undefined && supplierId !== null ? supplierLabelById.get(String(supplierId)) : null
         return fromLookup || po?.supplier?.name || po?.supplier_name || '-'
-    }
+    }, [supplierLabelById])
 
-    const getStatusLabel = (po) => {
+    const getStatusLabel = useCallback((po) => {
         const statusId = po?.po_status_id ?? po?.poStatusId ?? po?.po_status?.id
         const fromLookup = statusId !== undefined && statusId !== null ? statusLabelById.get(String(statusId)) : null
         return fromLookup || po?.po_status?.name || po?.status || 'Unknown'
-    }
+    }, [statusLabelById])
 
     useEffect(() => {
         loadLookupData()
@@ -97,18 +97,13 @@ export const PoPage = () => {
 
             return matchesSearch && matchesSupplier && matchesStatus
         })
-    }, [pos, searchTerm, selectedSupplier, selectedPoStatus, supplierLabelById, statusLabelById])
+    }, [pos, searchTerm, selectedSupplier, selectedPoStatus, getSupplierName, getStatusLabel])
 
     const totalPages = Math.max(1, Math.ceil(filteredPos.length / ITEMS_PER_PAGE))
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+    const safeCurrentPage = Math.min(currentPage, totalPages)
+    const startIndex = (safeCurrentPage - 1) * ITEMS_PER_PAGE
     const endIndex = startIndex + ITEMS_PER_PAGE
     const paginatedPos = filteredPos.slice(startIndex, endIndex)
-
-    useEffect(() => {
-        if (currentPage > totalPages) {
-            setCurrentPage(totalPages)
-        }
-    }, [currentPage, totalPages])
 
     const poDecisionMetrics = useMemo(() => {
         const today = new Date()
@@ -165,7 +160,7 @@ export const PoPage = () => {
             avgOrderValue,
             topSupplier,
         }
-    }, [pos, supplierLabelById, statusLabelById])
+    }, [pos, getSupplierName, getStatusLabel])
 
     const clearFilters = () => {
         setSearchTerm('')
@@ -244,7 +239,7 @@ export const PoPage = () => {
                     </div>
                     <div className="relative">
                         <select
-                            className="appearance-none bg-white border border-slate-200 dark:border-slate-800 rounded-xl px-6 pr-12 py-4 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none min-w-[200px]"
+                            className="appearance-none bg-white border border-slate-200 dark:border-slate-800 rounded-xl px-6 pr-12 py-4 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none min-w-50"
                             value={selectedPoStatus}
                             onChange={(event) => {
                                 setSelectedPoStatus(event.target.value)
@@ -260,7 +255,7 @@ export const PoPage = () => {
                     </div>
                     <div className="relative">
                         <select
-                            className="appearance-none bg-white border border-slate-200 dark:border-slate-800 rounded-xl px-6 pr-12 py-4 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none min-w-[200px]"
+                            className="appearance-none bg-white border border-slate-200 dark:border-slate-800 rounded-xl px-6 pr-12 py-4 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none min-w-50"
                             value={selectedSupplier}
                             onChange={(event) => {
                                 setSelectedSupplier(event.target.value)
@@ -388,10 +383,10 @@ export const PoPage = () => {
                     </p>
                     <div className="flex items-center gap-2">
                         <button
-                            className={`p-2 rounded-lg border border-slate-200 transition-all ${currentPage === 1 ? 'bg-slate-50 text-slate-400 cursor-not-allowed opacity-50' : 'bg-slate-50 text-slate-600 hover:bg-primary hover:text-white'}`}
+                            className={`p-2 rounded-lg border border-slate-200 transition-all ${safeCurrentPage === 1 ? 'bg-slate-50 text-slate-400 cursor-not-allowed opacity-50' : 'bg-slate-50 text-slate-600 hover:bg-primary hover:text-white'}`}
                             type="button"
-                            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                            disabled={currentPage === 1}
+                            onClick={() => setCurrentPage((prev) => Math.max(1, Math.min(prev, totalPages) - 1))}
+                            disabled={safeCurrentPage === 1}
                             aria-label="Previous page"
                         >
                             <span className="material-symbols-outlined" data-icon="chevron_left">chevron_left</span>
@@ -400,7 +395,7 @@ export const PoPage = () => {
                         <div className="flex items-center gap-1">
                             {Array.from({ length: totalPages }, (_, index) => {
                                 const pageNumber = index + 1
-                                const isActive = pageNumber === currentPage
+                                const isActive = pageNumber === safeCurrentPage
 
                                 return (
                                     <button
@@ -417,10 +412,10 @@ export const PoPage = () => {
                         </div>
 
                         <button
-                            className={`p-2 rounded-lg border border-slate-200 transition-all ${currentPage === totalPages ? 'bg-slate-50 text-slate-400 cursor-not-allowed opacity-50' : 'bg-slate-50 text-slate-600 hover:bg-primary hover:text-white'}`}
+                            className={`p-2 rounded-lg border border-slate-200 transition-all ${safeCurrentPage === totalPages ? 'bg-slate-50 text-slate-400 cursor-not-allowed opacity-50' : 'bg-slate-50 text-slate-600 hover:bg-primary hover:text-white'}`}
                             type="button"
-                            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                            disabled={currentPage === totalPages}
+                            onClick={() => setCurrentPage((prev) => Math.min(totalPages, Math.min(prev, totalPages) + 1))}
+                            disabled={safeCurrentPage === totalPages}
                             aria-label="Next page"
                         >
                             <span className="material-symbols-outlined" data-icon="chevron_right">chevron_right</span>
