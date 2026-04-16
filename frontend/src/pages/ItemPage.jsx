@@ -88,7 +88,7 @@ export const ItemPage = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8 items-center">
                 <div className="lg:col-span-8 flex flex-col md:flex-row gap-4">
                     <div className="relative flex-1">
-                        <span className="material-symbols-outlined absolute left-4 top-10 -translate-y-1/2 text-slate-400" data-icon="filter_list">filter_list</span>
+                        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" data-icon="filter_list">filter_list</span>
                         <input
                             className="w-full bg-white border border-slate-200 dark:border-slate-800 rounded-xl pl-12 pr-4 py-4 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none"
                             placeholder="Filter by item name or code..."
@@ -118,7 +118,7 @@ export const ItemPage = () => {
                         </select>
                     </div>
                 </div>
-                <div className="lg:col-span-4 flex items-center justify-between gap-3">
+                <div className="lg:col-span-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                     <button
                         className="px-4 py-3 rounded-xl font-semibold text-sm border border-slate-200 bg-white text-slate-600 hover:text-primary hover:border-primary/40 transition-colors"
                         onClick={clearFilters}
@@ -141,7 +141,7 @@ export const ItemPage = () => {
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-separate border-spacing-y-1">
                         <thead>
-                            <tr className="text-on-surface-variant">
+                            <tr className="text-on-surface-variant whitespace-nowrap">
                                 <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider font-label">Item Name</th>
                                 <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider font-label">Code</th>
                                 <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider font-label">Category</th>
@@ -160,7 +160,7 @@ export const ItemPage = () => {
                                 </tr>
                             )}
                             {paginatedItems.map((item, index) => (
-                                <tr key={item.id || index} className="bg-slate-50/50 hover:bg-slate-100/50 transition-colors group">
+                                <tr key={item.id || index} className="bg-slate-50/50 hover:bg-slate-100/50 transition-colors group whitespace-nowrap">
                                     <td className="px-6 py-4 rounded-l-xl">
                                         <p className="font-bold text-sm text-on-surface">{item.item_name}</p>
                                     </td>
@@ -219,8 +219,8 @@ export const ItemPage = () => {
 
                 {/* Pagination */}
                 <div className="flex flex-col sm:flex-row items-center justify-between p-6 gap-4 mt-2">
-                    <p className="text-xs text-slate-500 font-medium font-label">Showing <span className="font-bold text-on-surface">{filteredItems.length ? `${startIndex + 1} - ${Math.min(endIndex, filteredItems.length)}` : 0}</span> of <span className="font-bold text-on-surface">{filteredItems.length}</span> items</p>
-                    <div className="flex items-center gap-2">
+                    <p className="text-xs text-slate-500 font-medium font-label text-center sm:text-left">Showing <span className="font-bold text-on-surface">{filteredItems.length ? `${startIndex + 1} - ${Math.min(endIndex, filteredItems.length)}` : 0}</span> of <span className="font-bold text-on-surface">{filteredItems.length}</span> items</p>
+                    <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2">
                         <button
                             onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                             disabled={currentPage === 1}

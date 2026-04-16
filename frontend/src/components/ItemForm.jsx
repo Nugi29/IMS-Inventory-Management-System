@@ -372,13 +372,13 @@ export const ItemForm = () => {
                     </div>
 
                     {/* Form Actions */}
-                    <div className="flex justify-end border-t border-slate-200 pt-4 gap-3">
+                    <div className="flex flex-col-reverse sm:flex-row sm:justify-end border-t border-slate-200 mt-2 pt-4 gap-3 pb-2 sm:pb-0">
                         {mode === 'update' && !isReadOnly && (
                             <button
                                 type="button"
                                 onClick={handleDelete}
                                 disabled={isBusy}
-                                className="rounded-lg border border-red-200 bg-red-50 text-red-600 px-6 py-2 text-sm font-semibold transition hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full sm:w-auto rounded-lg border border-red-200 bg-red-50 text-red-600 px-6 py-2.5 sm:py-2 text-sm font-semibold transition hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isDeleting ? 'Deleting...' : 'Delete Item'}
                             </button>
@@ -388,7 +388,7 @@ export const ItemForm = () => {
                             <button
                                 type="submit"
                                 disabled={isBusy}
-                                className="rounded-lg bg-blue-600 text-white px-6 py-2 text-sm font-semibold transition hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full sm:w-auto rounded-lg bg-blue-600 text-white px-6 py-2.5 sm:py-2 text-sm font-semibold transition hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                             >
                                 {isSaving ? 'Saving...' : mode === 'update' ? 'Save Changes' : 'Create Item'}
                             </button>
