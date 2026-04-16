@@ -16,6 +16,20 @@ const toCurrency = (value) => `Rs ${Number(value || 0).toFixed(2)}`
 
 const getItemStock = (item) => Number(item?.current_stock ?? item?.quantity ?? 0)
 
+const getItemStockStatus = (item) => {
+  const stock = getItemStock(item)
+  if (stock === 0) return 'Out of Stock'
+
+  const reorderLevel = Number(item?.reorder_level ?? 5)
+  return stock <= reorderLevel ? 'Low Stock' : 'In Stock'
+}
+
+const getStockBadgeColor = (status) => {
+  if (status === 'Out of Stock') return 'bg-red-50 text-red-600'
+  if (status === 'Low Stock') return 'bg-rose-50 text-rose-600'
+  return 'bg-emerald-50 text-emerald-600'
+}
+
 export const SalesPage = () => {
   const { items, isLoadingItems } = useItem()
   const { categories: lookupCategories } = useLookup()
@@ -404,27 +418,26 @@ export const SalesPage = () => {
                       key={product.id}
                       className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 flex flex-col gap-3 hover:border-primary/30 hover:bg-white transition-colors"
                     >
-                      <div>
-                        <h3 className="text-sm font-bold text-on-surface line-clamp-1">{product.item_name}</h3>
-                        <p className="text-xs text-slate-500 mt-1">#{product.sku || 'N/A'}</p>
+                      <div className="min-h-[52px]">
+                        <h3 className="text-sm font-bold text-on-surface leading-5 break-words">{product.item_name}</h3>
                       </div>
-                      <div>
+                      <div className="flex items-center justify-between gap-2">
                         <span className="inline-flex text-[10px] uppercase tracking-tight font-bold px-2.5 py-1 rounded-full bg-slate-200 text-slate-600">
                           {normalizeCategory(product)}
                         </span>
+                        <span className="text-xs font-semibold text-slate-700">{getItemStock(product)} units</span>
                       </div>
-                      <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-                        <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Existing Stock</p>
-                        <div className="mt-1 flex items-center justify-between gap-2">
-                          <span className="text-sm font-semibold text-on-surface">
-                            {getItemStock(product)} units
-                          </span>
-                          <span
-                            className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-tight ${getItemStock(product) <= 5 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}
-                          >
-                            {getItemStock(product) <= 5 ? 'Low Stock' : 'In Stock'}
-                          </span>
-                        </div>
+                      <div>
+                        {(() => {
+                          const statusText = getItemStockStatus(product)
+                          return (
+                            <span
+                              className={`inline-flex text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-tight ${getStockBadgeColor(statusText)}`}
+                            >
+                              {statusText}
+                            </span>
+                          )
+                        })()}
                       </div>
                       <div className="mt-auto flex items-center justify-between gap-3">
                         <p className="text-base font-extrabold text-primary">{toCurrency(product.selling_price)}</p>
