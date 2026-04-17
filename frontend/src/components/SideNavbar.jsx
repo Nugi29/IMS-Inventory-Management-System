@@ -39,7 +39,7 @@ const NAV_ITEMS = [
   {
     label: "GRN",
     icon: "input",
-    path: "/grn",
+    path: "/grns",
     access: ["Admin", "StoreKeeper"],
   },
 
