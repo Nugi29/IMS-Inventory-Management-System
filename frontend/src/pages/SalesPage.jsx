@@ -415,20 +415,20 @@ export const SalesPage = () => {
                       className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 flex flex-col gap-3 hover:border-primary/30 hover:bg-white transition-colors"
                     >
                       <div className="min-h-[52px]">
-                        <h3 className="text-sm font-bold text-on-surface leading-5 break-words">{product.item_name}</h3>
+                        <h3 className="text-lg font-bold text-on-surface leading-tight break-words">{product.item_name}</h3>
                       </div>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="inline-flex text-[10px] uppercase tracking-tight font-bold px-2.5 py-1 rounded-full bg-slate-200 text-slate-600">
+                        <span className="inline-flex text-[11px] uppercase tracking-tight font-bold px-2.5 py-1 rounded-full bg-slate-200 text-slate-600">
                           {normalizeCategory(product)}
                         </span>
-                        <span className="text-xs font-semibold text-slate-700">{getItemStock(product)} units</span>
+                        <span className="text-sm font-semibold text-slate-700">{getItemStock(product)} units</span>
                       </div>
                       <div>
                         {(() => {
                           const statusText = getItemStockStatus(product)
                           return (
                             <span
-                              className={`inline-flex text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-tight ${getStockBadgeColor(statusText)}`}
+                              className={`inline-flex text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tracking-tight ${getStockBadgeColor(statusText)}`}
                             >
                               {statusText}
                             </span>
@@ -436,7 +436,7 @@ export const SalesPage = () => {
                         })()}
                       </div>
                       <div className="mt-auto flex items-center justify-between gap-3">
-                        <p className="text-base font-extrabold text-primary">{toCurrency(product.selling_price)}</p>
+                        <p className="text-xl font-extrabold text-primary">{toCurrency(product.selling_price)}</p>
                         <button
                           type="button"
                           className="flex items-center justify-center h-10 w-10 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition shadow-sm"
