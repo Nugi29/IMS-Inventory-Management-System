@@ -26,7 +26,7 @@ const getItemStockStatus = (item) => {
 
 const getStockBadgeColor = (status) => {
   if (status === 'Out of Stock') return 'bg-red-50 text-red-600'
-  if (status === 'Low Stock') return 'bg-rose-50 text-rose-600'
+  if (status === 'Low Stock') return 'bg-yellow-50 text-yellow-600'
   return 'bg-emerald-50 text-emerald-600'
 }
 
