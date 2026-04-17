@@ -337,7 +337,7 @@ export const PoPage = () => {
                                                         type="button"
                                                         aria-label={`Create GRN for ${getPoNumber(po)}`}
                                                         title="Create GRN"
-                                                        onClick={() => navigate('/grns', { state: { source: 'po', po } })}
+                                                        onClick={() => navigate('/grn', { state: { source: 'po', po } })}
                                                     >
                                                         <span className="material-symbols-outlined text-xl" data-icon="fact_check">fact_check</span>
                                                     </button>
