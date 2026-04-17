@@ -31,7 +31,7 @@ const getStockBadgeColor = (status) => {
 }
 
 export const SalesPage = () => {
-  const { items, isLoadingItems } = useItem()
+  const { items, isLoadingItems, reloadItems } = useItem()
   const { categories: lookupCategories } = useLookup()
   const { customers, isLoadingCustomers, addCustomer, updateCustomer, deleteCustomer } = useCustomer()
   const { createSale } = useSale()
@@ -356,6 +356,12 @@ export const SalesPage = () => {
 
       if (response.success) {
         toast.success(response.message || 'Sale recorded successfully')
+        
+        // Reload items data to update the product cards with new stock levels
+        if (reloadItems) {
+            await reloadItems()
+        }
+
         clearCart()
         setPaidAmount('0')
         setSelectedCustomer(null)
