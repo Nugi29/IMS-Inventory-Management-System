@@ -211,7 +211,7 @@ export const ItemForm = () => {
                         {/* Item Details */}
                         <div className="space-y-3 border-b border-slate-200 pb-4">
                             <h2 className="text-sm font-semibold text-slate-900">Item Details</h2>
-                            
+
                             <div className="space-y-2">
                                 <label htmlFor="item_name" className="text-xs font-semibold uppercase tracking-wide text-slate-600">Item Name *</label>
                                 <input
@@ -246,7 +246,7 @@ export const ItemForm = () => {
                         {/* Category & Supplier */}
                         <div className="space-y-3 border-b border-slate-200 pb-4">
                             <h2 className="text-sm font-semibold text-slate-900">Item Condition</h2>
-                            
+
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-2">
                                     <label htmlFor="category_id" className="text-xs font-semibold uppercase tracking-wide text-slate-600">Category *</label>
@@ -302,7 +302,7 @@ export const ItemForm = () => {
                         {/* Pricing & Stock */}
                         <div className="space-y-3">
                             <h2 className="text-sm font-semibold text-slate-900">Pricing & Stock</h2>
-                            
+
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-2">
                                     <label htmlFor="selling_price" className="text-xs font-semibold uppercase tracking-wide text-slate-600">Selling Price *</label>
