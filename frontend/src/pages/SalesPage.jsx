@@ -367,8 +367,8 @@ export const SalesPage = () => {
         <section className="xl:col-span-8 space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
             <div className="lg:col-span-8 flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" data-icon="search">
+              <div className="relative flex-1 flex items-center">
+                <span className="material-symbols-outlined absolute left-4 text-slate-400" data-icon="search">
                   search
                 </span>
                 <input
@@ -391,11 +391,7 @@ export const SalesPage = () => {
                 ))}
               </select>
             </div>
-            <div className="lg:col-span-4 grid grid-cols-3 gap-3">
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Categories</p>
-                <p className="text-xl font-extrabold text-on-surface">{Math.max(categories.length - 1, 0)}</p>
-              </div>
+            <div className="lg:col-span-4 grid grid-cols-2 gap-3">
               <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
                 <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Products</p>
                 <p className="text-xl font-extrabold text-on-surface">{filteredProducts.length}</p>
