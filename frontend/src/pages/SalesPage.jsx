@@ -427,9 +427,14 @@ export const SalesPage = () => {
                 <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Products</p>
                 <p className="text-xl font-extrabold text-on-surface">{filteredProducts.length}</p>
               </div>
-              <div className="rounded-xl border border-slate-200 bg-blue-50/60 px-4 py-3">
-                <p className="text-[10px] uppercase tracking-wider font-bold text-primary">In Cart</p>
-                <p className="text-xl font-extrabold text-primary">{totalCartUnits}</p>
+              <div className="rounded-xl border border-slate-200 bg-blue-50/60 px-4 py-3 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-primary">In Cart</p>
+                  <p className="text-xl font-extrabold text-primary">{totalCartUnits}</p>
+                </div>
+                <span className="material-symbols-outlined text-primary text-[28px] opacity-80" data-icon="shopping_cart">
+                  shopping_cart
+                </span>
               </div>
             </div>
           </div>
