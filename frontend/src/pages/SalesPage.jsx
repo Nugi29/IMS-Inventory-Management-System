@@ -674,7 +674,7 @@ export const SalesPage = () => {
 
                 <button
                   type="button"
-                  className="w-full mt-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold py-2 hover:bg-white transition"
+                  className="w-full mt-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold py-2 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors"
                   onClick={chooseGuestCheckout}
                 >
                   Guest Checkout
