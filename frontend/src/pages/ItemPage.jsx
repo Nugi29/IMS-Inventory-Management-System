@@ -87,8 +87,8 @@ export const ItemPage = () => {
             {/* Filter Bar: Asymmetric Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8 items-center">
                 <div className="lg:col-span-8 flex flex-col md:flex-row gap-4">
-                    <div className="relative flex-1">
-                        <span className="material-symbols-outlined absolute left-4 top-10 -translate-y-1/2 text-slate-400" data-icon="filter_list">filter_list</span>
+                    <div className="relative flex-1 flex items-center">
+                        <span className="material-symbols-outlined absolute left-4 text-slate-400" data-icon="search">search</span>
                         <input
                             className="w-full bg-white border border-slate-200 dark:border-slate-800 rounded-xl pl-12 pr-4 py-4 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none"
                             placeholder="Filter by item name or code..."

@@ -9,15 +9,11 @@ export function useLookup() {
     const [statuses, setStatuses] = useState([]);
     const [categories, setCategories] = useState([]);
     const [itemStatuses, setItemStatuses] = useState([]);
-    const [suppliers, setSuppliers] = useState([]);
-    const [users, setUsers] = useState([]);
-    const [poStatuses, setPoStatuses] = useState([]);
-
     const [isLoadingLookup, setIsLoadingLookup] = useState(false);
 
     const normalizeLookupItem = (item) => ({
-        id: item?.id ?? item?.categoryId ?? item?.category_id ?? item?.roleId ?? item?.statusId ?? item?.userId ?? item?.supplierId ?? item?.poStatusId,
-        label: item?.name ?? item?.categoryName ?? item?.category_name ?? item?.title ?? item?.roleName ?? item?.statusName ?? item?.userName ?? item?.supplierName ?? item?.poStatusName ?? item?.name,
+        id: item?.id ?? item?.categoryId ?? item?.category_id ?? item?.roleId ?? item?.statusId,
+        label: item?.name ?? item?.categoryName ?? item?.category_name ?? item?.title ?? item?.roleName ?? item?.statusName,
     });
 
     const pickFirstArray = (payload, keys) => {
@@ -121,60 +117,6 @@ export function useLookup() {
         }
     }, [backendUrl]);
 
-    const getAllUsers = useCallback(async () => {
-        try {
-            const { data } = await axios.get(`${backendUrl}/api/list/get-all-users`);
-            if (data?.success || Array.isArray(data)) {
-                setUsers(pickFirstArray(data, ['users', 'userData', 'data']));
-                return true;
-            }
-
-            setUsers([]);
-            toast.error(data?.message || "Failed to load lookup data");
-            return false;
-        } catch (error) {
-            setUsers([]);
-            toast.error(error?.response?.data?.message || error?.message || "Failed to load lookup data");
-            return false;
-        }
-    }, [backendUrl]);
-
-    const getAllSuppliers = useCallback(async () => {
-        try {
-            const { data } = await axios.get(`${backendUrl}/api/list/get-all-suppliers`);
-            if (data?.success || Array.isArray(data)) {
-                setSuppliers(pickFirstArray(data, ['suppliers', 'supplierData', 'data']));
-                return true;
-            }
-
-            setSuppliers([]);
-            toast.error(data?.message || "Failed to load lookup data");
-            return false;
-        } catch (error) {
-            setSuppliers([]);
-            toast.error(error?.response?.data?.message || error?.message || "Failed to load lookup data");
-            return false;
-        }
-    }, [backendUrl]);
-
-    const getAllPoStatuses = useCallback(async () => {
-        try {
-            const { data } = await axios.get(`${backendUrl}/api/list/get-all-po-statuses`);
-            if (data?.success || Array.isArray(data)) {
-                setPoStatuses(pickFirstArray(data, ['poStatuses', 'poStatuses', 'poStatusData', 'data']));
-                return true;
-            }
-
-            setPoStatuses([]);
-            toast.error(data?.message || "Failed to load lookup data");
-            return false;
-        } catch (error) {
-            setPoStatuses([]);
-            toast.error(error?.response?.data?.message || error?.message || "Failed to load lookup data");
-            return false;
-        }
-    }, [backendUrl]);
-
     // Auto-load categories on mount
     useEffect(() => {
         getCategories();
@@ -183,32 +125,20 @@ export function useLookup() {
     const loadLookupData = useCallback(async () => {
         setIsLoadingLookup(true);
         try {
-            const [rolesLoaded, statusesLoaded, categoriesLoaded, itemStatusesLoaded, usersLoaded, suppliersLoaded, poStatusesLoaded] = await Promise.all([
-                getUserRoles(),
-                getUserStatuses(),
-                getCategories(),
-                getItemStatuses(),
-                getAllUsers(),
-                getAllSuppliers(),
-                getAllPoStatuses()
-            ]);
-            return rolesLoaded && statusesLoaded && categoriesLoaded && itemStatusesLoaded && usersLoaded && suppliersLoaded && poStatusesLoaded;
+            const [rolesLoaded, statusesLoaded, categoriesLoaded, itemStatusesLoaded] = await Promise.all([getUserRoles(), getUserStatuses(), getCategories(), getItemStatuses()]);
+            return rolesLoaded && statusesLoaded && categoriesLoaded && itemStatusesLoaded;
         } finally {
             setIsLoadingLookup(false);
         }
-    }, [getUserRoles, getUserStatuses, getCategories, getItemStatuses, getAllUsers, getAllSuppliers, getAllPoStatuses]);
+    }, [getUserRoles, getUserStatuses, getCategories, getItemStatuses]);
 
     return {
         roles,
         statuses,
         categories,
         itemStatuses,
-        suppliers,
-        poStatuses,
         getCategories,
         getItemStatuses,
-        getAllSuppliers,
-        getAllPoStatuses,
         refreshCategories: getCategories,
         isLoadingLookup,
         getUserRoles,
