@@ -443,11 +443,11 @@ export const SalesPage = () => {
                         <p className="text-base font-extrabold text-primary">{toCurrency(product.selling_price)}</p>
                         <button
                           type="button"
-                          className="h-9 w-9 rounded-xl bg-primary text-white font-bold hover:brightness-95 transition"
+                          className="flex items-center justify-center h-10 w-10 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition shadow-sm"
                           onClick={() => addToCart(product)}
                           aria-label={`Add ${product.item_name} to cart`}
                         >
-                          +
+                          <span className="material-symbols-outlined text-[24px]">add</span>
                         </button>
                       </div>
                     </article>
