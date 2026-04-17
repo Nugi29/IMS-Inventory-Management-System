@@ -59,6 +59,12 @@ export const SalesPage = () => {
     setCustomerNameInput('')
   }
 
+  const clearFilters = () => {
+    setSearchTerm('')
+    setSelectedCategory('All Products')
+    setCurrentPage(1)
+  }
+
   const categories = useMemo(() => {
     const namesFromItems = items
       .map((item) => normalizeCategory(item))
@@ -423,10 +429,13 @@ export const SalesPage = () => {
               </select>
             </div>
             <div className="lg:col-span-4 grid grid-cols-2 gap-3">
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Products</p>
-                <p className="text-xl font-extrabold text-on-surface">{filteredProducts.length}</p>
-              </div>
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+              >
+                Reset Filters
+              </button>
               <div className="rounded-xl border border-slate-200 bg-blue-50/60 px-4 py-3 flex items-center justify-between">
                 <div>
                   <p className="text-[10px] uppercase tracking-wider font-bold text-primary">In Cart</p>
