@@ -119,15 +119,27 @@ export const SalesPage = () => {
   }, [customers, customerPhoneSearch])
 
   const addToCart = (product) => {
+    const stockAvailable = getItemStock(product)
+    
     setCart((prevCart) => {
       const existingItem = prevCart.find((entry) => Number(entry.id) === Number(product.id))
 
       if (existingItem) {
+        if (existingItem.quantity >= stockAvailable) {
+          toast.error(`Cannot add more than available stock (${stockAvailable}).`)
+          return prevCart
+        }
+        
         return prevCart.map((entry) =>
           Number(entry.id) === Number(product.id)
             ? { ...entry, quantity: entry.quantity + 1 }
             : entry
         )
+      }
+
+      if (stockAvailable <= 0) {
+        toast.error('Product is out of stock.')
+        return prevCart
       }
 
       return [
@@ -137,21 +149,34 @@ export const SalesPage = () => {
           name: product.item_name,
           price: Number(product.selling_price || 0),
           quantity: 1,
+          stock: stockAvailable,
         },
       ]
     })
   }
 
   const updateQuantity = (id, amount) => {
-    setCart((prevCart) =>
-      prevCart
-        .map((entry) =>
-          Number(entry.id) === Number(id)
-            ? { ...entry, quantity: Math.max(0, entry.quantity + amount) }
-            : entry
-        )
-        .filter((entry) => entry.quantity > 0)
-    )
+    setCart((prevCart) => {
+      let limitExceeded = false
+
+      const updatedCart = prevCart.map((entry) => {
+        if (Number(entry.id) === Number(id)) {
+          const newQuantity = entry.quantity + amount
+          if (newQuantity > entry.stock) {
+            limitExceeded = true
+            return { ...entry, quantity: entry.stock }
+          }
+          return { ...entry, quantity: Math.max(0, newQuantity) }
+        }
+        return entry
+      })
+
+      if (limitExceeded) {
+        toast.error('Cannot add more than available stock.')
+      }
+
+      return updatedCart.filter((entry) => entry.quantity > 0)
+    })
   }
 
   const removeCartItem = (id) => {
