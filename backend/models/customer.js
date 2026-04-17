@@ -8,11 +8,11 @@ module.exports = function(sequelize, DataTypes) {
       primaryKey: true
     },
     name: {
-      type: DataTypes.STRING(45),
-      allowNull: true
+      type: DataTypes.STRING(100),
+      allowNull: false
     },
     phone: {
-      type: DataTypes.STRING(45),
+      type: DataTypes.STRING(20),
       allowNull: true
     }
   }, {

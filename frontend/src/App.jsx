@@ -7,6 +7,7 @@ import "react-toastify/dist/ReactToastify.css"
 import { AppContext } from "./context/AppContext"
 import { UserPage } from "./pages/UserPage"
 import { ItemPage } from "./pages/ItemPage"
+import { SalesPage } from "./pages/SalesPage"
 import HomeContent from "./components/HomeContent"
 import { Userform } from "./components/Userform"
 import { ItemForm } from "./components/ItemForm"
@@ -41,7 +42,7 @@ function App() {
             <Route path="/po" element={<PoPage />} />
             <Route path="/poform" element={<PoForm />} />
             <Route path="/grn" element={<HomeContent />} />
-            <Route path="/sales" element={<HomeContent />} />
+            <Route path="/sales" element={<SalesPage />} />
             <Route path="/stock-movement" element={<HomeContent />} />
             <Route path="/users" element={<UserPage />} />
             <Route path="/reports" element={<HomeContent />} />
