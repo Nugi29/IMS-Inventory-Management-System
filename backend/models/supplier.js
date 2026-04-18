@@ -22,6 +22,14 @@ module.exports = function(sequelize, DataTypes) {
     address: {
       type: DataTypes.STRING(255),
       allowNull: true
+    },
+    supplier_status_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'supplier_status',
+        key: 'id'
+      }
     }
   }, {
     sequelize,
@@ -34,6 +42,13 @@ module.exports = function(sequelize, DataTypes) {
         using: "BTREE",
         fields: [
           { name: "id" },
+        ]
+      },
+      {
+        name: "fk_supplier_supplier_status1_idx",
+        using: "BTREE",
+        fields: [
+          { name: "supplier_status_id" },
         ]
       },
     ]

@@ -7,8 +7,10 @@ import { ToastContainer } from "react-toastify"
 import "react-toastify/dist/ReactToastify.css"
 import { AppContext } from "./context/AppContext"
 import { UserPage } from "./pages/UserPage"
+import { ItemPage } from "./pages/ItemPage"
 import HomeContent from "./components/HomeContent"
 import { Userform } from "./components/Userform"
+import { ItemForm } from "./components/ItemForm"
 
 const ProtectedRoute = () => {
   const { token } = useContext(AppContext)
@@ -31,7 +33,8 @@ function App() {
             <Route path="/" element={<HomeContent />} />
             <Route path="/profile" element={<HomeContent />} />
             <Route path="/userform" element={<Userform />} />
-            <Route path="/items" element={<HomeContent />} />
+            <Route path="/items" element={<ItemPage />} />
+            <Route path="/itemform" element={<ItemForm />} />
             <Route path="/categories" element={<HomeContent />} />
             <Route path="/grn" element={<HomeContent />} />
             <Route path="/sales" element={<HomeContent />} />
