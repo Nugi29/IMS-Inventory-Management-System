@@ -58,6 +58,8 @@ const SupplierPage = () => {
 
     const handleRefresh = async () => {
         setSearchTerm('')
+        setSelectedStatus('all')
+        setCurrentPage(1)
         await reloadSuppliers()
     }
 
@@ -249,20 +251,7 @@ const SupplierPage = () => {
                 </button>
             </div>
 
-            <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="relative max-w-xl flex-1">
-                    <span className="material-symbols-outlined absolute left-4 top-9 -translate-y-1/2 text-slate-400">search</span>
-                    <input
-                        className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-12 pr-4 text-sm shadow-sm outline-none transition focus:ring-2 focus:ring-slate-200"
-                        placeholder="Search supplier name, phone, email, or address..."
-                        type="text"
-                        value={searchTerm}
-                        onChange={(event) => setSearchTerm(event.target.value)}
-                    />
-                </div>
-            </div>
-
-            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div className="bg-white border border-slate-200 dark:border-slate-800 rounded-4xl shadow-sm overflow-hidden p-2">
                 <div className="overflow-x-auto">
                     <table className="w-full border-separate border-spacing-y-1 text-left">
                         <thead>
@@ -286,7 +275,7 @@ const SupplierPage = () => {
 
                             {!isLoadingSuppliers && paginatedSuppliers.map((supplier) => (
                                 <tr key={supplier.id || supplier.name} className="bg-slate-50/50 hover:bg-slate-100/50 transition-colors group">
-                                    <td className="px-6 py-4 rounded-l-xl">
+                                    <td className="px-6 py-4 rounded-l-xl text-sm font-bold text-on-surface">
                                         <div className="flex items-center gap-4">
                                             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-sm font-bold text-white">
                                                 {supplier.name
@@ -298,8 +287,7 @@ const SupplierPage = () => {
                                                     .toUpperCase() || 'S'}
                                             </div>
                                             <div>
-                                                <p className="text-sm font-semibold text-slate-900">{supplier.name || '-'}</p>
-                                                {/* <p className="text-xs text-slate-400">Backend supplier record</p> */}
+                                                <p className="text-sm font-semibold text-on-surface">{supplier.name || '-'}</p>
                                             </div>
                                         </div>
                                     </td>
@@ -331,6 +319,7 @@ const SupplierPage = () => {
                                 <tr>
                                     <td colSpan={6} className="px-6 py-14 text-center text-slate-500">
                                         <p className="text-sm font-semibold text-on-surface">No suppliers found</p>
+                                        <p className="mt-1 text-xs">The backend returned no matching supplier records.</p>
                                     </td>
                                 </tr>
                             )}
