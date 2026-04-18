@@ -13,6 +13,7 @@ const Home = () => {
   else if (location.pathname.includes('/items')) currentModule = "Item Management"
   else if (location.pathname.includes('/categories')) currentModule = "Categories"
   else if (location.pathname.includes('/suppliers')) currentModule = "Suppliers"
+  else if (location.pathname.includes('/supplierform')) currentModule = "Supplier Profile Management"
   else if (location.pathname.includes('/grn')) currentModule = "GRN"
   else if (location.pathname.includes('/sales')) currentModule = "Sales"
   else if (location.pathname.includes('/stock-movement')) currentModule = "Stock Movement"
