@@ -1,6 +1,12 @@
 const { models } = require('../config/db');
 
-const { supplier: Supplier } = models;
+const { supplier: Supplier, supplier_status: SupplierStatus } = models;
+
+const supplierStatusInclude = {
+    model: SupplierStatus,
+    as: 'supplier_status',
+    attributes: ['id', 'name'],
+};
 
 //create Supplier
 const createSupplier = async (req, res) => {
@@ -9,8 +15,9 @@ const createSupplier = async (req, res) => {
         if (!name) {
             return res.status(400).json({ success: false, message: 'Name is required' });
         }
-        const newSupplier = await Supplier.create({ name, phone, email, address });
-        return res.status(201).json({ success: true, supplier: newSupplier, message: 'Supplier created successfully' });
+        const newSupplier = await Supplier.create({ name, phone, email, address, supplier_status_id: 1 });
+        const supplier = await Supplier.findByPk(newSupplier.id, { include: [supplierStatusInclude] });
+        return res.status(201).json({ success: true, supplier, message: 'Supplier created successfully' });
     } catch (error) {
         console.error(error);
         return res.status(500).json({ success: false, message: error.message || 'Failed to create supplier' });
@@ -20,7 +27,9 @@ const createSupplier = async (req, res) => {
 //Get all suppliers
 const getAllSuppliers = async (req, res) => {
     try {
-        const suppliers = await Supplier.findAll();
+        const suppliers = await Supplier.findAll({
+            include: [supplierStatusInclude],
+        });
         return res.status(200).json({ success: true, suppliers });
     } catch (error) {
         console.error(error);
@@ -32,7 +41,9 @@ const getAllSuppliers = async (req, res) => {
 const getSupplierById = async (req, res) => {
     const { id } = req.params;
     try {
-        const supplier = await Supplier.findByPk(id);
+        const supplier = await Supplier.findByPk(id, {
+            include: [supplierStatusInclude],
+        });
         if (!supplier) {
             return res.status(404).json({ success: false, message: 'Supplier not found' });
         }
@@ -50,7 +61,10 @@ const getSupplierByName = async (req, res) => {
         return res.status(400).json({ success: false, message: 'Name is required' });
     }
     try {
-        const suppliers = await Supplier.findAll({ where: { name } });
+        const suppliers = await Supplier.findAll({
+            where: { name },
+            include: [supplierStatusInclude],
+        });
         if (suppliers.length === 0) {
             return res.status(404).json({ success: false, message: 'No suppliers found with the given name' });
         }
@@ -64,14 +78,23 @@ const getSupplierByName = async (req, res) => {
 //Update supplier
 const updateSupplier = async (req, res) => {
     const { id } = req.params;
-    const { name, phone, email, address } = req.body;
+    const { name, phone, email, address, supplier_status_id } = req.body;
     try {
         const supplier = await Supplier.findByPk(id);
         if (!supplier) {
             return res.status(404).json({ success: false, message: 'Supplier not found' });
         }
-        await supplier.update({ name, phone, email, address });
-        return res.status(200).json({ success: true, supplier, message: 'Supplier updated successfully' });
+        await supplier.update({
+            name,
+            phone,
+            email,
+            address,
+            supplier_status_id: supplier_status_id !== undefined ? Number(supplier_status_id) : supplier.supplier_status_id,
+        });
+        const updatedSupplier = await Supplier.findByPk(id, {
+            include: [supplierStatusInclude],
+        });
+        return res.status(200).json({ success: true, supplier: updatedSupplier, message: 'Supplier updated successfully' });
     } catch (error) {
         console.error(error);
         return res.status(500).json({ success: false, message: error.message || 'Failed to update supplier' });
