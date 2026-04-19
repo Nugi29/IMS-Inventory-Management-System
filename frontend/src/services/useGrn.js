@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useState } from "react";
-import axios from "axios";
+import axios, { SESSION_EXPIRED_MESSAGE, isSessionExpiredError } from "./httpClient";
 import { AppContext } from "../context/AppContext";
 
 const BASE_ENDPOINT = "/api/grns";
@@ -67,7 +67,11 @@ export function useGrn() {
     try {
       const { data } = await axios.get(endpoint("/"), headers());
       setGrns(parseArrayPayload(data));
-    } catch {
+    } catch (error) {
+      if (isSessionExpiredError(error)) {
+        return;
+      }
+
       setGrns([]);
     } finally {
       setIsLoadingGrns(false);
@@ -80,7 +84,11 @@ export function useGrn() {
     try {
       const { data } = await axios.get(endpoint(`/${id}`), headers());
       return parseObjectPayload(data);
-    } catch {
+    } catch (error) {
+      if (isSessionExpiredError(error)) {
+        return null;
+      }
+
       return null;
     }
   }, [token, endpoint, headers]);
@@ -91,7 +99,11 @@ export function useGrn() {
     try {
       const { data } = await axios.get(endpoint(`/status/${status}`), headers());
       return parseArrayPayload(data);
-    } catch {
+    } catch (error) {
+      if (isSessionExpiredError(error)) {
+        return [];
+      }
+
       return [];
     }
   }, [token, endpoint, headers]);
@@ -102,7 +114,11 @@ export function useGrn() {
     try {
       const { data } = await axios.get(endpoint(`/supplier/${supplierId}`), headers());
       return parseArrayPayload(data);
-    } catch {
+    } catch (error) {
+      if (isSessionExpiredError(error)) {
+        return [];
+      }
+
       return [];
     }
   }, [token, endpoint, headers]);
@@ -113,7 +129,11 @@ export function useGrn() {
     try {
       const { data } = await axios.get(endpoint(`/purchase-order/${poId}`), headers());
       return parseObjectPayload(data);
-    } catch {
+    } catch (error) {
+      if (isSessionExpiredError(error)) {
+        return null;
+      }
+
       return null;
     }
   }, [token, endpoint, headers]);
@@ -124,7 +144,11 @@ export function useGrn() {
     try {
       const { data } = await axios.get(endpoint(`/${id}/items`), headers());
       return parseItemsPayload(data);
-    } catch {
+    } catch (error) {
+      if (isSessionExpiredError(error)) {
+        return [];
+      }
+
       return [];
     }
   }, [token, endpoint, headers]);
@@ -138,6 +162,10 @@ export function useGrn() {
       }
       return { success: false, message: data?.message || "Failed to create GRN", data };
     } catch (error) {
+      if (isSessionExpiredError(error)) {
+        return { success: false, message: SESSION_EXPIRED_MESSAGE };
+      }
+
       return { success: false, message: buildErrorMessage(error, "Failed to create GRN") };
     }
   };
@@ -153,6 +181,10 @@ export function useGrn() {
       }
       return { success: false, message: data?.message || "Failed to create GRN from purchase order", data };
     } catch (error) {
+      if (isSessionExpiredError(error)) {
+        return { success: false, message: SESSION_EXPIRED_MESSAGE };
+      }
+
       return { success: false, message: buildErrorMessage(error, "Failed to create GRN from purchase order") };
     }
   };
@@ -168,6 +200,10 @@ export function useGrn() {
       }
       return { success: false, message: data?.message || "Failed to add GRN item", data };
     } catch (error) {
+      if (isSessionExpiredError(error)) {
+        return { success: false, message: SESSION_EXPIRED_MESSAGE };
+      }
+
       return { success: false, message: buildErrorMessage(error, "Failed to add GRN item") };
     }
   };
@@ -188,6 +224,10 @@ export function useGrn() {
       }
       return { success: false, message: data?.message || "Failed to update GRN", data };
     } catch (error) {
+      if (isSessionExpiredError(error)) {
+        return { success: false, message: SESSION_EXPIRED_MESSAGE };
+      }
+
       return { success: false, message: buildErrorMessage(error, "Failed to update GRN") };
     }
   };
@@ -204,6 +244,10 @@ export function useGrn() {
       }
       return { success: false, message: data?.message || "Failed to delete GRN", data };
     } catch (error) {
+      if (isSessionExpiredError(error)) {
+        return { success: false, message: SESSION_EXPIRED_MESSAGE };
+      }
+
       return { success: false, message: buildErrorMessage(error, "Failed to delete GRN") };
     }
   };

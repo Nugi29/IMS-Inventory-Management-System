@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useState } from 'react'
-import axios from 'axios'
+import axios, { SESSION_EXPIRED_MESSAGE, isSessionExpiredError } from './httpClient'
 import { AppContext } from '../context/AppContext'
 
 const LIST_ENDPOINTS = [
@@ -99,7 +99,11 @@ export function useCustomer() {
             setCustomers(list)
             return
           }
-        } catch {
+        } catch (error) {
+          if (isSessionExpiredError(error)) {
+            return
+          }
+
           // Try next endpoint.
         }
       }
@@ -145,7 +149,14 @@ export function useCustomer() {
             customer: normalizeCustomer(createdRaw),
           }
         }
-      } catch {
+      } catch (error) {
+        if (isSessionExpiredError(error)) {
+          return {
+            success: false,
+            message: SESSION_EXPIRED_MESSAGE,
+          }
+        }
+
         // Try next endpoint.
       }
     }
@@ -194,7 +205,14 @@ export function useCustomer() {
               customer: normalizeCustomer(updatedRaw),
             }
           }
-        } catch {
+        } catch (error) {
+          if (isSessionExpiredError(error)) {
+            return {
+              success: false,
+              message: SESSION_EXPIRED_MESSAGE,
+            }
+          }
+
           // Try next method/endpoint.
         }
       }
@@ -224,7 +242,14 @@ export function useCustomer() {
             message: data?.message || 'Customer deleted successfully',
           }
         }
-      } catch {
+      } catch (error) {
+        if (isSessionExpiredError(error)) {
+          return {
+            success: false,
+            message: SESSION_EXPIRED_MESSAGE,
+          }
+        }
+
         // Try alternate endpoints.
       }
 
@@ -238,7 +263,14 @@ export function useCustomer() {
             message: data?.message || 'Customer deleted successfully',
           }
         }
-      } catch {
+      } catch (error) {
+        if (isSessionExpiredError(error)) {
+          return {
+            success: false,
+            message: SESSION_EXPIRED_MESSAGE,
+          }
+        }
+
         // Try alternate endpoints.
       }
     }

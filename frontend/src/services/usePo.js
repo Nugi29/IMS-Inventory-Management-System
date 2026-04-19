@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useState } from "react";
-import axios from "axios";
+import axios, { SESSION_EXPIRED_MESSAGE, isSessionExpiredError } from "./httpClient";
 import { AppContext } from "../context/AppContext";
 
 const ENDPOINTS = {
@@ -55,7 +55,11 @@ export function usePo() {
     try {
       const nextPos = await fetchPosData();
       setPos(nextPos);
-    } catch {
+    } catch (error) {
+      if (isSessionExpiredError(error)) {
+        return;
+      }
+
       setPos([]);
     } finally {
       setIsLoadingPos(false);
@@ -69,7 +73,11 @@ export function usePo() {
       const nextPos = await fetchPosData();
       setPos(nextPos);
       return nextPos.find((po) => String(po?.id ?? po?.po_id ?? po?._id ?? "") === String(id)) || null;
-    } catch {
+    } catch (error) {
+      if (isSessionExpiredError(error)) {
+        return null;
+      }
+
       return null;
     }
   }, [token, fetchPosData]);
@@ -82,6 +90,10 @@ export function usePo() {
       if (data?.success) { await loadPos(); return { success: true, message: data.message }; }
       return { success: false, message: data?.message ?? "Failed to add purchase order" };
     } catch (err) {
+      if (isSessionExpiredError(err)) {
+        return { success: false, message: SESSION_EXPIRED_MESSAGE };
+      }
+
       return { success: false, message: err?.response?.data?.message ?? err.message };
     }
   };
@@ -116,7 +128,11 @@ export function usePo() {
         const fn = method === "put" ? axios.put : axios.post;
         const { data } = await fn(endpoint(`${ENDPOINTS.update}/${id}`), payload, headers());
         if (data?.success) { await loadPos(); return { success: true, message: data.message }; }
-      } catch { /* try next */ }
+      } catch (err) {
+        if (isSessionExpiredError(err)) {
+          return { success: false, message: SESSION_EXPIRED_MESSAGE };
+        }
+      }
     }
     return { success: false, message: "Failed to update purchase order" };
   };
@@ -132,6 +148,10 @@ export function usePo() {
       if (data?.success) { await loadPos(); return { success: true, message: data.message }; }
       return { success: false, message: data?.message ?? "Failed to delete purchase order" };
     } catch (err) {
+      if (isSessionExpiredError(err)) {
+        return { success: false, message: SESSION_EXPIRED_MESSAGE };
+      }
+
       return { success: false, message: err?.response?.data?.message ?? err.message };
     }
   };

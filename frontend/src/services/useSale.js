@@ -1,5 +1,5 @@
 import { useCallback, useContext } from 'react'
-import axios from 'axios'
+import axios, { SESSION_EXPIRED_MESSAGE, isSessionExpiredError } from './httpClient'
 import { AppContext } from '../context/AppContext'
 
 const CREATE_ENDPOINTS = [
@@ -66,7 +66,11 @@ export function useSale() {
         }
 
         if (status === 401) {
-          return { success: false, message: 'Unauthorized. Please log in again.' }
+          return { success: false, message: SESSION_EXPIRED_MESSAGE }
+        }
+
+        if (isSessionExpiredError(error)) {
+          return { success: false, message: SESSION_EXPIRED_MESSAGE }
         }
 
         if (status === 400) {

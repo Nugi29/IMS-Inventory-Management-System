@@ -1,5 +1,5 @@
 import { useCallback, useContext, useState, useEffect } from "react";
-import axios from "axios";
+import axios, { isSessionExpiredError } from "./httpClient";
 import { toast } from "react-toastify";
 import { AppContext } from "../context/AppContext";
 
@@ -54,6 +54,9 @@ export function useLookup() {
             return false;
         } catch (error) {
             setRoles([]);
+            if (isSessionExpiredError(error)) {
+                return false;
+            }
             toast.error(error?.response?.data?.message || error?.message || "Failed to load lookup data");
             return false;
         }
@@ -72,6 +75,9 @@ export function useLookup() {
             return false;
         } catch (error) {
             setStatuses([]);
+            if (isSessionExpiredError(error)) {
+                return false;
+            }
             toast.error(error?.response?.data?.message || error?.message || "Failed to load lookup data");
             return false;
         }
@@ -94,6 +100,9 @@ export function useLookup() {
             return false;
         } catch (error) {
             setCategories([]);
+            if (isSessionExpiredError(error)) {
+                return false;
+            }
             toast.error(error?.response?.data?.message || error?.message || "Failed to load lookup data");
             return false;
         }
@@ -116,6 +125,9 @@ export function useLookup() {
             return false;
         } catch (error) {
             setItemStatuses([]);
+            if (isSessionExpiredError(error)) {
+                return false;
+            }
             toast.error(error?.response?.data?.message || error?.message || "Failed to load lookup data");
             return false;
         }
@@ -134,6 +146,9 @@ export function useLookup() {
             return false;
         } catch (error) {
             setUsers([]);
+            if (isSessionExpiredError(error)) {
+                return false;
+            }
             toast.error(error?.response?.data?.message || error?.message || "Failed to load lookup data");
             return false;
         }
@@ -152,6 +167,9 @@ export function useLookup() {
             return false;
         } catch (error) {
             setSuppliers([]);
+            if (isSessionExpiredError(error)) {
+                return false;
+            }
             toast.error(error?.response?.data?.message || error?.message || "Failed to load lookup data");
             return false;
         }
@@ -170,6 +188,9 @@ export function useLookup() {
             return false;
         } catch (error) {
             setPoStatuses([]);
+            if (isSessionExpiredError(error)) {
+                return false;
+            }
             toast.error(error?.response?.data?.message || error?.message || "Failed to load lookup data");
             return false;
         }
