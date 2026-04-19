@@ -12,6 +12,7 @@ export function useLookup() {
     const [suppliers, setSuppliers] = useState([]);
     const [users, setUsers] = useState([]);
     const [poStatuses, setPoStatuses] = useState([]);
+    const [grnStatuses, setGrnStatuses] = useState([]);
 
     const [isLoadingLookup, setIsLoadingLookup] = useState(false);
 
@@ -196,6 +197,27 @@ export function useLookup() {
         }
     }, [backendUrl]);
 
+        const getAllGrnStatuses = useCallback(async () => {
+        try {
+            const { data } = await axios.get(`${backendUrl}/api/list/get-all-grn-statuses`);
+            if (data?.success || Array.isArray(data)) {
+                setGrnStatuses(pickFirstArray(data, ['grnStatuses', 'grnStatusData', 'data']));
+                return true;
+            }
+
+            setGrnStatuses([]);
+            toast.error(data?.message || "Failed to load lookup data");
+            return false;
+        } catch (error) {
+            setGrnStatuses([]);
+            if (isSessionExpiredError(error)) {
+                return false;
+            }
+            toast.error(error?.response?.data?.message || error?.message || "Failed to load lookup data");
+            return false;
+        }
+    }, [backendUrl]);
+
     // Auto-load categories on mount
     useEffect(() => {
         getCategories();
@@ -204,20 +226,21 @@ export function useLookup() {
     const loadLookupData = useCallback(async () => {
         setIsLoadingLookup(true);
         try {
-            const [rolesLoaded, statusesLoaded, categoriesLoaded, itemStatusesLoaded, usersLoaded, suppliersLoaded, poStatusesLoaded] = await Promise.all([
+            const [rolesLoaded, statusesLoaded, categoriesLoaded, itemStatusesLoaded, usersLoaded, suppliersLoaded, poStatusesLoaded, grnStatusesLoaded] = await Promise.all([
                 getUserRoles(),
                 getUserStatuses(),
                 getCategories(),
                 getItemStatuses(),
                 getAllUsers(),
                 getAllSuppliers(),
-                getAllPoStatuses()
+                getAllPoStatuses(),
+                getAllGrnStatuses(),
             ]);
-            return rolesLoaded && statusesLoaded && categoriesLoaded && itemStatusesLoaded && usersLoaded && suppliersLoaded && poStatusesLoaded;
+            return rolesLoaded && statusesLoaded && categoriesLoaded && itemStatusesLoaded && usersLoaded && suppliersLoaded && poStatusesLoaded && grnStatusesLoaded;
         } finally {
             setIsLoadingLookup(false);
         }
-    }, [getUserRoles, getUserStatuses, getCategories, getItemStatuses, getAllUsers, getAllSuppliers, getAllPoStatuses]);
+    }, [getUserRoles, getUserStatuses, getCategories, getItemStatuses, getAllUsers, getAllSuppliers, getAllPoStatuses, getAllGrnStatuses]);
 
     return {
         roles,
@@ -225,11 +248,14 @@ export function useLookup() {
         categories,
         itemStatuses,
         suppliers,
+        users,
         poStatuses,
+        grnStatuses,
         getCategories,
         getItemStatuses,
         getAllSuppliers,
         getAllPoStatuses,
+        getAllGrnStatuses,
         refreshCategories: getCategories,
         isLoadingLookup,
         getUserRoles,

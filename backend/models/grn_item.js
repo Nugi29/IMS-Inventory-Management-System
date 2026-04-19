@@ -23,7 +23,11 @@ module.exports = function(sequelize, DataTypes) {
         key: 'id'
       }
     },
-    quantity: {
+    total_quantity: {
+      type: DataTypes.INTEGER,
+      allowNull: false
+    },
+    recieved_quantity: {
       type: DataTypes.INTEGER,
       allowNull: false
     },

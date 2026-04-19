@@ -36,12 +36,104 @@ const parseItemsPayload = (data) => {
   const direct = data?.itemsData ?? data?.grnItems ?? data?.grn_items ?? data?.items ?? data?.data;
   if (Array.isArray(direct)) return direct;
 
+  const extractArrays = (value, depth = 0) => {
+    if (depth > 5 || value == null) return [];
+    if (Array.isArray(value)) return [value];
+    if (typeof value !== "object") return [];
+
+    const prioritizedKeys = [
+      "grn_items",
+      "grnItems",
+      "items",
+      "itemsData",
+      "line_items",
+      "rows",
+      "data",
+    ];
+
+    const found = [];
+
+    prioritizedKeys.forEach((key) => {
+      if (Object.prototype.hasOwnProperty.call(value, key)) {
+        found.push(...extractArrays(value[key], depth + 1));
+      }
+    });
+
+    Object.values(value).forEach((entry) => {
+      found.push(...extractArrays(entry, depth + 1));
+    });
+
+    return found;
+  };
+
+  const nestedArrays = extractArrays(data);
+  if (nestedArrays.length) {
+    return nestedArrays.reduce((best, current) =>
+      current.length > best.length ? current : best,
+    nestedArrays[0]);
+  }
+
   if (data && typeof data === "object") {
     const firstArray = Object.values(data).find((value) => Array.isArray(value));
     if (Array.isArray(firstArray)) return firstArray;
   }
 
   return [];
+};
+
+const parseItemsFromGrnObject = (grn) => {
+  if (!grn || typeof grn !== "object") return [];
+
+  const candidates = [
+    grn?.grn_items,
+    grn?.grnItems,
+    grn?.items,
+    grn?.item_details,
+    grn?.line_items,
+  ];
+
+  for (const entry of candidates) {
+    if (Array.isArray(entry)) return entry;
+  }
+
+  return [];
+};
+
+const GRN_STATUS_TO_PO_STATUS_ID = {
+  1: 1,
+  2: 3,
+  3: 4,
+  4: 5,
+};
+
+const normalizeStatusId = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
+const normalizeGrnWritePayload = (payload = {}) => {
+  const nextPayload = { ...payload };
+  const grnStatusId = normalizeStatusId(
+    nextPayload.grn_status_id ?? nextPayload.grnStatusId,
+  );
+  const poStatusId = normalizeStatusId(
+    nextPayload.po_status_id ?? nextPayload.poStatusId,
+  );
+
+  if (grnStatusId && !poStatusId) {
+    nextPayload.po_status_id = GRN_STATUS_TO_PO_STATUS_ID[grnStatusId] ?? nextPayload.po_status_id;
+  }
+
+  if (!grnStatusId && poStatusId) {
+    const inferredGrnStatusId = Object.entries(GRN_STATUS_TO_PO_STATUS_ID)
+      .find(([, mappedPoStatusId]) => Number(mappedPoStatusId) === poStatusId)?.[0];
+
+    if (inferredGrnStatusId) {
+      nextPayload.grn_status_id = Number(inferredGrnStatusId);
+    }
+  }
+
+  return nextPayload;
 };
 
 export function useGrn() {
@@ -143,19 +235,36 @@ export function useGrn() {
 
     try {
       const { data } = await axios.get(endpoint(`/${id}/items`), headers());
-      return parseItemsPayload(data);
+      const directItems = parseItemsPayload(data);
+      if (directItems.length) return directItems;
+
+      const embeddedGrn = parseObjectPayload(data);
+      const embeddedItems = parseItemsFromGrnObject(embeddedGrn);
+      if (embeddedItems.length) return embeddedItems;
+
+      // Fallback for APIs that expose items only on get-by-id payload.
+      const { data: byIdData } = await axios.get(endpoint(`/${id}`), headers());
+      const grn = parseObjectPayload(byIdData);
+      return parseItemsFromGrnObject(grn);
     } catch (error) {
       if (isSessionExpiredError(error)) {
         return [];
       }
 
-      return [];
+      try {
+        // If /:id/items route fails, still try get-by-id as a recovery path.
+        const { data } = await axios.get(endpoint(`/${id}`), headers());
+        const grn = parseObjectPayload(data);
+        return parseItemsFromGrnObject(grn);
+      } catch {
+        return [];
+      }
     }
   }, [token, endpoint, headers]);
 
   const createGrn = async (payload) => {
     try {
-      const { data } = await axios.post(endpoint("/"), payload, headers());
+      const { data } = await axios.post(endpoint("/"), normalizeGrnWritePayload(payload), headers());
       if (data?.success) {
         await loadGrns();
         return { success: true, message: data.message, data };
@@ -174,7 +283,7 @@ export function useGrn() {
     if (!poId) return { success: false, message: "Missing purchase order id" };
 
     try {
-      const { data } = await axios.post(endpoint(`/from-po/${poId}`), payload, headers());
+      const { data } = await axios.post(endpoint(`/from-po/${poId}`), normalizeGrnWritePayload(payload), headers());
       if (data?.success) {
         await loadGrns();
         return { success: true, message: data.message, data };
@@ -212,9 +321,9 @@ export function useGrn() {
     const id = Number(grn?.id ?? grn?.grn_id ?? grn?._id);
     if (!id) return { success: false, message: "Missing GRN id" };
 
-    const payload = Object.fromEntries(
+    const payload = normalizeGrnWritePayload(Object.fromEntries(
       Object.entries(grn || {}).filter(([, value]) => value !== undefined && value !== null && value !== "")
-    );
+    ));
 
     try {
       const { data } = await axios.put(endpoint(`/${id}`), payload, headers());

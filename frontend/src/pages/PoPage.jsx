@@ -215,7 +215,13 @@ export const PoPage = () => {
     const isDraftStatus = (status) => normalizeText(status) === 'draft'
     const canCreateGrn = (status) => {
         const normalized = normalizeText(status)
-        return normalized.includes('fully received') || normalized.includes('partially received')
+        return (
+            normalized === 'sent'
+            || normalized.includes('partially received')
+            || normalized.includes('partially recieved')
+            || normalized.includes('fully received')
+            || normalized.includes('fully recieved')
+        )
     }
 
     return (
@@ -336,7 +342,7 @@ export const PoPage = () => {
                                                         className="p-2 hover:bg-white rounded-lg transition-colors text-emerald-600 hover:text-emerald-700"
                                                         type="button"
                                                         aria-label={`Create GRN for ${getPoNumber(po)}`}
-                                                        title="Create GRN"
+                                                        title="Open GRN"
                                                         onClick={() => navigate('/grns', { state: { source: 'po', po } })}
                                                     >
                                                         <span className="material-symbols-outlined text-xl" data-icon="fact_check">fact_check</span>

@@ -4,8 +4,11 @@ const {
     grn: Grn,
     grn_item: GrnItem,
     item: Item,
+    stock_movement: StockMovement,
     supplier: Supplier,
     user: User,
+    grn_status: GrnStatus,
+    po_status: POStatus,
     purchase_order: PurchaseOrder,
     purchase_order_item: PurchaseOrderItem,
 } = models;
@@ -13,6 +16,8 @@ const {
 const grnInclude = [
     { model: Supplier, as: 'supplier' },
     { model: User, as: 'user' },
+    { model: PurchaseOrder, as: 'purchase_order' },
+    { model: GrnStatus, as: 'grn_status' },
     { model: GrnItem, as: 'grn_items', include: [{ model: Item, as: 'item' }] },
 ];
 
@@ -22,6 +27,7 @@ const purchaseOrderInclude = [
 ];
 
 let grnTableColumnsPromise = null;
+let grnItemTableColumnsPromise = null;
 
 const parsePositiveInt = (value) => {
     const parsed = Number(value);
@@ -61,6 +67,17 @@ const hasGrnColumn = async (columnName) => {
     return Object.prototype.hasOwnProperty.call(columns, columnName);
 };
 
+const getGrnItemColumns = async () => {
+    if (!grnItemTableColumnsPromise) {
+        grnItemTableColumnsPromise = sequelize.getQueryInterface().describeTable('grn_item').catch((error) => {
+            grnItemTableColumnsPromise = null;
+            throw error;
+        });
+    }
+
+    return grnItemTableColumnsPromise;
+};
+
 const normalizeItems = (body) => {
     if (Array.isArray(body.items)) {
         return body.items;
@@ -75,6 +92,12 @@ const normalizeItems = (body) => {
 
 const normalizeGrnStatus = (grnRecord) => {
     const plain = grnRecord && typeof grnRecord.get === 'function' ? grnRecord.get({ plain: true }) : grnRecord;
+    const statusRelation = (plain && (plain.grn_status || plain.po_status)) || null;
+    const relationStatusName = statusRelation && statusRelation.name ? String(statusRelation.name).toLowerCase() : null;
+    if (relationStatusName) {
+        return relationStatusName;
+    }
+
     if (plain && plain.status) {
         return String(plain.status).toLowerCase();
     }
@@ -84,20 +107,68 @@ const normalizeGrnStatus = (grnRecord) => {
 
 const attachDerivedStatus = (grnRecord) => {
     const plain = grnRecord && typeof grnRecord.get === 'function' ? grnRecord.get({ plain: true }) : { ...grnRecord };
+    const statusRelation = (plain && (plain.grn_status || plain.po_status)) || null;
+    const relationStatusName = statusRelation && statusRelation.name ? String(statusRelation.name).toLowerCase() : null;
     return {
         ...plain,
-        status: plain.status ? String(plain.status).toLowerCase() : (Array.isArray(plain.grn_items) && plain.grn_items.length > 0 ? 'received' : 'draft'),
+        status: relationStatusName || (plain.status ? String(plain.status).toLowerCase() : (Array.isArray(plain.grn_items) && plain.grn_items.length > 0 ? 'received' : 'draft')),
     };
 };
 
 const normalizeStatusName = (value) => String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+const getRowQuantityValue = (row) => {
+    if (!row) {
+        return 0;
+    }
+
+    const value = row.recieved_quantity ?? row.received_quantity ?? row.total_quantity ?? row.quantity ?? 0;
+    return Number(value) || 0;
+};
+
+const parseGrnItemQuantities = (row) => {
+    const totalQuantity = parsePositiveInt(row.total_quantity ?? row.quantity ?? row.recieved_quantity ?? row.received_quantity);
+    const receivedQuantity = parsePositiveInt(row.recieved_quantity ?? row.received_quantity ?? row.quantity ?? row.total_quantity);
+
+    if (!totalQuantity || !receivedQuantity || receivedQuantity > totalQuantity) {
+        return null;
+    }
+
+    return { totalQuantity, receivedQuantity };
+};
+
+const buildGrnItemPayload = (columns, { grnId, itemId, totalQuantity, receivedQuantity, purchasePrice }) => {
+    const payload = {
+        grn_id: grnId,
+        item_id: itemId,
+        purchase_price: purchasePrice,
+    };
+
+    if (Object.prototype.hasOwnProperty.call(columns, 'total_quantity')) {
+        payload.total_quantity = totalQuantity;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(columns, 'recieved_quantity')) {
+        payload.recieved_quantity = receivedQuantity;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(columns, 'received_quantity')) {
+        payload.received_quantity = receivedQuantity;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(columns, 'quantity')) {
+        payload.quantity = receivedQuantity;
+    }
+
+    return payload;
+};
 
 const sumItemsById = (rows) => {
     const totals = new Map();
 
     (rows || []).forEach((row) => {
         const itemId = Number(row?.item_id);
-        const quantity = Number(row?.quantity ?? 0);
+        const quantity = getRowQuantityValue(row);
 
         if (!itemId || Number.isNaN(quantity)) {
             return;
@@ -111,9 +182,50 @@ const sumItemsById = (rows) => {
 
 const getPoStatusIdByName = async (statusNames, transaction) => {
     const statuses = await POStatus.findAll({ transaction });
-    const wanted = new Set(statusNames.map(normalizeStatusName));
-    const match = statuses.find((statusRow) => wanted.has(normalizeStatusName(statusRow.name)));
-    return match ? match.id : null;
+    const wanted = (statusNames || []).map(normalizeStatusName).filter(Boolean);
+    if (!wanted.length) {
+        return null;
+    }
+
+    for (const wantedName of wanted) {
+        const match = statuses.find((statusRow) => normalizeStatusName(statusRow.name) === wantedName);
+        if (match) {
+            return match.id;
+        }
+    }
+
+    return null;
+};
+
+const getGrnStatusIdByName = async (statusNames, transaction) => {
+    const statuses = await GrnStatus.findAll({ transaction });
+    if (!statuses || statuses.length === 0) {
+        return null;
+    }
+
+    const wanted = (statusNames || []).map(normalizeStatusName).filter(Boolean);
+    for (const wantedName of wanted) {
+        const namedMatch = statuses.find((statusRow) => normalizeStatusName(statusRow.name) === wantedName);
+        if (namedMatch) {
+            return namedMatch.id;
+        }
+    }
+
+    return statuses[0].id;
+};
+
+const mapPoStatusIdToGrnStatusId = async (poStatusId, transaction) => {
+    const parsedPoStatusId = parsePositiveInt(poStatusId);
+    if (!parsedPoStatusId) {
+        return null;
+    }
+
+    const poStatus = await POStatus.findByPk(parsedPoStatusId, { transaction });
+    if (!poStatus || !poStatus.name) {
+        return null;
+    }
+
+    return getGrnStatusIdByName([poStatus.name], transaction);
 };
 
 const syncPurchaseOrderReceiptStatus = async (purchaseOrderId, transaction) => {
@@ -193,6 +305,17 @@ const applyItemStockChange = async (itemId, quantityDelta, transaction) => {
     return { success: true };
 };
 
+const createGrnStockMovement = async ({ itemId, grnId, userId, quantity, transaction }) => {
+    await StockMovement.create({
+        item_id: itemId,
+        quantity,
+        grn_id: grnId,
+        sale_id: null,
+        user_id: userId || null,
+        movement_type_id: 1,
+    }, { transaction });
+};
+
 const buildGrnHeader = async (body, fallbackUserId) => {
     const supplierId = parsePositiveInt(body.supplier_id);
     const userId = parsePositiveInt(body.user_id || fallbackUserId);
@@ -221,19 +344,52 @@ const buildGrnHeader = async (body, fallbackUserId) => {
         payload.total_amount = parsedTotalAmount;
     }
 
-    if (body.purchase_order_id !== undefined) {
+    if (await hasGrnColumn('purchase_order_id')) {
         const parsedPurchaseOrderId = parsePositiveInt(body.purchase_order_id);
         if (!parsedPurchaseOrderId) {
-            return { success: false, status: 400, message: 'purchase_order_id must be a positive integer' };
+            return { success: false, status: 400, message: 'purchase_order_id is required and must be a positive integer' };
         }
 
-        if (await hasGrnColumn('purchase_order_id')) {
-            payload.purchase_order_id = parsedPurchaseOrderId;
-        }
+        payload.purchase_order_id = parsedPurchaseOrderId;
     }
 
     if (body.status !== undefined && await hasGrnColumn('status')) {
         payload.status = String(body.status);
+    }
+
+    const grnStatusColumn = await hasGrnColumn('grn_status_id')
+        ? 'grn_status_id'
+        : (await hasGrnColumn('po_status_id') ? 'po_status_id' : null);
+
+    if (grnStatusColumn) {
+        const requestedGrnStatusId = parsePositiveInt(body.grn_status_id);
+        if (requestedGrnStatusId) {
+            payload[grnStatusColumn] = requestedGrnStatusId;
+        } else {
+            const mappedFromPoStatus = await mapPoStatusIdToGrnStatusId(body.po_status_id, null);
+            if (mappedFromPoStatus) {
+                payload[grnStatusColumn] = mappedFromPoStatus;
+            } else {
+                const statusFromBody = String(body.status || '').trim();
+                const suggestedStatuses = [];
+
+                if (statusFromBody) {
+                    suggestedStatuses.push(statusFromBody);
+                }
+
+                const hasItems = Array.isArray(body.items) ? body.items.length > 0 : Array.isArray(body.grn_items) ? body.grn_items.length > 0 : false;
+                suggestedStatuses.push(hasItems ? 'received' : 'draft', 'pending', 'created');
+
+                const grnStatusId = await getGrnStatusIdByName(suggestedStatuses, null);
+                if (grnStatusId) {
+                    payload[grnStatusColumn] = grnStatusId;
+                }
+            }
+        }
+    }
+
+    if (grnStatusColumn && !payload[grnStatusColumn]) {
+        return { success: false, status: 400, message: 'A valid grn_status_id (or status name) is required' };
     }
 
     return { success: true, payload };
@@ -249,6 +405,7 @@ const createGrn = async (req, res) => {
     const transaction = await sequelize.transaction();
 
     try {
+        const grnItemColumns = await getGrnItemColumns();
         const headerResult = await buildGrnHeader(req.body, req.userId || req.body.userId);
         if (!headerResult.success) {
             await transaction.rollback();
@@ -266,14 +423,14 @@ const createGrn = async (req, res) => {
 
         for (const row of grnItems) {
             const itemId = parsePositiveInt(row.item_id);
-            const quantity = parsePositiveInt(row.quantity);
+            const quantities = parseGrnItemQuantities(row);
             const purchasePrice = parseNonNegativeNumber(row.purchase_price);
 
-            if (!itemId || !quantity || purchasePrice === null) {
+            if (!itemId || !quantities || purchasePrice === null) {
                 await transaction.rollback();
                 return res.status(400).json({
                     success: false,
-                    message: 'Each GRN item needs valid item_id, quantity (> 0), and purchase_price (>= 0)',
+                    message: 'Each GRN item needs valid item_id, quantities (use quantity or total_quantity/recieved_quantity), and purchase_price (>= 0)',
                 });
             }
 
@@ -283,20 +440,29 @@ const createGrn = async (req, res) => {
                 return res.status(404).json({ success: false, message: `Item not found: ${itemId}` });
             }
 
-            await GrnItem.create({
-                grn_id: grnRecord.id,
-                item_id: itemId,
-                quantity,
-                purchase_price: purchasePrice,
-            }, { transaction });
+            await GrnItem.create(buildGrnItemPayload(grnItemColumns, {
+                grnId: grnRecord.id,
+                itemId,
+                totalQuantity: quantities.totalQuantity,
+                receivedQuantity: quantities.receivedQuantity,
+                purchasePrice,
+            }), { transaction });
 
-            const stockResult = await applyItemStockChange(itemId, quantity, transaction);
+            const stockResult = await applyItemStockChange(itemId, quantities.receivedQuantity, transaction);
             if (!stockResult.success) {
                 await transaction.rollback();
                 return res.status(stockResult.status).json({ success: false, message: stockResult.message });
             }
 
-            computedTotal += quantity * purchasePrice;
+            await createGrnStockMovement({
+                itemId,
+                grnId: grnRecord.id,
+                userId: grnRecord.user_id,
+                quantity: quantities.receivedQuantity,
+                transaction,
+            });
+
+            computedTotal += quantities.receivedQuantity * purchasePrice;
         }
 
         if (req.body.total_amount === undefined) {
@@ -366,6 +532,7 @@ const updateGrn = async (req, res) => {
     const transaction = await sequelize.transaction();
 
     try {
+        const grnItemColumns = await getGrnItemColumns();
         const grnId = parsePositiveInt(req.params.id || req.body.grn_id);
         if (!grnId) {
             await transaction.rollback();
@@ -383,7 +550,7 @@ const updateGrn = async (req, res) => {
             return res.status(404).json({ success: false, message: 'GRN not found' });
         }
 
-        const { supplier_id, grn_date, total_amount, purchase_order_id, status } = req.body;
+        const { supplier_id, grn_date, total_amount, purchase_order_id, status, grn_status_id, po_status_id } = req.body;
 
         if (supplier_id !== undefined) {
             const parsedSupplierId = parsePositiveInt(supplier_id);
@@ -429,13 +596,31 @@ const updateGrn = async (req, res) => {
             grnRecord.status = String(status);
         }
 
+        const grnStatusColumn = await hasGrnColumn('grn_status_id')
+            ? 'grn_status_id'
+            : (await hasGrnColumn('po_status_id') ? 'po_status_id' : null);
+
+        if (grnStatusColumn) {
+            const requestedGrnStatusId = parsePositiveInt(grn_status_id);
+            if (requestedGrnStatusId) {
+                grnRecord[grnStatusColumn] = requestedGrnStatusId;
+            } else if (po_status_id !== undefined) {
+                const mappedFromPoStatus = await mapPoStatusIdToGrnStatusId(po_status_id, transaction);
+                if (!mappedFromPoStatus) {
+                    await transaction.rollback();
+                    return res.status(400).json({ success: false, message: 'Invalid po_status_id for GRN status mapping' });
+                }
+                grnRecord[grnStatusColumn] = mappedFromPoStatus;
+            }
+        }
+
         const hasReplacementItems = Object.prototype.hasOwnProperty.call(req.body, 'items') || Object.prototype.hasOwnProperty.call(req.body, 'grn_items');
         const replacementItems = normalizeItems(req.body);
         if (hasReplacementItems) {
             const existingItems = grnRecord.grn_items || [];
 
             for (const existingItem of existingItems) {
-                const revertResult = await applyItemStockChange(existingItem.item_id, -Number(existingItem.quantity || 0), transaction);
+                const revertResult = await applyItemStockChange(existingItem.item_id, -getRowQuantityValue(existingItem), transaction);
                 if (!revertResult.success) {
                     await transaction.rollback();
                     return res.status(revertResult.status).json({ success: false, message: revertResult.message });
@@ -447,14 +632,14 @@ const updateGrn = async (req, res) => {
             let recomputedTotal = 0;
             for (const row of replacementItems) {
                 const itemId = parsePositiveInt(row.item_id);
-                const quantity = parsePositiveInt(row.quantity);
+                const quantities = parseGrnItemQuantities(row);
                 const purchasePrice = parseNonNegativeNumber(row.purchase_price);
 
-                if (!itemId || !quantity || purchasePrice === null) {
+                if (!itemId || !quantities || purchasePrice === null) {
                     await transaction.rollback();
                     return res.status(400).json({
                         success: false,
-                        message: 'Each GRN item needs valid item_id, quantity (> 0), and purchase_price (>= 0)',
+                        message: 'Each GRN item needs valid item_id, quantities (use quantity or total_quantity/recieved_quantity), and purchase_price (>= 0)',
                     });
                 }
 
@@ -464,20 +649,29 @@ const updateGrn = async (req, res) => {
                     return res.status(404).json({ success: false, message: `Item not found: ${itemId}` });
                 }
 
-                await GrnItem.create({
-                    grn_id: grnRecord.id,
-                    item_id: itemId,
-                    quantity,
-                    purchase_price: purchasePrice,
-                }, { transaction });
+                await GrnItem.create(buildGrnItemPayload(grnItemColumns, {
+                    grnId: grnRecord.id,
+                    itemId,
+                    totalQuantity: quantities.totalQuantity,
+                    receivedQuantity: quantities.receivedQuantity,
+                    purchasePrice,
+                }), { transaction });
 
-                const stockResult = await applyItemStockChange(itemId, quantity, transaction);
+                const stockResult = await applyItemStockChange(itemId, quantities.receivedQuantity, transaction);
                 if (!stockResult.success) {
                     await transaction.rollback();
                     return res.status(stockResult.status).json({ success: false, message: stockResult.message });
                 }
 
-                recomputedTotal += quantity * purchasePrice;
+                await createGrnStockMovement({
+                    itemId,
+                    grnId: grnRecord.id,
+                    userId: grnRecord.user_id,
+                    quantity: quantities.receivedQuantity,
+                    transaction,
+                });
+
+                recomputedTotal += quantities.receivedQuantity * purchasePrice;
             }
 
             if (total_amount === undefined) {
@@ -533,7 +727,7 @@ const deleteGrn = async (req, res) => {
         const purchaseOrderId = grnRecord.purchase_order_id;
 
         for (const grnItem of grnRecord.grn_items || []) {
-            const revertResult = await applyItemStockChange(grnItem.item_id, -Number(grnItem.quantity || 0), transaction);
+            const revertResult = await applyItemStockChange(grnItem.item_id, -getRowQuantityValue(grnItem), transaction);
             if (!revertResult.success) {
                 await transaction.rollback();
                 return res.status(revertResult.status).json({ success: false, message: revertResult.message });
@@ -594,6 +788,7 @@ const addGrnItem = async (req, res) => {
     const transaction = await sequelize.transaction();
 
     try {
+        const grnItemColumns = await getGrnItemColumns();
         const grnId = parsePositiveInt(req.params.id);
         if (!grnId) {
             await transaction.rollback();
@@ -607,14 +802,14 @@ const addGrnItem = async (req, res) => {
         }
 
         const itemId = parsePositiveInt(req.body.item_id);
-        const quantity = parsePositiveInt(req.body.quantity);
+        const quantities = parseGrnItemQuantities(req.body);
         const purchasePrice = parseNonNegativeNumber(req.body.purchase_price);
 
-        if (!itemId || !quantity || purchasePrice === null) {
+        if (!itemId || !quantities || purchasePrice === null) {
             await transaction.rollback();
             return res.status(400).json({
                 success: false,
-                message: 'Valid item_id, quantity (> 0), and purchase_price (>= 0) are required',
+                message: 'Valid item_id, quantities (use quantity or total_quantity/recieved_quantity), and purchase_price (>= 0) are required',
             });
         }
 
@@ -624,20 +819,29 @@ const addGrnItem = async (req, res) => {
             return res.status(404).json({ success: false, message: `Item not found: ${itemId}` });
         }
 
-        const grnItem = await GrnItem.create({
-            grn_id: grnId,
-            item_id: itemId,
-            quantity,
-            purchase_price: purchasePrice,
-        }, { transaction });
+        const grnItem = await GrnItem.create(buildGrnItemPayload(grnItemColumns, {
+            grnId,
+            itemId,
+            totalQuantity: quantities.totalQuantity,
+            receivedQuantity: quantities.receivedQuantity,
+            purchasePrice,
+        }), { transaction });
 
-        const stockResult = await applyItemStockChange(itemId, quantity, transaction);
+        const stockResult = await applyItemStockChange(itemId, quantities.receivedQuantity, transaction);
         if (!stockResult.success) {
             await transaction.rollback();
             return res.status(stockResult.status).json({ success: false, message: stockResult.message });
         }
 
-        grnRecord.total_amount = (Number(grnRecord.total_amount) || 0) + (quantity * purchasePrice);
+        await createGrnStockMovement({
+            itemId,
+            grnId,
+            userId: grnRecord.user_id,
+            quantity: quantities.receivedQuantity,
+            transaction,
+        });
+
+        grnRecord.total_amount = (Number(grnRecord.total_amount) || 0) + (quantities.receivedQuantity * purchasePrice);
         await grnRecord.save({ transaction });
 
         if (grnRecord.purchase_order_id) {
@@ -765,7 +969,7 @@ const getGrnByPurchaseOrder = async (req, res) => {
         const match = grns.find((grnRecord) => {
             const grnItems = (grnRecord.grn_items || []).map((row) => ({
                 item_id: Number(row.item_id),
-                quantity: Number(row.quantity) || 0,
+                quantity: getRowQuantityValue(row),
                 purchase_price: Number(row.purchase_price) || 0,
             })).sort((left, right) => left.item_id - right.item_id);
 
@@ -794,6 +998,7 @@ const createGrnFromPurchaseOrder = async (req, res) => {
     const transaction = await sequelize.transaction();
 
     try {
+        const grnItemColumns = await getGrnItemColumns();
         const poId = parsePositiveInt(req.params.poId);
         if (!poId) {
             await transaction.rollback();
@@ -854,10 +1059,13 @@ const createGrnFromPurchaseOrder = async (req, res) => {
             }
 
             await GrnItem.create({
-                grn_id: grnRecord.id,
-                item_id: itemId,
-                quantity,
-                purchase_price: purchasePrice,
+                ...buildGrnItemPayload(grnItemColumns, {
+                    grnId: grnRecord.id,
+                    itemId,
+                    totalQuantity: quantity,
+                    receivedQuantity: quantity,
+                    purchasePrice,
+                }),
             }, { transaction });
 
             const stockResult = await applyItemStockChange(itemId, quantity, transaction);

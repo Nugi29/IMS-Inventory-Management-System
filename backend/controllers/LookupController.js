@@ -1,6 +1,6 @@
 const { models } = require('../config/db');
 //const category = require('../models/category');
-const { user_role, user_status, category, item_status, po_status, user, supplier } = models;
+const { user_role, user_status, category, item_status, po_status, user, supplier, grn_status } = models;
 
 const getAllUserRoles = async (req, res) => {
     try {
@@ -97,6 +97,24 @@ const getAllPoStatuses = async (req, res) => {
     }
 };
 
+const getAllGrnStatuses = async (req, res) => {
+    try {
+        const statuses = await grn_status.findAll();
+
+        const data = statuses.map((item) => {
+            return {
+                "id": item.id,
+                "name": item.name,
+            };
+        });
+
+        return res.json({ success: true, data });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 const getAllUsers = async (req, res) => {
     try {
         const statuses = await user.findAll();
@@ -140,5 +158,6 @@ module.exports = {
     getAllItemStatuses,
     getAllPoStatuses,
     getAllUsers,
-    getAllSuppliers
+    getAllSuppliers,
+    getAllGrnStatuses
 };

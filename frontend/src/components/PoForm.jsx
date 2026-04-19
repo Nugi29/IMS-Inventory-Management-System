@@ -479,6 +479,11 @@ export const PoForm = () => {
         return selectedStatus?.label || 'Draft'
     }, [poStatuses, formData.poStatusId])
 
+    const isDraftStatusSelected = useMemo(
+        () => String(selectedStatusLabel).toLowerCase().includes('draft'),
+        [selectedStatusLabel],
+    )
+
     const defaultSentStatusId = useMemo(() => {
         const sentStatus = poStatuses.find((status) => String(status.label).toLowerCase().includes('sent'))
         return sentStatus?.id || ''
@@ -522,7 +527,8 @@ export const PoForm = () => {
     }, [lineItems, effectivePo, mode])
 
     const isSavingDraft = pendingAction === 'save-draft'
-    const isSaving = pendingAction === 'save' || isSavingDraft
+    const isSending = pendingAction === 'send'
+    const isSaving = pendingAction === 'save' || isSavingDraft || isSending
     const isDeleting = pendingAction === 'delete'
     const isBusy = isLoadingLookup || isLoadingItems || isLoadingPos || isLoadingFreshPo || isSaving || isDeleting
     const isReadOnly = mode === 'view'
@@ -598,7 +604,7 @@ export const PoForm = () => {
         })
     }
 
-    const submitPo = async (event, { saveAsDraft = false } = {}) => {
+    const submitPo = async (event, { saveAsDraft = false, forceStatusId = '' } = {}) => {
         if (event) event.preventDefault()
 
         const validItems = lineItems.filter(
@@ -620,7 +626,7 @@ export const PoForm = () => {
             return
         }
 
-        let poStatusId = formData.poStatusId
+        let poStatusId = forceStatusId || formData.poStatusId
 
         if (mode === 'add') {
             poStatusId = saveAsDraft
@@ -656,7 +662,8 @@ export const PoForm = () => {
             }
         }
 
-        setPendingAction(saveAsDraft ? 'save-draft' : 'save')
+        const nextAction = forceStatusId ? 'send' : (saveAsDraft ? 'save-draft' : 'save')
+        setPendingAction(nextAction)
         let response
         try {
             response = mode === 'update' ? await updatePo(payload) : await addPo(payload)
@@ -785,7 +792,7 @@ export const PoForm = () => {
                                                 name="poStatusId"
                                                 value={formData.poStatusId}
                                                 onChange={handleChange}
-                                                disabled={isFormDisabled}
+                                                disabled
                                                 className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
                                             >
                                                 <option value="">Select status...</option>
@@ -966,6 +973,17 @@ export const PoForm = () => {
                                         disabled={isBusy}
                                     >
                                         {isSavingDraft ? 'Saving Draft...' : 'Save as Draft'}
+                                    </button>
+                                )}
+
+                                {mode === 'update' && isDraftStatusSelected && (
+                                    <button
+                                        className="rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 px-6 py-2 text-sm font-semibold transition hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        type="button"
+                                        onClick={() => submitPo(undefined, { forceStatusId: defaultSentStatusId })}
+                                        disabled={isBusy || !defaultSentStatusId}
+                                    >
+                                        {isSending ? 'Sending...' : 'Send PO'}
                                     </button>
                                 )}
 

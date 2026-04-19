@@ -1,5 +1,5 @@
 const express = require('express');
-const { getAllUserRoles, getAllUserStatuses, getAllCategories, getAllItemStatuses, getAllPoStatuses, getAllSuppliers, getAllUsers } = require('../controllers/LookupController');
+const { getAllUserRoles, getAllUserStatuses, getAllCategories, getAllItemStatuses, getAllPoStatuses, getAllSuppliers, getAllUsers, getAllGrnStatuses } = require('../controllers/LookupController');
 const { route } = require('./PurchaseOrderRoutes');
 
 const router = express.Router();
@@ -13,6 +13,8 @@ router.get('/get-all-item-statuses', getAllItemStatuses);
 router.get('/get-all-po-statuses', getAllPoStatuses);
 router.get('/get-all-suppliers', getAllSuppliers);
 router.get('/get-all-users', getAllUsers);
+
+router.get('/get-all-grn-statuses', getAllGrnStatuses);
 
 
 
