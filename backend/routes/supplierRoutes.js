@@ -18,7 +18,8 @@ router.put('/update-supplier/:id', authUser, authUser.requireAdmin, updateSuppli
 router.put('/:id', authUser, authUser.requireAdmin, updateSupplier);
 router.delete('/delete-supplier/:id', authUser, authUser.requireAdmin, deleteSupplier);
 router.get('/:id', authUser, getSupplierById);
+router.put('/update-supplier/:id', authUser, authUser.requireAdmin, updateSupplier);
 router.put('/:id', authUser, authUser.requireAdmin, updateSupplier);
-router.delete('/:id', authUser, authUser.requireAdmin, deleteSupplier);
+router.delete('/delete-supplier/:id', authUser, authUser.requireAdmin, deleteSupplier);
 
 module.exports = router;
