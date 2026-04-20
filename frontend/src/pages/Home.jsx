@@ -11,7 +11,6 @@ const Home = () => {
   if (location.pathname.includes('/userform')) currentModule = "User Profile Management"
   else if (location.pathname.includes('/itemform')) currentModule = "Item Profile Management"
   else if (location.pathname.includes('/items')) currentModule = "Item Management"
-  else if (location.pathname.includes('/categories')) currentModule = "Categories"
   else if (location.pathname.includes('/suppliers')) currentModule = "Suppliers"
   else if (location.pathname.includes('/po')) currentModule = "Purchase Orders Management"
   else if (location.pathname.includes('/poform')) currentModule = "Purchase Order Profile Management"

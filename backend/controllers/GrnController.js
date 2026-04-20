@@ -116,6 +116,8 @@ const attachDerivedStatus = (grnRecord) => {
 };
 
 const normalizeStatusName = (value) => String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
+const cancelledGrnStatusNames = ['cancelled', 'canceled', 'cancel'];
+const isCancelledStatus = (statusName) => cancelledGrnStatusNames.includes(normalizeStatusName(statusName));
 
 const getRowQuantityValue = (row) => {
     if (!row) {
@@ -214,6 +216,20 @@ const getGrnStatusIdByName = async (statusNames, transaction) => {
     return statuses[0].id;
 };
 
+const getGrnStatusNameById = async (statusId, transaction) => {
+    const parsedStatusId = parsePositiveInt(statusId);
+    if (!parsedStatusId) {
+        return null;
+    }
+
+    const statusRow = await GrnStatus.findByPk(parsedStatusId, { transaction });
+    if (!statusRow || !statusRow.name) {
+        return null;
+    }
+
+    return normalizeStatusName(statusRow.name);
+};
+
 const mapPoStatusIdToGrnStatusId = async (poStatusId, transaction) => {
     const parsedPoStatusId = parsePositiveInt(poStatusId);
     if (!parsedPoStatusId) {
@@ -249,7 +265,8 @@ const syncPurchaseOrderReceiptStatus = async (purchaseOrderId, transaction) => {
         include: [{ model: GrnItem, as: 'grn_items' }],
         transaction,
     });
-    const receivedTotals = sumItemsById(grns.flatMap((grnRow) => grnRow.grn_items || []));
+    const activeGrns = grns.filter((grnRow) => !isCancelledStatus(normalizeGrnStatus(grnRow)));
+    const receivedTotals = sumItemsById(activeGrns.flatMap((grnRow) => grnRow.grn_items || []));
 
     let anyReceived = false;
     let allReceived = orderedTotals.size > 0;
@@ -540,7 +557,10 @@ const updateGrn = async (req, res) => {
         }
 
         const grnRecord = await Grn.findByPk(grnId, {
-            include: [{ model: GrnItem, as: 'grn_items' }],
+            include: [
+                { model: GrnItem, as: 'grn_items' },
+                { model: GrnStatus, as: 'grn_status' },
+            ],
             transaction,
             lock: transaction.LOCK.UPDATE,
         });
@@ -550,7 +570,19 @@ const updateGrn = async (req, res) => {
             return res.status(404).json({ success: false, message: 'GRN not found' });
         }
 
+        const currentStatusName = normalizeGrnStatus(grnRecord);
+        if (isCancelledStatus(currentStatusName)) {
+            await transaction.rollback();
+            return res.status(409).json({
+                success: false,
+                message: 'Cancelled GRN cannot be updated. Create a new GRN for new stock.',
+            });
+        }
+
         const { supplier_id, grn_date, total_amount, purchase_order_id, status, grn_status_id, po_status_id } = req.body;
+        const hasReplacementItems = Object.prototype.hasOwnProperty.call(req.body, 'items') || Object.prototype.hasOwnProperty.call(req.body, 'grn_items');
+        const replacementItems = normalizeItems(req.body);
+        let nextStatusName = currentStatusName;
 
         if (supplier_id !== undefined) {
             const parsedSupplierId = parsePositiveInt(supplier_id);
@@ -594,6 +626,7 @@ const updateGrn = async (req, res) => {
 
         if (status !== undefined && await hasGrnColumn('status')) {
             grnRecord.status = String(status);
+            nextStatusName = normalizeStatusName(status);
         }
 
         const grnStatusColumn = await hasGrnColumn('grn_status_id')
@@ -603,20 +636,61 @@ const updateGrn = async (req, res) => {
         if (grnStatusColumn) {
             const requestedGrnStatusId = parsePositiveInt(grn_status_id);
             if (requestedGrnStatusId) {
+                const requestedStatusName = await getGrnStatusNameById(requestedGrnStatusId, transaction);
+                if (!requestedStatusName) {
+                    await transaction.rollback();
+                    return res.status(400).json({ success: false, message: 'Invalid grn_status_id' });
+                }
+
                 grnRecord[grnStatusColumn] = requestedGrnStatusId;
+                nextStatusName = requestedStatusName;
             } else if (po_status_id !== undefined) {
                 const mappedFromPoStatus = await mapPoStatusIdToGrnStatusId(po_status_id, transaction);
                 if (!mappedFromPoStatus) {
                     await transaction.rollback();
                     return res.status(400).json({ success: false, message: 'Invalid po_status_id for GRN status mapping' });
                 }
+
+                const mappedStatusName = await getGrnStatusNameById(mappedFromPoStatus, transaction);
+                if (!mappedStatusName) {
+                    await transaction.rollback();
+                    return res.status(400).json({ success: false, message: 'Invalid GRN status mapping from po_status_id' });
+                }
+
                 grnRecord[grnStatusColumn] = mappedFromPoStatus;
+                nextStatusName = mappedStatusName;
+            } else if (status !== undefined) {
+                const requestedStatusByName = await getGrnStatusIdByName([status], transaction);
+                if (!requestedStatusByName) {
+                    await transaction.rollback();
+                    return res.status(400).json({ success: false, message: `Unknown GRN status: ${status}` });
+                }
+
+                grnRecord[grnStatusColumn] = requestedStatusByName;
+                nextStatusName = normalizeStatusName(status);
             }
         }
 
-        const hasReplacementItems = Object.prototype.hasOwnProperty.call(req.body, 'items') || Object.prototype.hasOwnProperty.call(req.body, 'grn_items');
-        const replacementItems = normalizeItems(req.body);
-        if (hasReplacementItems) {
+        const nextIsCancelled = isCancelledStatus(nextStatusName);
+        if (nextIsCancelled && hasReplacementItems) {
+            await transaction.rollback();
+            return res.status(400).json({
+                success: false,
+                message: 'Cannot replace GRN items while cancelling GRN',
+            });
+        }
+
+        if (nextIsCancelled) {
+            for (const existingItem of grnRecord.grn_items || []) {
+                const revertResult = await applyItemStockChange(existingItem.item_id, -getRowQuantityValue(existingItem), transaction);
+                if (!revertResult.success) {
+                    await transaction.rollback();
+                    return res.status(revertResult.status).json({ success: false, message: revertResult.message });
+                }
+            }
+        }
+
+        if (hasReplacementItems && !nextIsCancelled) {
             const existingItems = grnRecord.grn_items || [];
 
             for (const existingItem of existingItems) {
@@ -714,7 +788,10 @@ const deleteGrn = async (req, res) => {
         }
 
         const grnRecord = await Grn.findByPk(grnId, {
-            include: [{ model: GrnItem, as: 'grn_items' }],
+            include: [
+                { model: GrnItem, as: 'grn_items' },
+                { model: GrnStatus, as: 'grn_status' },
+            ],
             transaction,
             lock: transaction.LOCK.UPDATE,
         });
@@ -722,6 +799,14 @@ const deleteGrn = async (req, res) => {
         if (!grnRecord) {
             await transaction.rollback();
             return res.status(404).json({ success: false, message: 'GRN not found' });
+        }
+
+        if (isCancelledStatus(normalizeGrnStatus(grnRecord))) {
+            await transaction.rollback();
+            return res.status(409).json({
+                success: false,
+                message: 'GRN is already cancelled',
+            });
         }
 
         const purchaseOrderId = grnRecord.purchase_order_id;
@@ -734,8 +819,28 @@ const deleteGrn = async (req, res) => {
             }
         }
 
-        await GrnItem.destroy({ where: { grn_id: grnRecord.id }, transaction });
-        await grnRecord.destroy({ transaction });
+        const grnStatusColumn = await hasGrnColumn('grn_status_id')
+            ? 'grn_status_id'
+            : (await hasGrnColumn('po_status_id') ? 'po_status_id' : null);
+
+        if (grnStatusColumn) {
+            const cancelledStatusId = await getGrnStatusIdByName(cancelledGrnStatusNames, transaction);
+            if (!cancelledStatusId) {
+                await transaction.rollback();
+                return res.status(400).json({
+                    success: false,
+                    message: 'Cancelled GRN status is not configured in grn_status table',
+                });
+            }
+
+            grnRecord[grnStatusColumn] = cancelledStatusId;
+        }
+
+        if (await hasGrnColumn('status')) {
+            grnRecord.status = 'cancelled';
+        }
+
+        await grnRecord.save({ transaction });
 
         if (purchaseOrderId) {
             const syncResult = await syncPurchaseOrderReceiptStatus(purchaseOrderId, transaction);
@@ -749,8 +854,8 @@ const deleteGrn = async (req, res) => {
 
         return res.json({
             success: true,
-            message: 'GRN deleted successfully',
-            deleted_grn_id: grnId,
+            message: 'GRN cancelled successfully and stock rolled back',
+            cancelled_grn_id: grnId,
         });
     } catch (error) {
         await transaction.rollback();

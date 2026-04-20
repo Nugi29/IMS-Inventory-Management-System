@@ -76,6 +76,8 @@ function initModels(sequelize) {
   sale.hasMany(sale_item, { as: "sale_items", foreignKey: "sale_id"});
   stock_movement.belongsTo(sale, { as: "sale", foreignKey: "sale_id"});
   sale.hasMany(stock_movement, { as: "stock_movements", foreignKey: "sale_id"});
+  stock_movement.belongsTo(stock_adjustment, { as: "stock_adjustment", foreignKey: "stock_adjustment_id"});
+  stock_adjustment.hasMany(stock_movement, { as: "stock_movements", foreignKey: "stock_adjustment_id"});
   grn.belongsTo(supplier, { as: "supplier", foreignKey: "supplier_id"});
   supplier.hasMany(grn, { as: "grns", foreignKey: "supplier_id"});
   item.belongsTo(supplier, { as: "supplier", foreignKey: "supplier_id"});
