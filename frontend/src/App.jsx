@@ -11,6 +11,7 @@ import { ItemPage } from "./pages/ItemPage"
 import HomeContent from "./components/HomeContent"
 import { Userform } from "./components/Userform"
 import { ItemForm } from "./components/ItemForm"
+import { SupplierForm } from "./components/SupplierForm"
 
 const ProtectedRoute = () => {
   const { token } = useContext(AppContext)
@@ -43,6 +44,7 @@ function App() {
             <Route path="/reports" element={<HomeContent />} />
             <Route path="/settings" element={<HomeContent />} />
             <Route path="/suppliers" element={<SupplierPage />} />
+            <Route path="/supplierform" element={<SupplierForm />} />
           </Route>
         </Route>
         <Route element={<AuthRoute />}>
