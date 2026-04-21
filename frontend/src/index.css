@@ -56,6 +56,16 @@
   --color-outline-variant: #c3c6d7;
 }
 
+:root {
+  --color-primary: #004ac6;
+}
+
+@layer utilities {
+  .bg-primary {
+    background-color: var(--color-primary) !important;
+  }
+}
+
 .no-scrollbar {
   -ms-overflow-style: none;
 }

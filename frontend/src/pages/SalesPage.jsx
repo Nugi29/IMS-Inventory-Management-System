@@ -417,7 +417,7 @@ export const SalesPage = () => {
                 />
               </div>
               <select
-                className="appearance-none bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none min-w-[220px]"
+                className="appearance-none bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none min-w-55"
                 value={selectedCategory}
                 onChange={(event) => setSelectedCategory(event.target.value)}
               >
@@ -448,7 +448,7 @@ export const SalesPage = () => {
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-[2rem] shadow-sm p-4 sm:p-5">
+          <div className="bg-white border border-slate-200 rounded-4xl shadow-sm p-4 sm:p-5">
             {isLoadingItems ? (
               <p className="px-2 py-4 text-sm text-slate-500">Loading products...</p>
             ) : (
@@ -459,8 +459,8 @@ export const SalesPage = () => {
                       key={product.id}
                       className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 flex flex-col gap-3 hover:border-primary/30 hover:bg-white transition-colors"
                     >
-                      <div className="min-h-[52px]">
-                        <h3 className="text-lg font-bold text-on-surface leading-tight break-words">{product.item_name}</h3>
+                      <div className="min-h-13">
+                        <h3 className="text-lg font-bold text-on-surface leading-tight wrap-break-word">{product.item_name}</h3>
                       </div>
                       <div className="flex items-center justify-between gap-2">
                         <span className="inline-flex text-[11px] uppercase tracking-tight font-bold px-2.5 py-1 rounded-full bg-slate-200 text-slate-600">
@@ -547,7 +547,7 @@ export const SalesPage = () => {
         </section>
 
         <section className="xl:col-span-4">
-          <div className="bg-white border border-slate-200 rounded-[2rem] shadow-sm p-5 sm:p-6 xl:sticky xl:top-6">
+          <div className="bg-white border border-slate-200 rounded-4xl shadow-sm p-5 sm:p-6 xl:sticky xl:top-6">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-lg font-bold text-on-surface">Current Sale</h2>
@@ -770,7 +770,7 @@ export const SalesPage = () => {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1">Change Due</label>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-bold text-on-surface min-h-[42px] flex items-center">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-bold text-on-surface min-h-10.5 flex items-center">
                     {toCurrency(changeDue)}
                   </div>
                 </div>

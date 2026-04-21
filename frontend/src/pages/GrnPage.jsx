@@ -9,7 +9,7 @@ import { useGrn } from '../services/useGrn'
 
 const ALL_SUPPLIERS = 'All Suppliers'
 const ALL_STATUS = 'All Statuses'
-const ITEMS_PER_PAGE = 3
+const ITEMS_PER_PAGE = 5
 const GRN_STATUS = {
   DRAFT: 1,
   PARTIALLY_RECEIVED: 2,
@@ -148,6 +148,12 @@ const formatCurrency = (value) => {
   const amount = Number(value || 0)
   return `Rs ${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
+
+const getErrorMessage = (error, fallback) =>
+  error?.response?.data?.message ||
+  error?.response?.data?.error ||
+  error?.message ||
+  fallback
 
 const getStatusChipClass = (status) => {
   const normalized = normalizeText(status)
@@ -656,6 +662,9 @@ export const GrnPage = () => {
         supplierSelected ? getGrnsBySupplier(nextSupplier) : Promise.resolve(),
       ])
       await reloadGrns()
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Unable to apply filters right now'))
+      await reloadGrns().catch(() => {})
     } finally {
       setIsRefreshingByFilter(false)
     }
@@ -765,9 +774,13 @@ export const GrnPage = () => {
 
       const currentPoStatusId = getPoStatusId(selectedPo)
       if (currentPoStatusId !== Number(chosenPoStatusId)) {
-        const syncResult = await updatePo({ ...selectedPo, po_status_id: chosenPoStatusId })
-        if (!syncResult.success) {
-          toast.warn(syncResult.message || 'GRN was created, but the linked PO status could not be synced')
+        try {
+          const syncResult = await updatePo({ ...selectedPo, po_status_id: chosenPoStatusId })
+          if (!syncResult.success) {
+            toast.warn(syncResult.message || 'GRN was created, but the linked PO status could not be synced')
+          }
+        } catch (error) {
+          toast.warn(getErrorMessage(error, 'GRN was created, but PO status sync failed'))
         }
       }
 
@@ -784,7 +797,11 @@ export const GrnPage = () => {
         return next
       })
 
-      await reloadGrns()
+      try {
+        await reloadGrns()
+      } catch (error) {
+        toast.warn(getErrorMessage(error, 'GRN created, but list refresh failed'))
+      }
 
       const nextCreatedId = parseCreatedGrnId(result.data)
       if (nextCreatedId) setSelectedGrnId(String(nextCreatedId))
@@ -794,6 +811,8 @@ export const GrnPage = () => {
           ? 'Partial receipt GRN created successfully'
           : 'GRN created successfully',
       )
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Failed to create GRN'))
     } finally {
       setIsCreatingFromPo(false)
     }
@@ -805,19 +824,25 @@ export const GrnPage = () => {
       return
     }
 
-    if (!window.confirm(`Delete ${getGrnNumber(selectedGrn)}? This action cannot be undone.`)) return
-
-    const result = await deleteGrn(selectedGrn)
-    if (!result.success) {
-      toast.error(result.message || 'Failed to delete GRN')
+    if (!window.confirm(`Are you sure you want to delete ${getGrnNumber(selectedGrn)}? This action cannot be undone.`)) {
       return
     }
 
-    setSelectedGrnId('')
-    setGrnItems([])
-    setRelatedGrnsCumulativeReceivedByItem({})
-    setReceivedByItem({})
-    toast.success(result.message || 'GRN deleted successfully')
+    try {
+      const result = await deleteGrn(selectedGrn)
+      if (!result.success) {
+        toast.error(result.message || 'Failed to delete GRN')
+        return
+      }
+
+      setSelectedGrnId('')
+      setGrnItems([])
+      setRelatedGrnsCumulativeReceivedByItem({})
+      setReceivedByItem({})
+      toast.success(result.message || 'GRN deleted successfully')
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Failed to delete GRN'))
+    }
   }
 
   const clearFilters = () => {
@@ -837,131 +862,58 @@ export const GrnPage = () => {
     isCreatingFromPo || !selectedPoId || !poReceivingItems.length ||
     receivingMetrics.receivableLines === 0 || receivingMetrics.overCount > 0
 
+  const resetButtonClass =
+    'w-full px-4 py-3 rounded-xl font-semibold text-sm border border-slate-200 bg-white text-slate-500 hover:text-primary hover:border-primary/40 transition-colors disabled:opacity-40 disabled:cursor-not-allowed sm:w-auto'
+
   return (
     <main className="ml-0 mt-0 p-4 sm:p-6 lg:p-8 min-h-screen">
-
-      {/* â”€â”€ Filter / Action Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-8 items-center">
-        <div className="lg:col-span-8 flex flex-col md:flex-row gap-3">
-          {/* Search */}
-          <div className="relative flex-1">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]" data-icon="search">search</span>
-            <input
-              className="w-full bg-white border border-slate-200 rounded-xl pl-12 pr-4 py-3.5 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none placeholder:text-slate-400"
-              placeholder="Search by GRN, PO or supplier..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              type="text"
-              aria-label="Filter GRNs"
-            />
-          </div>
-
-          {/* Status filter */}
-          <div className="relative">
-            <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[18px] pointer-events-none" data-icon="contract_edit">contract_edit</span>
-            <select
-              className="appearance-none bg-white border border-slate-200 rounded-xl pl-10 pr-10 py-3.5 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none min-w-44 cursor-pointer"
-              value={selectedStatus}
-              onChange={async (e) => {
-                const next = e.target.value
-                setSelectedStatus(next)
-                await refreshByServerFilter(next, selectedSupplier)
-              }}
-              aria-label="Filter by GRN status"
-            >
-              <option value={ALL_STATUS}>{ALL_STATUS}</option>
-              {statusOptions.map((s) => (
-                <option key={s.id} value={String(s.id)}>{s.label}</option>
-              ))}
-            </select>
-            <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px] pointer-events-none" data-icon="keyboard_arrow_down">keyboard_arrow_down</span>
-          </div>
-
-          {/* Supplier filter */}
-          <div className="relative">
-            <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[18px] pointer-events-none" data-icon="local_shipping">local_shipping</span>
-            <select
-              className="appearance-none bg-white border border-slate-200 rounded-xl pl-10 pr-10 py-3.5 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none min-w-44 cursor-pointer"
-              value={selectedSupplier}
-              onChange={async (e) => {
-                const next = e.target.value
-                setSelectedSupplier(next)
-                await refreshByServerFilter(selectedStatus, next)
-              }}
-              aria-label="Filter by supplier"
-            >
-              <option value={ALL_SUPPLIERS}>{ALL_SUPPLIERS}</option>
-              {suppliers.map((s) => (
-                <option key={s.id} value={String(s.id)}>{s.label}</option>
-              ))}
-            </select>
-            <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px] pointer-events-none" data-icon="keyboard_arrow_down">keyboard_arrow_down</span>
-          </div>
-        </div>
-
-        <div className="lg:col-span-4 flex items-center justify-end gap-2">
-          <button
-            type="button"
-            className="px-4 py-3 rounded-xl font-semibold text-sm border border-slate-200 bg-white text-slate-500 hover:text-primary hover:border-primary/40 transition-colors"
-            onClick={clearFilters}
-          >
-            Reset
-          </button>
-          <button
-            type="button"
-            onClick={handleDeleteSelected}
-            disabled={!selectedGrn}
-            className="px-4 py-3 rounded-xl font-semibold text-sm border border-slate-200 bg-white text-slate-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <span className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[18px]" data-icon="delete">delete</span>
-              Delete
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={handleCreateFromPo}
-            disabled={confirmButtonDisabled}
-            className={`px-5 py-3 rounded-xl font-bold flex items-center gap-2 shadow-sm transition-all active:scale-95 duration-150 whitespace-nowrap text-sm ${
-              confirmButtonDisabled
-                ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                : 'bg-primary text-white hover:brightness-110'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[18px]" data-icon="add_task">add_task</span>
-            {confirmButtonLabel}
-          </button>
-        </div>
-      </div>
-
-      {/* â”€â”€ Two-column layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="grid grid-cols-1 gap-6">
 
         {/* LEFT â€” Create from PO + Receiving Planner */}
         <section className="w-full space-y-5">
 
           {/* PO selector card */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+          <div className="rounded-3xl border border-slate-200/80 bg-white/95 p-5 shadow-sm backdrop-blur-sm">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">
               Create From Purchase Order
             </p>
             <label className="block text-sm font-semibold text-on-surface mb-1.5">
               Select Purchase Order
             </label>
-            <div className="relative">
-              <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[18px] pointer-events-none" data-icon="receipt_long">receipt_long</span>
-              <select
-                className="w-full appearance-none bg-white border border-slate-200 rounded-xl pl-10 pr-10 py-3.5 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none cursor-pointer"
-                value={selectedPoId}
-                onChange={(e) => setSelectedPoId(e.target.value)}
-                disabled={isLoadingPos}
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-stretch">
+              <div className="relative sm:col-span-7">
+                <select
+                  className="w-full appearance-none bg-white border border-slate-200 rounded-xl pl-10 pr-10 py-3.5 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none cursor-pointer"
+                  value={selectedPoId}
+                  onChange={(e) => setSelectedPoId(e.target.value)}
+                  disabled={isLoadingPos}
+                >
+                  <option value="">Select PO</option>
+                  {poOptions.map((po) => (
+                    <option key={po.id} value={po.id}>{po.number}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedPoId('')}
+                disabled={!selectedPoId || isLoadingPos || isCreatingFromPo}
+                className={`sm:col-span-1 ${resetButtonClass}`}
               >
-                <option value="">- Select PO -</option>
-                {poOptions.map((po) => (
-                  <option key={po.id} value={po.id}>{po.number}</option>
-                ))}
-              </select>
-              <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px] pointer-events-none" data-icon="keyboard_arrow_down">keyboard_arrow_down</span>
+                Reset
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateFromPo}
+                disabled={confirmButtonDisabled}
+                className={`sm:col-span-4 px-4 py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95 duration-150 whitespace-nowrap text-sm ${
+                  confirmButtonDisabled
+                    ? 'border border-slate-200 bg-slate-200 text-slate-500 cursor-not-allowed'
+                    : 'border border-[#004ac6] bg-primary bg-[#004ac6] text-white hover:bg-[#003ea8]'
+                }`}
+              >
+                {confirmButtonLabel}
+              </button>
             </div>
 
             {/* Planned Receipt Total Badge */}
@@ -974,7 +926,7 @@ export const GrnPage = () => {
           </div>
 
           {/* PO Receiving Planner card */}
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+          <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-sm">
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -1027,7 +979,7 @@ export const GrnPage = () => {
             {/* Planner table */}
             <div className="overflow-x-auto p-3">
               <table className="w-full text-left border-separate border-spacing-y-1">
-                <thead>
+                <thead className="sticky top-0 z-10">
                   <tr className="text-on-surface-variant">
                     <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider">Item</th>
                     <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-center">Item ID</th>
@@ -1042,7 +994,7 @@ export const GrnPage = () => {
                 <tbody>
                   {!selectedPo && (
                     <tr>
-                      <td colSpan={7} className="px-4 py-10 text-center">
+                      <td colSpan={8} className="px-4 py-10 text-center">
                         <span className="material-symbols-outlined text-slate-300 text-[40px] block mb-2" data-icon="receipt_long">receipt_long</span>
                         <p className="text-sm text-slate-400">Select a purchase order to begin.</p>
                       </td>
@@ -1050,12 +1002,12 @@ export const GrnPage = () => {
                   )}
                   {selectedPo && isLoadingPoReceipts && (
                     <tr>
-                      <td colSpan={7} className="px-4 py-10 text-center text-sm text-slate-400">Loading...</td>
+                      <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-400">Loading...</td>
                     </tr>
                   )}
                   {selectedPo && !isLoadingPoReceipts && !poReceivingItems.length && (
                     <tr>
-                      <td colSpan={7} className="px-4 py-10 text-center text-sm text-slate-400">
+                      <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-400">
                         No receivable line items found for this PO.
                       </td>
                     </tr>
@@ -1119,19 +1071,95 @@ export const GrnPage = () => {
         <section className="w-full space-y-5">
 
           {/* GRN Registry card */}
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">GRN Registry</p>
-              <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700">
-                {isLoadingGrns || isRefreshingByFilter
-                  ? 'Loading...'
-                  : `${filteredGrns.length} Records`}
-              </span>
+          <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 p-2 shadow-sm backdrop-blur-sm">
+            <div className="px-3 sm:px-4 py-3 border-b border-slate-100 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">GRN Registry</p>
+                <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 w-fit">
+                  {isLoadingGrns || isRefreshingByFilter
+                    ? 'Loading...'
+                    : `${filteredGrns.length} Records`}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 xl:grid-cols-12 xl:items-center">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:col-span-9 xl:grid-cols-12">
+                  <div className="relative sm:col-span-2 xl:col-span-6">
+                    <span className="material-symbols-outlined absolute left-4 top-3 text-slate-400" data-icon="search">search</span>
+
+                    <input
+                      className="w-full bg-white border border-slate-200 rounded-xl pl-12 pr-4 py-3.5 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none placeholder:text-slate-400"
+                      placeholder="Search by GRN, PO or supplier..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      type="text"
+                      aria-label="Filter GRNs"
+                    />
+                  </div>
+
+                  <div className="relative xl:col-span-3">
+                    <select
+                      className="w-full appearance-none bg-white border border-slate-200 rounded-xl pl-4 pr-10 py-3.5 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none cursor-pointer"
+                      value={selectedStatus}
+                      onChange={async (e) => {
+                        const next = e.target.value
+                        setSelectedStatus(next)
+                        await refreshByServerFilter(next, selectedSupplier)
+                      }}
+                      aria-label="Filter by GRN status"
+                    >
+                      <option value={ALL_STATUS}>{ALL_STATUS}</option>
+                      {statusOptions.map((s) => (
+                        <option key={s.id} value={String(s.id)}>{s.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="relative xl:col-span-3">
+                    <select
+                      className="w-full appearance-none bg-white border border-slate-200 rounded-xl pl-4 pr-10 py-3.5 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none cursor-pointer"
+                      value={selectedSupplier}
+                      onChange={async (e) => {
+                        const next = e.target.value
+                        setSelectedSupplier(next)
+                        await refreshByServerFilter(selectedStatus, next)
+                      }}
+                      aria-label="Filter by supplier"
+                    >
+                      <option value={ALL_SUPPLIERS}>{ALL_SUPPLIERS}</option>
+                      {suppliers.map((s) => (
+                        <option key={s.id} value={String(s.id)}>{s.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end xl:col-span-3">
+                  <button
+                    type="button"
+                    className={resetButtonClass}
+                    onClick={clearFilters}
+                  >
+                    Reset
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeleteSelected}
+                    disabled={!selectedGrn}
+                    className="w-full px-4 py-3 rounded-xl font-semibold text-sm border border-slate-200 bg-white text-slate-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed sm:w-auto"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[18px]" data-icon="delete">delete</span>
+                      Delete
+                    </span>
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div className="overflow-x-auto p-3">
               <table className="w-full text-left border-separate border-spacing-y-1">
-                <thead>
+                <thead className="sticky top-0 z-10">
                   <tr className="text-on-surface-variant">
                     <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider">GRN No.</th>
                     <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider">PO</th>
@@ -1267,8 +1295,8 @@ export const GrnPage = () => {
           </div>
 
           {/* Selected GRN Items card */}
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 flex flex-col items-start gap-2">
+          <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-sm">
+            <div className="flex flex-col items-start justify-between gap-2 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Selected GRN - Item Detail</p>
                 {selectedGrn && (
@@ -1377,7 +1405,7 @@ export const GrnPage = () => {
 
             {/* Totals Summary Panel */}
             <div className="border-t border-slate-100 bg-slate-50/60 px-5 py-4">
-              <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {[
                   { label: 'Total Qty',    value: grnTotals.totalQty,    color: 'text-on-surface',   bg: 'bg-white' },
                   { label: 'Received Qty', value: grnTotals.receivedQty, color: 'text-emerald-700',  bg: 'bg-emerald-50' },
