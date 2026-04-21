@@ -1,6 +1,6 @@
 import { createContext, useEffect, useState } from 'react';
-import axios from 'axios';
 import { toast } from 'react-toastify';
+import axios, { SESSION_EXPIRED_EVENT, SESSION_EXPIRED_MESSAGE, isSessionExpiredError } from '../services/httpClient';
 
 export const AppContext = createContext();
 
@@ -21,6 +21,10 @@ const AppContextProvider = (props) => {
                 toast.error(data.message);
             }
         } catch (error) {
+            if (isSessionExpiredError(error)) {
+                return;
+            }
+
             console.log(error);
             toast.error(error.message);
         }
@@ -49,6 +53,19 @@ const AppContextProvider = (props) => {
             setUserData(false);
         }
     }, [token]);
+
+    useEffect(() => {
+        const handleSessionExpired = () => {
+            logout();
+            toast.error(SESSION_EXPIRED_MESSAGE);
+        };
+
+        window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
+
+        return () => {
+            window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
+        };
+    }, []);
 
     return (
         <AppContext.Provider value={value}>

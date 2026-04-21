@@ -172,7 +172,7 @@ export const ItemForm = () => {
     const isReadOnly = mode === 'view'
 
     return (
-        <main className="h-full overflow-hidden bg-gradient-to-br from-slate-100 via-white to-blue-50 p-3 sm:p-4">
+        <main className="h-full overflow-hidden bg-linear-to-br from-slate-100 via-white to-blue-50 p-3 sm:p-4">
             <section className="mx-auto flex h-full w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-slate-200/70 bg-white/95 shadow-xl shadow-slate-300/30 backdrop-blur-sm">
                 <header className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 sm:px-7 sm:py-5">
                     <div>

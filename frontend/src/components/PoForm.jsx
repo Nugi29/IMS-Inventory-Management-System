@@ -479,6 +479,11 @@ export const PoForm = () => {
         return selectedStatus?.label || 'Draft'
     }, [poStatuses, formData.poStatusId])
 
+    const isDraftStatusSelected = useMemo(
+        () => String(selectedStatusLabel).toLowerCase().includes('draft'),
+        [selectedStatusLabel],
+    )
+
     const defaultSentStatusId = useMemo(() => {
         const sentStatus = poStatuses.find((status) => String(status.label).toLowerCase().includes('sent'))
         return sentStatus?.id || ''
@@ -522,7 +527,8 @@ export const PoForm = () => {
     }, [lineItems, effectivePo, mode])
 
     const isSavingDraft = pendingAction === 'save-draft'
-    const isSaving = pendingAction === 'save' || isSavingDraft
+    const isSending = pendingAction === 'send'
+    const isSaving = pendingAction === 'save' || isSavingDraft || isSending
     const isDeleting = pendingAction === 'delete'
     const isBusy = isLoadingLookup || isLoadingItems || isLoadingPos || isLoadingFreshPo || isSaving || isDeleting
     const isReadOnly = mode === 'view'
@@ -530,7 +536,7 @@ export const PoForm = () => {
 
     if (isHydratingPo) {
         return (
-            <main className="h-full overflow-hidden bg-gradient-to-br from-slate-100 via-white to-blue-50 p-3 sm:p-4">
+            <main className="h-full overflow-hidden bg-linear-to-br from-slate-100 via-white to-blue-50 p-3 sm:p-4">
                 <section className="mx-auto flex h-full w-full max-w-7xl items-center justify-center rounded-3xl border border-slate-200/70 bg-white/95 shadow-xl shadow-slate-300/30 backdrop-blur-sm">
                     <div className="px-6 py-10 text-center">
                         <p className="text-sm font-semibold text-slate-700">Loading latest purchase order...</p>
@@ -598,7 +604,7 @@ export const PoForm = () => {
         })
     }
 
-    const submitPo = async (event, { saveAsDraft = false } = {}) => {
+    const submitPo = async (event, { saveAsDraft = false, forceStatusId = '' } = {}) => {
         if (event) event.preventDefault()
 
         const validItems = lineItems.filter(
@@ -620,7 +626,7 @@ export const PoForm = () => {
             return
         }
 
-        let poStatusId = formData.poStatusId
+        let poStatusId = forceStatusId || formData.poStatusId
 
         if (mode === 'add') {
             poStatusId = saveAsDraft
@@ -656,7 +662,8 @@ export const PoForm = () => {
             }
         }
 
-        setPendingAction(saveAsDraft ? 'save-draft' : 'save')
+        const nextAction = forceStatusId ? 'send' : (saveAsDraft ? 'save-draft' : 'save')
+        setPendingAction(nextAction)
         let response
         try {
             response = mode === 'update' ? await updatePo(payload) : await addPo(payload)
@@ -707,7 +714,7 @@ export const PoForm = () => {
     }
 
     return (
-        <main className="h-full overflow-hidden bg-gradient-to-br from-slate-100 via-white to-blue-50 p-3 sm:p-4">
+        <main className="h-full overflow-hidden bg-linear-to-br from-slate-100 via-white to-blue-50 p-3 sm:p-4">
             <section className="mx-auto flex h-full w-full max-w-7xl flex-col overflow-hidden rounded-3xl border border-slate-200/70 bg-white/95 shadow-xl shadow-slate-300/30 backdrop-blur-sm">
                 <header className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 sm:px-7 sm:py-5">
                     <div>
@@ -785,7 +792,7 @@ export const PoForm = () => {
                                                 name="poStatusId"
                                                 value={formData.poStatusId}
                                                 onChange={handleChange}
-                                                disabled={isFormDisabled}
+                                                disabled
                                                 className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
                                             >
                                                 <option value="">Select status...</option>
@@ -820,10 +827,10 @@ export const PoForm = () => {
                                 </div>
 
                                 <div className="overflow-x-auto rounded-lg border border-slate-200">
-                                    <table className="w-full min-w-[1050px] text-left text-sm">
+                                    <table className="w-full min-w-262.5 text-left text-sm">
                                         <thead>
                                             <tr className="bg-slate-50 text-xs font-semibold text-slate-600 uppercase tracking-wide border-b border-slate-200">
-                                                <th className="py-3 px-4 min-w-[360px]">Item</th>
+                                                <th className="py-3 px-4 min-w-90">Item</th>
                                                 <th className="py-3 px-4">SKU</th>
                                                 <th className="py-3 px-4">Unit Price</th>
                                                 <th className="py-3 px-4">Quantity</th>
@@ -843,7 +850,7 @@ export const PoForm = () => {
                                                 const hasSelectedOption = supplierItemOptions.some((option) => String(option.id) === String(item.itemId))
                                                 return (
                                                     <tr key={item.key} className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
-                                                        <td className="py-4 px-4 min-w-[360px]">
+                                                        <td className="py-4 px-4 min-w-90">
                                                             <div className="space-y-1">
                                                                 <select
                                                                     className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
@@ -966,6 +973,17 @@ export const PoForm = () => {
                                         disabled={isBusy}
                                     >
                                         {isSavingDraft ? 'Saving Draft...' : 'Save as Draft'}
+                                    </button>
+                                )}
+
+                                {mode === 'update' && isDraftStatusSelected && (
+                                    <button
+                                        className="rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 px-6 py-2 text-sm font-semibold transition hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        type="button"
+                                        onClick={() => submitPo(undefined, { forceStatusId: defaultSentStatusId })}
+                                        disabled={isBusy || !defaultSentStatusId}
+                                    >
+                                        {isSending ? 'Sending...' : 'Send PO'}
                                     </button>
                                 )}
 

@@ -31,6 +31,22 @@ module.exports = function(sequelize, DataTypes) {
     total_amount: {
       type: DataTypes.DECIMAL(12,2),
       allowNull: true
+    },
+    purchase_order_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'purchase_order',
+        key: 'id'
+      }
+    },
+    grn_status_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'grn_status',
+        key: 'id'
+      }
     }
   }, {
     sequelize,
@@ -58,6 +74,20 @@ module.exports = function(sequelize, DataTypes) {
         using: "BTREE",
         fields: [
           { name: "user_id" },
+        ]
+      },
+      {
+        name: "fk_grn_purchase_order1_idx",
+        using: "BTREE",
+        fields: [
+          { name: "purchase_order_id" },
+        ]
+      },
+      {
+        name: "fk_grn_po_status1_idx",
+        using: "BTREE",
+        fields: [
+          { name: "grn_status_id" },
         ]
       },
     ]

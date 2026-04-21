@@ -13,6 +13,7 @@ import { Userform } from "./components/Userform"
 import { ItemForm } from "./components/ItemForm"
 import { PoPage } from "./pages/PoPage"
 import { PoForm } from "./components/PoForm"
+import { GrnPage } from "./pages/GrnPage"
 
 const ProtectedRoute = () => {
   const { token } = useContext(AppContext)
@@ -41,8 +42,8 @@ function App() {
             <Route path="/suppliers" element={<HomeContent />} />
             <Route path="/po" element={<PoPage />} />
             <Route path="/poform" element={<PoForm />} />
-            <Route path="/grn" element={<HomeContent />} />
             <Route path="/sales" element={<SalesPage />} />
+            <Route path="/grns" element={<GrnPage />} />
             <Route path="/stock-movement" element={<HomeContent />} />
             <Route path="/users" element={<UserPage />} />
             <Route path="/reports" element={<HomeContent />} />

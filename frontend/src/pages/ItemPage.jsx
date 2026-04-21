@@ -103,7 +103,7 @@ export const ItemPage = () => {
                     </div>
                     <div className="relative">
                         <select
-                            className="appearance-none bg-white border border-slate-200 dark:border-slate-800 rounded-xl px-6 pr-12 py-4 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none min-w-[200px]"
+                            className="appearance-none bg-white border border-slate-200 dark:border-slate-800 rounded-xl px-6 pr-12 py-4 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none min-w-50"
                             value={selectedCategory}
                             onChange={(event) => {
                                 setSelectedCategory(event.target.value)
@@ -137,7 +137,7 @@ export const ItemPage = () => {
             </div>
 
             {/* Items Data Table */}
-            <div className="bg-white border border-slate-200 dark:border-slate-800 rounded-[2rem] shadow-sm overflow-hidden p-2">
+            <div className="bg-white border border-slate-200 dark:border-slate-800 rounded-4xl shadow-sm overflow-hidden p-2">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-separate border-spacing-y-1">
                         <thead>

@@ -18,13 +18,6 @@ const NAV_ITEMS = [
   },
 
   {
-    label: "Categories",
-    icon: "category",
-    path: "/categories",
-    access: ["Admin", "Manager"],
-  },
-
-  {
     label: "Suppliers",
     icon: "local_shipping",
     path: "/suppliers",
@@ -39,7 +32,7 @@ const NAV_ITEMS = [
   {
     label: "GRN",
     icon: "input",
-    path: "/grn",
+    path: "/grns",
     access: ["Admin", "StoreKeeper"],
   },
 

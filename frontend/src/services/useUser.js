@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useState } from "react";
-import axios from "axios";
+import axios, { SESSION_EXPIRED_MESSAGE, isSessionExpiredError } from "./httpClient";
 import { AppContext } from "../context/AppContext";
 
 const ENDPOINTS = {
@@ -28,7 +28,11 @@ export function useUser() {
     try {
       const { data } = await axios.get(endpoint(ENDPOINTS.list), headers());
       setUsers(parseUsers(data));
-    } catch {
+    } catch (error) {
+      if (isSessionExpiredError(error)) {
+        return;
+      }
+
       setUsers([]);
     } finally {
       setIsLoadingUsers(false);
@@ -43,6 +47,10 @@ export function useUser() {
       if (data?.success) { await loadUsers(); return { success: true, message: data.message }; }
       return { success: false, message: data?.message ?? "Failed to add user" };
     } catch (err) {
+      if (isSessionExpiredError(err)) {
+        return { success: false, message: SESSION_EXPIRED_MESSAGE };
+      }
+
       return { success: false, message: err?.response?.data?.message ?? err.message };
     }
   };
@@ -71,7 +79,11 @@ export function useUser() {
         const fn = method === "put" ? axios.put : axios.post;
         const { data } = await fn(endpoint(`${ENDPOINTS.update}/${id}`), payload, headers());
         if (data?.success) { await loadUsers(); return { success: true, message: data.message }; }
-      } catch { /* try next */ }
+      } catch (err) {
+        if (isSessionExpiredError(err)) {
+          return { success: false, message: SESSION_EXPIRED_MESSAGE };
+        }
+      }
     }
     return { success: false, message: "Failed to update user" };
   };
@@ -87,6 +99,10 @@ export function useUser() {
       if (data?.success) { await loadUsers(); return { success: true, message: data.message }; }
       return { success: false, message: data?.message ?? "Failed to delete user" };
     } catch (err) {
+      if (isSessionExpiredError(err)) {
+        return { success: false, message: SESSION_EXPIRED_MESSAGE };
+      }
+
       return { success: false, message: err?.response?.data?.message ?? err.message };
     }
   };

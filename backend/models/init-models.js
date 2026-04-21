@@ -3,6 +3,7 @@ var _category = require("./category");
 var _customer = require("./customer");
 var _grn = require("./grn");
 var _grn_item = require("./grn_item");
+var _grn_status = require("./grn_status");
 var _item = require("./item");
 var _item_status = require("./item_status");
 var _movement_type = require("./movement_type");
@@ -24,6 +25,7 @@ function initModels(sequelize) {
   var customer = _customer(sequelize, DataTypes);
   var grn = _grn(sequelize, DataTypes);
   var grn_item = _grn_item(sequelize, DataTypes);
+  var grn_status = _grn_status(sequelize, DataTypes);
   var item = _item(sequelize, DataTypes);
   var item_status = _item_status(sequelize, DataTypes);
   var movement_type = _movement_type(sequelize, DataTypes);
@@ -48,6 +50,8 @@ function initModels(sequelize) {
   grn.hasMany(grn_item, { as: "grn_items", foreignKey: "grn_id"});
   stock_movement.belongsTo(grn, { as: "grn", foreignKey: "grn_id"});
   grn.hasMany(stock_movement, { as: "stock_movements", foreignKey: "grn_id"});
+  grn.belongsTo(grn_status, { as: "grn_status", foreignKey: "grn_status_id"});
+  grn_status.hasMany(grn, { as: "grns", foreignKey: "grn_status_id"});
   grn_item.belongsTo(item, { as: "item", foreignKey: "item_id"});
   item.hasMany(grn_item, { as: "grn_items", foreignKey: "item_id"});
   purchase_order_item.belongsTo(item, { as: "item", foreignKey: "item_id"});
@@ -64,12 +68,16 @@ function initModels(sequelize) {
   movement_type.hasMany(stock_movement, { as: "stock_movements", foreignKey: "movement_type_id"});
   purchase_order.belongsTo(po_status, { as: "po_status", foreignKey: "po_status_id"});
   po_status.hasMany(purchase_order, { as: "purchase_orders", foreignKey: "po_status_id"});
+  grn.belongsTo(purchase_order, { as: "purchase_order", foreignKey: "purchase_order_id"});
+  purchase_order.hasMany(grn, { as: "grns", foreignKey: "purchase_order_id"});
   purchase_order_item.belongsTo(purchase_order, { as: "purchase_order", foreignKey: "purchase_order_id"});
   purchase_order.hasMany(purchase_order_item, { as: "purchase_order_items", foreignKey: "purchase_order_id"});
   sale_item.belongsTo(sale, { as: "sale", foreignKey: "sale_id"});
   sale.hasMany(sale_item, { as: "sale_items", foreignKey: "sale_id"});
   stock_movement.belongsTo(sale, { as: "sale", foreignKey: "sale_id"});
   sale.hasMany(stock_movement, { as: "stock_movements", foreignKey: "sale_id"});
+  stock_movement.belongsTo(stock_adjustment, { as: "stock_adjustment", foreignKey: "stock_adjustment_id"});
+  stock_adjustment.hasMany(stock_movement, { as: "stock_movements", foreignKey: "stock_adjustment_id"});
   grn.belongsTo(supplier, { as: "supplier", foreignKey: "supplier_id"});
   supplier.hasMany(grn, { as: "grns", foreignKey: "supplier_id"});
   item.belongsTo(supplier, { as: "supplier", foreignKey: "supplier_id"});
@@ -98,6 +106,7 @@ function initModels(sequelize) {
     customer,
     grn,
     grn_item,
+    grn_status,
     item,
     item_status,
     movement_type,

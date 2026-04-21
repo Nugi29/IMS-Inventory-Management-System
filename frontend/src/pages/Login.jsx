@@ -1,10 +1,10 @@
 import React, { useState } from 'react'
 import { useContext } from 'react';
 import { AppContext } from '../context/AppContext.jsx';
-import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios, { resetSessionExpiredState } from '../services/httpClient';
 
 const Login = () => {
 
@@ -20,6 +20,7 @@ const Login = () => {
     try {
         const { data } = await axios.post(`${backendUrl}/api/user/login`, { username, password });
         if (data.success) {
+          resetSessionExpiredState();
           localStorage.setItem('token', data.token);
           setToken(data.token);
         } else {

@@ -26,8 +26,22 @@ const authUser = async (req, res, next) => {
         next();
 
     } catch (error) {
+        if (error.name === 'TokenExpiredError') {
+            return res.status(401).json({
+                success: false,
+                message: 'Session expired. Please log in again.',
+            });
+        }
+
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid token. Please log in again.',
+            });
+        }
+
         console.log(error);
-        res.json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: 'Authentication failed' });
     }
 };
 

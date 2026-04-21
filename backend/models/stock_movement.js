@@ -35,6 +35,14 @@ module.exports = function(sequelize, DataTypes) {
         key: 'id'
       }
     },
+    stock_adjustment_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'stock_adjustment',
+        key: 'id'
+      }
+    },
     user_id: {
       type: DataTypes.INTEGER,
       allowNull: true,
@@ -97,6 +105,13 @@ module.exports = function(sequelize, DataTypes) {
         using: "BTREE",
         fields: [
           { name: "movement_type_id" },
+        ]
+      },
+      {
+        name: "fk_stock_movement_stock_adjustment1_idx",
+        using: "BTREE",
+        fields: [
+          { name: "stock_adjustment_id" },
         ]
       },
     ]
