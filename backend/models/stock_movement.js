@@ -58,6 +58,11 @@ module.exports = function(sequelize, DataTypes) {
         model: 'movement_type',
         key: 'id'
       }
+    },
+    created_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: DataTypes.NOW
     }
   }, {
     sequelize,

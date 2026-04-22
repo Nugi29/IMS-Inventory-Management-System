@@ -44,7 +44,7 @@ const NAV_ITEMS = [
   },
 
   {
-    label: "Stock Movement",
+            label: "Stock",
     icon: "compare_arrows",
     path: "/stock-movement",
     access: ["Admin", "Manager"],
@@ -106,6 +106,14 @@ const SideNavbar = () => {
 
         // Keep Users highlighted for related user-management routes.
         if (itemPath === "/users" && location.pathname.startsWith("/userform")) {
+            return true;
+        }
+
+        // Keep Stock highlighted for related stock-management routes.
+        if (itemPath === "/stock-movement" && (
+            location.pathname.startsWith("/stock-adjustments")
+            || location.pathname.startsWith("/stock-adjustment-form")
+        )) {
             return true;
         }
 

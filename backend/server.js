@@ -9,6 +9,8 @@ const customerRoutes = require('./routes/customerRoutes');
 const salesRoutes = require('./routes/salesRoutes');
 const purchaseOrderRoutes = require('./routes/PurchaseOrderRoutes');
 const grnRoutes = require('./routes/grnRoutes');
+const stockMovementRoutes = require('./routes/stockMovementRoutes');
+const stockAdjustmentRoutes = require('./routes/stockAdjustmentRoutes');
 
 const app = express();
 
@@ -21,6 +23,8 @@ app.use('/api/customer', customerRoutes);
 app.use('/api/sales', salesRoutes);
 app.use('/api/po', purchaseOrderRoutes);
 app.use('/api/grns', grnRoutes);
+app.use('/api/stock-movements', stockMovementRoutes);
+app.use('/api/stock-adjustments', stockAdjustmentRoutes);
 
 
 app.get('/', (req, res) => {
