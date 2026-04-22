@@ -9,6 +9,7 @@ const customerRoutes = require('./routes/customerRoutes');
 const salesRoutes = require('./routes/salesRoutes');
 const purchaseOrderRoutes = require('./routes/PurchaseOrderRoutes');
 const grnRoutes = require('./routes/grnRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.use('/api/customer', customerRoutes);
 app.use('/api/sales', salesRoutes);
 app.use('/api/po', purchaseOrderRoutes);
 app.use('/api/grns', grnRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 
 app.get('/', (req, res) => {

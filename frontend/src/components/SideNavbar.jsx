@@ -1,76 +1,7 @@
 import { useState, useRef, useEffect, useContext } from "react";
 import { AppContext } from "../context/AppContext";
 import { useLocation, useNavigate } from "react-router-dom";
-
-const NAV_ITEMS = [
-  {
-    label: "Dashboard",
-    icon: "dashboard",
-    path: "/",
-    access: ["Admin", "Manager", "StoreKeeper", "Cashier"],
-  },
-
-  {
-    label: "Items",
-    icon: "inventory_2",
-    path: "/items",
-    access: ["Admin", "Manager", "StoreKeeper"],
-  },
-
-  {
-    label: "Suppliers",
-    icon: "local_shipping",
-    path: "/suppliers",
-    access: ["Admin", "Manager", "StoreKeeper"],
-  },
-  {
-    label: "Purchase Orders",
-    icon: "receipt",
-    path: "/po",
-    access: ["Admin", "Manager", "StoreKeeper"],
-  },
-  {
-    label: "GRN",
-    icon: "input",
-    path: "/grns",
-    access: ["Admin", "StoreKeeper"],
-  },
-
-  {
-    label: "Sales",
-    icon: "point_of_sale",
-    path: "/sales",
-    access: ["Admin", "Cashier"],
-  },
-
-  {
-    label: "Stock Movement",
-    icon: "compare_arrows",
-    path: "/stock-movement",
-    access: ["Admin", "Manager"],
-  },
-
-  {
-    label: "Users",
-    icon: "group",
-    path: "/users",
-    access: ["Admin"],
-  },
-
-  {
-    label: "Reports",
-    icon: "assessment",
-    path: "/reports",
-    access: ["Admin", "Manager"],
-  },
-
-  {
-    label: "Settings",
-    icon: "settings",
-    path: "/settings",
-    access: ["Admin"],
-  },
-];
+import { NAV_ITEMS, hasPermission, resolveRoleConfig } from "../constants/accessControl";
 const FALLBACK_AVATAR =
     "https://lh3.googleusercontent.com/aida-public/AB6AXuDDomMYVtyZqZfIRbfYixjbaAmONSiEZhd1dcpKXZ7s87rXXbP8-qi1KSmghPkvKjpyzNPjetvI9Xx-P_YTwjOcXVj51L2DOreNWfouW9ptN3-UNzoQPwNmslkY3TRM5bRIvawgvj0gXoYCjZymLNhzQ0qM09dS29xYJUU81yuPBQVxxWWv0V9KceclekCDVtMqd0RmatB7mQ0yDlLAbeWVluJ6W-6F10SPDi5HeOmNswbE5J9Cz05zvpkK5ZT0Aw3LTtAGtNw-7HBr";
 
@@ -82,6 +13,8 @@ const SideNavbar = () => {
     const { userData, logout } = useContext(AppContext);
     const navigate = useNavigate();
     const location = useLocation();
+    const userRole = userData?.role;
+    const roleConfig = resolveRoleConfig(userRole);
 
     /* close dropdown when clicking outside */
     useEffect(() => {
@@ -119,7 +52,7 @@ const SideNavbar = () => {
 
     const user = {
         name: userData?.name ?? "User",
-        role: userData?.role?.name ?? userData?.role ?? "Account",
+        role: roleConfig.label,
         status: userData?.user_status?.name ?? "Active",
         avatarUrl: userData?.avatarUrl ?? FALLBACK_AVATAR,
     };
@@ -148,8 +81,7 @@ const SideNavbar = () => {
             {/* Navigation */}
             <nav className="flex-1 space-y-0.5">
                 {NAV_ITEMS.map((item) => {
-                    // Check if the user has access to this navigation item
-                    const hasAccess = userData?.role && item.access.includes(userData.role.name);
+                    const hasAccess = hasPermission(userRole, item.permission);
 
                     if (!hasAccess) {
                         return null;
