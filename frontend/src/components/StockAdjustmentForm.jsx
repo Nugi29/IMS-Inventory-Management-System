@@ -42,15 +42,16 @@ export const StockAdjustmentForm = () => {
     event.preventDefault()
 
     const itemId = Number(formData.item_id)
-    const quantity = Number(formData.quantity)
+    const enteredQuantity = Number(formData.quantity)
+    const quantity = -Math.abs(enteredQuantity)
 
     if (!itemId) {
       toast.error('Please select an item.')
       return
     }
 
-    if (!Number.isFinite(quantity) || quantity === 0) {
-      toast.error('Enter a non-zero quantity.')
+    if (!Number.isFinite(enteredQuantity) || enteredQuantity <= 0) {
+      toast.error('Enter a quantity greater than zero.')
       return
     }
 
@@ -126,14 +127,16 @@ export const StockAdjustmentForm = () => {
             )}
 
             <div className="space-y-2">
-              <label htmlFor="quantity" className="text-xs font-semibold uppercase tracking-wide text-slate-600">Adjustment Quantity</label>
+              <label htmlFor="quantity" className="text-xs font-semibold uppercase tracking-wide text-slate-600">Decrease Quantity</label>
               <input
                 id="quantity"
                 name="quantity"
                 type="number"
+                min={1}
+                step={1}
                 value={formData.quantity}
                 onChange={handleChange}
-                placeholder="Use positive to increase, negative to decrease"
+                placeholder="Enter quantity to reduce stock"
                 disabled={isSaving}
                 className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:bg-slate-100"
               />
