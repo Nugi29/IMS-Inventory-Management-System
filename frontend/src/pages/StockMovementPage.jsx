@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { useStockMovement } from '../services/useStockMovement'
@@ -138,7 +138,6 @@ export const StockMovementPage = () => {
   const {
     movements = [],
     isLoadingMovements,
-    reloadMovements,
   } = useStockMovement()
 
   const { users: systemUsers = [] } = useUser()
@@ -215,6 +214,24 @@ export const StockMovementPage = () => {
   const startIndex = (safeCurrentPage - 1) * ROWS_PER_PAGE
   const endIndex = startIndex + ROWS_PER_PAGE
   const paginatedMovements = filteredMovements.slice(startIndex, endIndex)
+  const visiblePageNumbers = useMemo(() => {
+    const maxVisiblePages = 7
+
+    if (totalPages <= maxVisiblePages) {
+      return Array.from({ length: totalPages }, (_, index) => index + 1)
+    }
+
+    const halfWindow = Math.floor(maxVisiblePages / 2)
+    let startPage = Math.max(1, safeCurrentPage - halfWindow)
+    let endPage = startPage + maxVisiblePages - 1
+
+    if (endPage > totalPages) {
+      endPage = totalPages
+      startPage = Math.max(1, endPage - maxVisiblePages + 1)
+    }
+
+    return Array.from({ length: endPage - startPage + 1 }, (_, index) => startPage + index)
+  }, [safeCurrentPage, totalPages])
 
   // â"€â"€â"€ Statistics â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
@@ -322,11 +339,11 @@ export const StockMovementPage = () => {
         </div>
       )}
 
-      {/* Filter Bar: Asymmetric Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8 items-center">
-        <div className="lg:col-span-8 flex flex-col md:flex-row gap-4">
+      {/* Filter Bar: Flexible Layout */}
+      <div className="flex flex-col lg:flex-row flex-wrap gap-4 mb-8 items-center justify-between">
+        <div className="flex flex-col md:flex-row gap-4 flex-1 w-full lg:w-auto">
           <div className="relative flex-1">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" data-icon="search">search</span>
+            <span className="material-symbols-outlined absolute left-4 inset-y-0 flex items-center text-slate-400" data-icon="search">search</span>
             <input
               className="w-full bg-white border border-slate-200 dark:border-slate-800 rounded-xl pl-12 pr-4 py-4 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none"
               placeholder="Search by item name or SKU..."
@@ -375,10 +392,10 @@ export const StockMovementPage = () => {
           </div>
         </div>
 
-        <div className="lg:col-span-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap w-full lg:w-auto">
           <div className="relative flex-1">
             <select
-              className="appearance-none bg-white border border-slate-200 dark:border-slate-800 rounded-xl px-6 pr-12 py-4 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none w-full"
+              className="appearance-none bg-white border border-slate-200 dark:border-slate-800 rounded-xl px-6 pr-12 py-4 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none w-full min-w-[200px]"
               value={selectedUser}
               onChange={(event) => {
                 setSelectedUser(event.target.value)
@@ -502,49 +519,38 @@ export const StockMovementPage = () => {
 
           <div className="flex items-center gap-2">
             <button
-              type="button"
-              className="p-2 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={safeCurrentPage === 1}
               onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+              disabled={safeCurrentPage === 1}
+              className={`p-2 rounded-lg border border-slate-200 transition-all ${safeCurrentPage === 1 ? 'bg-slate-50 text-slate-400 cursor-not-allowed opacity-50' : 'bg-slate-50 text-slate-600 hover:bg-primary hover:text-white'}`}
               aria-label="Previous page"
-            >
-              <span className="material-symbols-outlined text-sm" data-icon="chevron_left">chevron_left</span>
-            </button>
-
-            <div className="flex gap-1">
-              {Array.from({ length: totalPages }, (_, idx) => idx + 1)
-                .filter(pageNo => {
-                  if (totalPages <= 5) return true;
-                  if (safeCurrentPage <= 3) return pageNo <= 5;
-                  if (safeCurrentPage >= totalPages - 2) return pageNo >= totalPages - 4;
-                  return pageNo >= safeCurrentPage - 2 && pageNo <= safeCurrentPage + 2;
-                })
-                .map((pageNo) => (
-                  <button
-                    key={pageNo}
-                    type="button"
-                    onClick={() => setCurrentPage(pageNo)}
-                    className={`px-3 py-2 text-xs font-bold rounded-lg transition-colors ${
-                      pageNo === safeCurrentPage
-                        ? 'bg-blue-600 text-white'
-                        : 'hover:bg-slate-200 text-slate-600'
-                    }`}
-                    aria-label={`Go to page ${pageNo}`}
-                    aria-current={pageNo === safeCurrentPage ? 'page' : undefined}
-                  >
-                    {pageNo}
-                  </button>
-                ))}
-            </div>
-
-            <button
               type="button"
-              className="p-2 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={safeCurrentPage === totalPages}
-              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-              aria-label="Next page"
             >
-              <span className="material-symbols-outlined text-sm" data-icon="chevron_right">chevron_right</span>
+              <span className="material-symbols-outlined" data-icon="chevron_left">chevron_left</span>
+            </button>
+            <div className="flex items-center gap-1">
+              {visiblePageNumbers.map((pageNumber) => {
+                const isActive = pageNumber === safeCurrentPage
+
+                return (
+                  <button
+                    key={pageNumber}
+                    onClick={() => setCurrentPage(pageNumber)}
+                    className={`w-8 h-8 rounded-lg text-xs font-bold ${isActive ? 'bg-primary text-white' : 'bg-slate-50 text-slate-600 hover:bg-primary hover:text-white border border-slate-200'}`}
+                    type="button"
+                  >
+                    {pageNumber}
+                  </button>
+                )
+              })}
+            </div>
+            <button
+              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+              disabled={safeCurrentPage === totalPages}
+              className={`p-2 rounded-lg border border-slate-200 transition-all ${safeCurrentPage === totalPages ? 'bg-slate-50 text-slate-400 cursor-not-allowed opacity-50' : 'bg-slate-50 text-slate-600 hover:bg-primary hover:text-white'}`}
+              aria-label="Next page"
+              type="button"
+            >
+              <span className="material-symbols-outlined" data-icon="chevron_right">chevron_right</span>
             </button>
           </div>
 
