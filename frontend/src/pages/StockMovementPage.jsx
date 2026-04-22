@@ -184,7 +184,8 @@ export const StockMovementPage = () => {
   // â"€â"€â"€ Filtering Logic â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
   const filteredMovements = useMemo(() => {
-    return movements.filter((movement) => {
+    return movements
+      .filter((movement) => {
       const type = getMovementType(movement)
       const itemName = getMovementItemName(movement)
       const sku = getMovementSku(movement)
@@ -205,6 +206,18 @@ export const StockMovementPage = () => {
 
       return matchesModule && matchesType && matchesUser && matchesSearch && matchesPeriod
     })
+      .sort((a, b) => {
+        const timeA = new Date(getMovementTime(a)).getTime()
+        const timeB = new Date(getMovementTime(b)).getTime()
+
+        if (Number.isFinite(timeA) && Number.isFinite(timeB) && timeA !== timeB) {
+          return timeB - timeA
+        }
+
+        const idA = Number(a?.id ?? a?.movement_id ?? 0)
+        const idB = Number(b?.id ?? b?.movement_id ?? 0)
+        return idB - idA
+      })
   }, [movements, isAdjustmentModule, selectedType, selectedUser, searchTerm, selectedPeriod])
 
   // â"€â"€â"€ Pagination â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€

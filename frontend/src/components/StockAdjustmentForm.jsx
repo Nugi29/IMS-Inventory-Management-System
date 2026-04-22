@@ -16,7 +16,7 @@ const getCurrentStock = (item) => toNumber(item?.current_stock ?? item?.quantity
 export const StockAdjustmentForm = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const returnPath = location.state?.from || '/stock-adjustments'
+  const returnPath = location.state?.from || '/stock-movement'
 
   const { items = [], isLoadingItems } = useItem()
   const { createAdjustment } = useStockMovement()
@@ -73,7 +73,7 @@ export const StockAdjustmentForm = () => {
     }
 
     toast.success(result.message)
-    navigate('/stock-adjustments', { replace: true })
+    navigate('/stock-movement', { replace: true })
   }
 
   return (
