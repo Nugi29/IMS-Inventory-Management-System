@@ -511,13 +511,13 @@ export const StockMovementPage = () => {
         </div>
 
         {/* Pagination Footer */}
-        <div className="px-6 py-4 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200">
+        <div className="px-6 py-4 bg-slate-50 flex flex-col sm:flex-row items-center gap-3 border-t border-slate-200">
           <p className="text-xs text-slate-500 font-medium">
             Showing <span className="font-semibold text-slate-800">{filteredMovements.length ? startIndex + 1 : 0} - {Math.min(startIndex + ROWS_PER_PAGE, filteredMovements.length)}</span>
             {' '}of <span className="font-semibold text-slate-800">{filteredMovements.length}</span> movements
           </p>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 sm:ml-auto">
             <button
               onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
               disabled={safeCurrentPage === 1}
