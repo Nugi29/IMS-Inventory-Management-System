@@ -26,7 +26,7 @@ module.exports = function(sequelize, DataTypes) {
     grn_date: {
       type: DataTypes.DATE,
       allowNull: true,
-      defaultValue: Sequelize.Sequelize.literal('CURRENT_TIMESTAMP')
+      defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
     },
     total_amount: {
       type: DataTypes.DECIMAL(12,2),

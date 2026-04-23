@@ -1,4 +1,4 @@
-import { useCallback, useContext, useState, useEffect } from "react";
+import { useCallback, useContext, useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { AppContext } from "../context/AppContext";
