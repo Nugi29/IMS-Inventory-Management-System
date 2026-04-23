@@ -20,6 +20,7 @@ import {
 import { AppContext } from '../context/AppContext'
 import { resolveRoleConfig } from '../constants/accessControl'
 import { useDashboard } from '../services/useDashboard'
+import { useItem } from '../services/useItem'
 
 const fmtMoney = (value) =>
   `Rs ${Number(value || 0).toLocaleString('en-US', {
@@ -68,6 +69,118 @@ const EMPTY_SALES_TREND = [
 ]
 
 const EMPTY_LIST = []
+
+const STOCK_DISTRIBUTION = [
+  { name: 'Global Logistics Inc.', share: 45, color: '#2563eb' },
+  { name: 'Precision Parts Co.', share: 30, color: '#004ac6' },
+  { name: 'Direct Sourcing Ltd.', share: 25, color: '#943700' },
+]
+
+const TOP_SELLING_CATEGORIES = [
+  { name: 'Electronics', amount: 42500, share: 85, fillFrom: '#2563eb', fillTo: '#3b82f6' },
+  { name: 'Apparel', amount: 31200, share: 65, fillFrom: '#7c3aed', fillTo: '#8b5cf6' },
+  { name: 'Home & Living', amount: 22800, share: 45, fillFrom: '#0f766e', fillTo: '#14b8a6' },
+  { name: 'Accessories', amount: 12400, share: 25, fillFrom: '#f59e0b', fillTo: '#f97316' },
+]
+
+const FALLBACK_LIVE_FEED = [
+  {
+    title: 'Stock Adjusted: INV-902',
+    actor: 'Admin Alex',
+    createdAt: new Date(Date.now() - 5 * 60_000).toISOString(),
+    description: '+100 units due to inventory recount.',
+    icon: 'add',
+    tone: 'blue',
+  },
+  {
+    title: 'GRN Created: #2024-001',
+    actor: 'Warehouse Dock 4',
+    createdAt: new Date(Date.now() - 22 * 60_000).toISOString(),
+    description: 'Inbound delivery received and matched.',
+    icon: 'local_shipping',
+    tone: 'teal',
+  },
+  {
+    title: 'Stock Damaged Report',
+    actor: 'Item: Crystal Vase',
+    createdAt: new Date(Date.now() - 60 * 60_000).toISOString(),
+    description: '05 units written off as breakage.',
+    icon: 'close',
+    tone: 'rose',
+  },
+  {
+    title: 'Bulk Sale: INV-8919',
+    actor: 'Register 01',
+    createdAt: new Date(Date.now() - 3 * 60 * 60_000).toISOString(),
+    description: 'High-volume sale completed successfully.',
+    icon: 'sell',
+    tone: 'amber',
+  },
+]
+
+const CARD_COLORS = ['#2563eb', '#004ac6', '#0f766e', '#943700', '#7c3aed', '#f59e0b']
+
+const stockDistributionCircumference = 2 * Math.PI * 70
+
+const categoryToneClass = (index) => {
+  const palette = [
+    'from-blue-500 to-blue-400',
+    'from-indigo-500 to-violet-500',
+    'from-teal-500 to-cyan-500',
+    'from-amber-500 to-orange-500',
+  ]
+
+  return palette[index % palette.length]
+}
+
+const getCategoryName = (item) =>
+  item?.category?.name ||
+  item?.category?.categoryName ||
+  item?.category?.label ||
+  item?.category_name ||
+  item?.categoryName ||
+  'Uncategorized'
+
+const getSupplierName = (item) =>
+  item?.supplier?.name ||
+  item?.supplier?.supplierName ||
+  item?.supplier_name ||
+  item?.supplierName ||
+  'Unknown supplier'
+
+const getItemQuantity = (item) =>
+  Number(item?.quantity ?? item?.available_quantity ?? item?.stock ?? item?.stock_qty ?? 0)
+
+const getItemUnitValue = (item) =>
+  Number(item?.selling_price ?? item?.price ?? item?.unit_price ?? item?.cost_price ?? 0)
+
+const getItemValue = (item) => {
+  const quantity = getItemQuantity(item)
+  const unitValue = getItemUnitValue(item)
+  return quantity > 0 && unitValue > 0 ? quantity * unitValue : quantity || unitValue || 0
+}
+
+const aggregateItems = (items, getKey) => {
+  const grouped = new Map()
+
+  items.forEach((item, index) => {
+    const key = getKey(item, index)
+    if (!key) return
+
+    const current = grouped.get(key) || { name: key, amount: 0 }
+    current.amount += getItemValue(item)
+    grouped.set(key, current)
+  })
+
+  const rows = Array.from(grouped.values()).sort((left, right) => right.amount - left.amount)
+  const totalAmount = rows.reduce((sum, row) => sum + row.amount, 0)
+
+  return rows.map((row, index) => ({
+    ...row,
+    share: totalAmount ? Math.round((row.amount / totalAmount) * 100) : 0,
+    color: CARD_COLORS[index % CARD_COLORS.length],
+  }))
+}
 
 const permissionBlock = (title) => (
   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-8 text-center">
@@ -201,6 +314,130 @@ const DecisionBadge = ({ label, value, tone = 'slate', icon }) => {
   )
 }
 
+const StockDistributionCard = ({ items }) => {
+  const capacity = 84
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-4">
+        <h2 className="text-base font-bold text-slate-900">Stock Distribution</h2>
+        <p className="text-xs text-slate-500">Share by primary supplier</p>
+      </div>
+
+      <div className="flex flex-col items-center justify-center">
+        <div className="relative flex h-56 w-56 items-center justify-center">
+          <svg className="h-48 w-48 -rotate-90" viewBox="0 0 192 192" aria-hidden="true">
+            <circle cx="96" cy="96" r="70" fill="transparent" stroke="#f1f5f9" strokeWidth="24" />
+            {items.map((item, index) => (
+              <circle
+                key={item.name}
+                cx="96"
+                cy="96"
+                r="70"
+                fill="transparent"
+                stroke={item.color}
+                strokeWidth="24"
+                strokeDasharray={`${item.dashArray} ${stockDistributionCircumference - item.dashArray}`}
+                strokeDashoffset={-item.dashOffset}
+                strokeLinecap="round"
+                style={{ transition: 'stroke-dashoffset 500ms ease, stroke-dasharray 500ms ease' }}
+                opacity={1 - index * 0.02}
+              />
+            ))}
+          </svg>
+          <div className="absolute flex flex-col items-center">
+            <span className="text-3xl font-extrabold tracking-tight text-slate-900">{capacity}%</span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Capacity</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 space-y-3">
+        {items.length > 0 ? items.map((item) => (
+          <div key={item.name} className="flex items-center justify-between gap-3 text-xs">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
+              <span className="truncate text-slate-500">{item.name}</span>
+            </div>
+            <span className="font-bold text-slate-900">{item.share}%</span>
+          </div>
+        )) : <p className="text-center text-xs text-slate-500">No stock data available.</p>}
+      </div>
+    </section>
+  )
+}
+
+const TopSellingCategoriesCard = ({ items }) => (
+  <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="mb-5">
+      <h2 className="text-base font-bold text-slate-900">Top Selling Categories</h2>
+      <p className="text-xs text-slate-500">Sales concentration by category</p>
+    </div>
+
+    <div className="space-y-4">
+      {items.length > 0 ? items.map((item, index) => (
+        <div key={item.name} className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-medium text-slate-700">{item.name}</span>
+            <span className="font-bold text-slate-900">{fmtCompactMoney(item.amount)}</span>
+          </div>
+          <div className="h-8 overflow-hidden rounded-xl bg-slate-100">
+            <div
+              className={`h-full rounded-xl bg-linear-to-r ${categoryToneClass(index)} transition-all duration-500`}
+              style={{ width: `${item.share}%` }}
+            />
+          </div>
+        </div>
+      )) : <p className="text-center text-sm text-slate-500">No category data available.</p>}
+    </div>
+  </section>
+)
+
+const LiveFeedCard = ({ entries, right }) => {
+  const tones = {
+    blue: 'bg-blue-600',
+    teal: 'bg-teal-600',
+    rose: 'bg-rose-600',
+    amber: 'bg-amber-500',
+    slate: 'bg-slate-600',
+  }
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-5 flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-base font-bold text-slate-900">Live Feed</h2>
+          <p className="text-xs text-slate-500">Latest stock and sales events</p>
+        </div>
+        {right && <div>{right}</div>}
+      </div>
+
+      <div className="relative space-y-5 before:absolute before:bottom-2 before:left-3 before:top-2 before:w-px before:bg-slate-200">
+        {entries.map((entry, index) => (
+          <div key={entry.id || `${entry.title}-${index}`} className="relative flex gap-4">
+            <div className={`z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white ${tones[entry.tone] || tones.slate}`}>
+              <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                {entry.icon}
+              </span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-slate-900">{entry.title}</p>
+              <p className="text-[10px] text-slate-500">
+                {entry.actor} • {relTime(entry.createdAt)}
+              </p>
+              {entry.description && (
+                <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
+                  <p className="text-[10px] font-medium text-slate-600">{entry.description}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 const Dashboard = () => {
   const navigate = useNavigate()
   const { userData } = useContext(AppContext)
@@ -208,6 +445,7 @@ const Dashboard = () => {
   const permissions = roleConfig.permissions
 
   const { dashboard, isLoadingDashboard } = useDashboard()
+  const { items, isLoadingItems } = useItem()
   const summary = useMemo(() => dashboard?.summary || EMPTY_SUMMARY, [dashboard])
 
   const salesTrend = useMemo(
@@ -231,6 +469,64 @@ const Dashboard = () => {
     () => (Array.isArray(dashboard?.liveFeed) ? dashboard.liveFeed : EMPTY_LIST),
     [dashboard],
   )
+
+  const hasItemData = Array.isArray(items) && items.length > 0
+
+  const stockDistribution = useMemo(() => {
+    if (Array.isArray(dashboard?.stockDistribution) && dashboard.stockDistribution.length) {
+      return dashboard.stockDistribution
+        .map((entry, index) => ({
+          name: entry?.name || entry?.supplier_name || `Supplier ${index + 1}`,
+          share: Number(entry?.share ?? entry?.percentage ?? entry?.value ?? 0),
+          color: entry?.color || CARD_COLORS[index % CARD_COLORS.length],
+        }))
+        .filter((entry) => entry.name && entry.share > 0)
+    }
+
+    if (!hasItemData) return []
+
+    return aggregateItems(items, (item) => getSupplierName(item))
+  }, [dashboard, items, hasItemData])
+
+  const topSellingCategories = useMemo(() => {
+    if (Array.isArray(dashboard?.topSellingCategories) && dashboard.topSellingCategories.length) {
+      const mappedCategories = dashboard.topSellingCategories
+        .map((entry, index) => ({
+          name: entry?.name || entry?.category || `Category ${index + 1}`,
+          amount: Number(entry?.amount ?? entry?.total ?? 0),
+          share: Number(entry?.share ?? entry?.percentage ?? 0),
+        }))
+        .filter((entry) => entry.name && entry.amount >= 0)
+
+      const totalAmount = mappedCategories.reduce((sum, current) => sum + Number(current.amount || 0), 0)
+
+      return mappedCategories.map((entry, index) => ({
+        ...entry,
+        share: entry.share || (totalAmount ? Math.round((Number(entry.amount || 0) / totalAmount) * 100) : 0),
+        color: CARD_COLORS[index % CARD_COLORS.length],
+      }))
+    }
+
+    if (!hasItemData) return []
+
+    return aggregateItems(items, (item) => getCategoryName(item))
+  }, [dashboard, items, hasItemData])
+
+  const liveFeedEntries = useMemo(() => {
+    const source = liveFeed.length ? liveFeed : FALLBACK_LIVE_FEED
+
+    return source.map((entry, index) => ({
+      id: entry?.id || index,
+      title: entry?.title || entry?.label || 'System event',
+      actor: entry?.actor || entry?.source || 'System',
+      createdAt: entry?.createdAt || entry?.created_at || entry?.timestamp || new Date().toISOString(),
+      description: entry?.description || entry?.details || entry?.message || '',
+      icon:
+        entry?.icon ||
+        (index === 0 ? 'add' : index === 1 ? 'local_shipping' : index === 2 ? 'close' : 'sell'),
+      tone: entry?.tone || (index === 0 ? 'blue' : index === 1 ? 'teal' : index === 2 ? 'rose' : 'amber'),
+    }))
+  }, [liveFeed])
 
   const recentSalesTotal = useMemo(
     () => recentSales.reduce((sum, sale) => sum + Number(sale?.total_amount || 0), 0),
@@ -480,7 +776,7 @@ const Dashboard = () => {
       <section className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
         <MetricTile
           label="Sales Today"
-          value={fmtCompactMoney(summary.total_sales_today)}
+          value={fmtMoney(summary.total_sales_today)}
           hint={`${summary.total_sales_count_today || 0} transactions`}
           icon="payments"
           tone="blue"
@@ -493,7 +789,7 @@ const Dashboard = () => {
           tone="indigo"
         />
         <MetricTile
-          label="Low Stock"
+          label="Items to Reorder"
           value={summary.low_stock_count || 0}
           hint="Needs attention"
           icon="warning"
@@ -513,6 +809,15 @@ const Dashboard = () => {
           icon="receipt_long"
           tone="rose"
         />
+      </section>
+
+      <section className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-12">
+        <div className="lg:col-span-4">
+          <StockDistributionCard items={stockDistribution} />
+        </div>
+        <div className="lg:col-span-8">
+          <TopSellingCategoriesCard items={topSellingCategories} />
+        </div>
       </section>
 
       <section className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-12">
@@ -628,27 +933,22 @@ const Dashboard = () => {
 
         <div className="lg:col-span-4">
           {permissions.stockMovement ? (
-            <SectionCard
-              title="Live Feed"
-              subtitle="Latest stock and sales events"
+            <LiveFeedCard
+              entries={liveFeedEntries}
               right={<span className="text-xs font-semibold text-slate-600">Total: {fmtMoney(recentSalesTotal)}</span>}
-            >
-              <div className="space-y-3">
-                {liveFeed.slice(0, 5).map((entry, index) => (
-                  <div key={entry?.id || index} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-sm font-semibold text-slate-800">{entry?.title || 'System event'}</p>
-                    <p className="mt-0.5 text-xs text-slate-500">{entry?.actor || 'System'} • {relTime(entry?.createdAt)}</p>
-                    <p className="mt-2 text-xs text-slate-600">{entry?.description || 'No details available.'}</p>
-                  </div>
-                ))}
-                {!liveFeed.length && <p className="py-4 text-center text-sm text-slate-500">No live feed events.</p>}
-              </div>
-            </SectionCard>
+            />
           ) : (
             permissionBlock('Live Feed')
           )}
         </div>
       </section>
+
+          {(isLoadingDashboard || isLoadingItems) && (
+            <div className="fixed bottom-6 right-6 inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-lg">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-blue-500" />
+              Loading dashboard data
+            </div>
+          )}
 
       {permissions.users && (
         <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -670,12 +970,6 @@ const Dashboard = () => {
         </section>
       )}
 
-      {isLoadingDashboard && (
-        <div className="fixed bottom-6 right-6 inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-lg">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-blue-500" />
-          Loading dashboard data
-        </div>
-      )}
     </main>
   )
 }
