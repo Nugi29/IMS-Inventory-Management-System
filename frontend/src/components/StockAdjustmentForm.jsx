@@ -237,7 +237,7 @@ export const StockAdjustmentForm = () => {
                       type="button"
                       onClick={resetItemFilters}
                       disabled={isLoadingItems || isSaving || !hasActiveFilters}
-                      className="h-12 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white whitespace-nowrap shadow-sm transition hover:bg-blue-700 active:scale-95 disabled:cursor-not-allowed disabled:bg-blue-300 disabled:text-white/80"
+                      className="h-12 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-600 whitespace-nowrap transition-colors hover:text-primary hover:border-primary/40 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                     >
                       Reset Filters
                     </button>
