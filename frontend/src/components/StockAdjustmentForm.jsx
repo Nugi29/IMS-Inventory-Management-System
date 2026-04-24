@@ -60,6 +60,7 @@ export const StockAdjustmentForm = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [isSaving, setIsSaving] = useState(false)
+  const hasActiveFilters = searchTerm.trim() || selectedCategory !== 'all'
 
   const categories = useMemo(() => {
     const unique = new Set()
@@ -99,6 +100,11 @@ export const StockAdjustmentForm = () => {
 
   const handleSelectItem = (itemId) => {
     setFormData((prev) => ({ ...prev, item_id: String(itemId) }))
+  }
+
+  const resetItemFilters = () => {
+    setSearchTerm('')
+    setSelectedCategory('all')
   }
 
   const applyReasonTemplate = (template) => {
@@ -196,8 +202,8 @@ export const StockAdjustmentForm = () => {
           <div className="space-y-4 overflow-y-auto">
             {!isViewMode && (
               <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                <div className="flex-1 space-y-2">
+              <div className="flex flex-col gap-4 lg:flex-row lg:flex-nowrap lg:items-end lg:justify-between">
+                <div className="w-full space-y-2 lg:max-w-lg">
                   <label htmlFor="itemSearch" className="text-xs font-semibold uppercase tracking-wide text-slate-600">Find Item</label>
                   <input
                     id="itemSearch"
@@ -207,24 +213,35 @@ export const StockAdjustmentForm = () => {
                     placeholder="Search by item name or SKU"
                     autoFocus
                     disabled={isLoadingItems || isSaving}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:bg-slate-100"
+                    className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:bg-slate-100"
                   />
                 </div>
 
-                <div className="w-full space-y-2 sm:w-60">
+                <div className="w-full space-y-2 lg:w-auto">
                   <label htmlFor="categoryFilter" className="text-xs font-semibold uppercase tracking-wide text-slate-600">Category</label>
-                  <select
-                    id="categoryFilter"
-                    value={selectedCategory}
-                    onChange={(event) => setSelectedCategory(event.target.value)}
-                    disabled={isLoadingItems || isSaving}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:bg-slate-100"
-                  >
-                    <option value="all">All Categories</option>
-                    {categories.map((category) => (
-                      <option key={category} value={category}>{category}</option>
-                    ))}
-                  </select>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:flex-nowrap sm:items-center">
+                    <select
+                      id="categoryFilter"
+                      value={selectedCategory}
+                      onChange={(event) => setSelectedCategory(event.target.value)}
+                      disabled={isLoadingItems || isSaving}
+                      className="h-12 w-full min-w-52 rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:bg-slate-100"
+                    >
+                      <option value="all">All Categories</option>
+                      {categories.map((category) => (
+                        <option key={category} value={category}>{category}</option>
+                      ))}
+                    </select>
+
+                    <button
+                      type="button"
+                      onClick={resetItemFilters}
+                      disabled={isLoadingItems || isSaving || !hasActiveFilters}
+                      className="h-12 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white whitespace-nowrap shadow-sm transition hover:bg-blue-700 active:scale-95 disabled:cursor-not-allowed disabled:bg-blue-300 disabled:text-white/80"
+                    >
+                      Reset Filters
+                    </button>
+                  </div>
                 </div>
               </div>
 
