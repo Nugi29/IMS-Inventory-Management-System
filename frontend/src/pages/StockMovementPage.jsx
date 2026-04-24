@@ -323,6 +323,16 @@ export const StockMovementPage = () => {
     URL.revokeObjectURL(url)
   }, [filteredMovements])
 
+  const openAdjustmentDetails = useCallback((movement) => {
+    navigate('/stock-adjustment-form', {
+      state: {
+        from: location.pathname,
+        mode: 'view',
+        adjustment: movement,
+      },
+    })
+  }, [navigate, location.pathname])
+
   // â"€â"€â"€ Render â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
   return (
@@ -490,9 +500,15 @@ export const StockMovementPage = () => {
                   || normalizeText(type).includes('adjust')
 
                 const displayQuantity = isAdjustment ? -Math.abs(quantity) : quantity
+                const isRowClickable = isAdjustment
 
                 return (
-                  <tr key={movement?.id || movement?.movement_id || index} className="hover:bg-slate-50 transition-colors">
+                  <tr
+                    key={movement?.id || movement?.movement_id || index}
+                    className={`transition-colors ${isRowClickable ? 'cursor-pointer hover:bg-slate-50' : ''}`}
+                    onClick={isRowClickable ? () => openAdjustmentDetails(movement) : undefined}
+                    title={isRowClickable ? 'Click to view adjustment details' : undefined}
+                  >
                     <td className="px-6 py-5">
                       <div className="flex flex-col">
                         <p className="font-semibold text-slate-800 text-sm">{getMovementItemName(movement)}</p>

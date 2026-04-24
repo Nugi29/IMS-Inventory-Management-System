@@ -2,6 +2,7 @@ const { sequelize, models } = require('../config/db');
 
 const {
     stock_movement: StockMovement,
+    stock_adjustment: StockAdjustment,
     item: Item,
     movement_type: MovementType,
     user: User,
@@ -177,6 +178,7 @@ const getStockMovements = async (req, res) => {
                 { model: User, as: 'user', attributes: ['id', 'name', 'username'] },
                 { model: Grn, as: 'grn', attributes: ['id'], required: false },
                 { model: Sale, as: 'sale', attributes: ['id'], required: false },
+                { model: StockAdjustment, as: 'stock_adjustment', attributes: ['id', 'reason', 'quantity'], required: false },
             ],
             order: [['id', 'DESC']],
             distinct: true,
@@ -195,10 +197,14 @@ const getStockMovements = async (req, res) => {
                 data.item.item_name = data.item.name;
                 data.item.sku = data.item.code;
             }
+
+            const adjustmentReason = data.stock_adjustment?.reason || null;
             return {
                 ...data,
                 item_name: data.item?.item_name || data.item?.name || 'Unknown',
                 sku: data.item?.sku || data.item?.code || '-',
+                reason: adjustmentReason,
+                remarks: adjustmentReason,
                 created_at: data.created_at || new Date().toISOString(),
             };
         });
