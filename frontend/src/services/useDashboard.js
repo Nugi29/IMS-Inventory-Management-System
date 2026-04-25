@@ -18,6 +18,8 @@ const EMPTY_DASHBOARD = {
 		total_stock_value: 0,
 	},
 	salesTrend: [],
+	topSellingCategories: [],
+	stockDistribution: [],
 	recentSales: [],
 	lowStockItems: [],
 	purchaseActivity: [],
@@ -25,6 +27,11 @@ const EMPTY_DASHBOARD = {
 }
 
 const toNumber = (value) => {
+	if (typeof value === 'string') {
+		const parsed = Number(value.replace(/,/g, '').trim())
+		return Number.isFinite(parsed) ? parsed : 0
+	}
+
 	const parsed = Number(value)
 	return Number.isFinite(parsed) ? parsed : 0
 }
@@ -44,6 +51,18 @@ const normalizeOverview = (payload) => {
 			total_stock_value: toNumber(source?.summary?.total_stock_value),
 		},
 		salesTrend: Array.isArray(source?.salesTrend) ? source.salesTrend : [],
+		topSellingCategories: Array.isArray(source?.topSellingCategories)
+			? source.topSellingCategories
+			: Array.isArray(source?.topSellingCategory)
+				? source.topSellingCategory
+				: Array.isArray(source?.categorySales)
+					? source.categorySales
+					: [],
+		stockDistribution: Array.isArray(source?.stockDistribution)
+			? source.stockDistribution
+			: Array.isArray(source?.supplierDistribution)
+				? source.supplierDistribution
+				: [],
 		recentSales: Array.isArray(source?.recentSales) ? source.recentSales : [],
 		lowStockItems: Array.isArray(source?.lowStockItems) ? source.lowStockItems : [],
 		purchaseActivity: Array.isArray(source?.purchaseActivity) ? source.purchaseActivity : [],

@@ -1,17 +1,9 @@
-import { useContext, useMemo } from 'react'
+import { useContext, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Area,
   AreaChart,
-  Bar,
-  BarChart,
   CartesianGrid,
-  Cell,
-  Line,
-  LineChart,
-  PolarAngleAxis,
-  RadialBar,
-  RadialBarChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -33,6 +25,16 @@ const fmtCompactMoney = (value) => {
   if (n >= 1_000_000) return `Rs ${(n / 1_000_000).toFixed(1)}M`
   if (n >= 1_000) return `Rs ${(n / 1_000).toFixed(0)}K`
   return fmtMoney(n)
+}
+
+const safeToNumber = (value) => {
+  if (typeof value === 'string') {
+    const parsed = Number(value.replace(/,/g, '').trim())
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : 0
 }
 
 const relTime = (dateValue) => {
@@ -70,19 +72,6 @@ const EMPTY_SALES_TREND = [
 
 const EMPTY_LIST = []
 
-const STOCK_DISTRIBUTION = [
-  { name: 'Global Logistics Inc.', share: 45, color: '#2563eb' },
-  { name: 'Precision Parts Co.', share: 30, color: '#004ac6' },
-  { name: 'Direct Sourcing Ltd.', share: 25, color: '#943700' },
-]
-
-const TOP_SELLING_CATEGORIES = [
-  { name: 'Electronics', amount: 42500, share: 85, fillFrom: '#2563eb', fillTo: '#3b82f6' },
-  { name: 'Apparel', amount: 31200, share: 65, fillFrom: '#7c3aed', fillTo: '#8b5cf6' },
-  { name: 'Home & Living', amount: 22800, share: 45, fillFrom: '#0f766e', fillTo: '#14b8a6' },
-  { name: 'Accessories', amount: 12400, share: 25, fillFrom: '#f59e0b', fillTo: '#f97316' },
-]
-
 const FALLBACK_LIVE_FEED = [
   {
     title: 'Stock Adjusted: INV-902',
@@ -119,6 +108,7 @@ const FALLBACK_LIVE_FEED = [
 ]
 
 const CARD_COLORS = ['#2563eb', '#004ac6', '#0f766e', '#943700', '#7c3aed', '#f59e0b']
+const TOP_LIST_LIMIT = 5
 
 const stockDistributionCircumference = 2 * Math.PI * 70
 
@@ -149,10 +139,23 @@ const getSupplierName = (item) =>
   'Unknown supplier'
 
 const getItemQuantity = (item) =>
-  Number(item?.quantity ?? item?.available_quantity ?? item?.stock ?? item?.stock_qty ?? 0)
+  safeToNumber(
+    item?.current_stock ??
+    item?.quantity ??
+    item?.available_quantity ??
+    item?.available_stock ??
+    item?.stock ??
+    item?.stock_qty ??
+    item?.qty_on_hand ??
+    item?.qty ??
+    0,
+  )
 
 const getItemUnitValue = (item) =>
-  Number(item?.selling_price ?? item?.price ?? item?.unit_price ?? item?.cost_price ?? 0)
+  safeToNumber(item?.selling_price ?? item?.price ?? item?.unit_price ?? item?.cost_price ?? 0)
+
+const getItemReorderLevel = (item) =>
+  safeToNumber(item?.reorder_level ?? item?.reorderLevel ?? item?.minimum_stock ?? item?.min_stock ?? 0)
 
 const getItemValue = (item) => {
   const quantity = getItemQuantity(item)
@@ -179,6 +182,53 @@ const aggregateItems = (items, getKey) => {
     ...row,
     share: totalAmount ? Math.round((row.amount / totalAmount) * 100) : 0,
     color: CARD_COLORS[index % CARD_COLORS.length],
+  }))
+}
+
+const getTopStockDistribution = (rows) => {
+  const topRows = rows
+    .map((row) => ({
+      ...row,
+      share: Math.max(0, safeToNumber(row?.share || 0)),
+    }))
+    .sort((left, right) => right.share - left.share)
+    .slice(0, TOP_LIST_LIMIT)
+
+  const totalShare = topRows.reduce((sum, row) => sum + row.share, 0)
+  let runningShare = 0
+
+  return topRows.map((row, index) => {
+    const normalizedShare = totalShare ? Math.round((row.share / totalShare) * 100) : 0
+    const dashOffset = (runningShare / 100) * stockDistributionCircumference
+    const dashArray = (normalizedShare / 100) * stockDistributionCircumference
+    runningShare += normalizedShare
+
+    return {
+      ...row,
+      share: normalizedShare,
+      color: row.color || CARD_COLORS[index % CARD_COLORS.length],
+      dashOffset,
+      dashArray,
+    }
+  })
+}
+
+const getTopSellingCategories = (rows) => {
+  const topRows = rows
+    .map((row) => ({
+      ...row,
+      amount: safeToNumber(row?.amount || 0),
+    }))
+    .filter((row) => row.amount > 0)
+    .sort((left, right) => right.amount - left.amount)
+    .slice(0, TOP_LIST_LIMIT)
+
+  const totalAmount = topRows.reduce((sum, row) => sum + row.amount, 0)
+
+  return topRows.map((row, index) => ({
+    ...row,
+    share: totalAmount ? Math.round((row.amount / totalAmount) * 100) : 0,
+    color: row.color || CARD_COLORS[index % CARD_COLORS.length],
   }))
 }
 
@@ -371,7 +421,7 @@ const TopSellingCategoriesCard = ({ items }) => (
   <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
     <div className="mb-5">
       <h2 className="text-base font-bold text-slate-900">Top Selling Categories</h2>
-      <p className="text-xs text-slate-500">Sales concentration by category</p>
+      <p className="text-xs text-slate-500">Live stock value concentration by category</p>
     </div>
 
     <div className="space-y-4">
@@ -384,7 +434,11 @@ const TopSellingCategoriesCard = ({ items }) => (
           <div className="h-8 overflow-hidden rounded-xl bg-slate-100">
             <div
               className={`h-full rounded-xl bg-linear-to-r ${categoryToneClass(index)} transition-all duration-500`}
-              style={{ width: `${item.share}%` }}
+              style={{
+                width: `${Math.max(0, safeToNumber(item.share))}%`,
+                minWidth: safeToNumber(item.share) > 0 ? '8px' : undefined,
+                backgroundColor: item.color || '#2563eb',
+              }}
             />
           </div>
         </div>
@@ -444,8 +498,8 @@ const Dashboard = () => {
   const roleConfig = resolveRoleConfig(userData?.role)
   const permissions = roleConfig.permissions
 
-  const { dashboard, isLoadingDashboard } = useDashboard()
-  const { items, isLoadingItems } = useItem()
+  const { dashboard, isLoadingDashboard, reloadDashboard } = useDashboard()
+  const { items, isLoadingItems, reloadItems } = useItem()
   const summary = useMemo(() => dashboard?.summary || EMPTY_SUMMARY, [dashboard])
 
   const salesTrend = useMemo(
@@ -472,44 +526,78 @@ const Dashboard = () => {
 
   const hasItemData = Array.isArray(items) && items.length > 0
 
+  useEffect(() => {
+    const refreshDashboardData = () => {
+      reloadItems()
+      reloadDashboard()
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshDashboardData()
+      }
+    }
+
+    window.addEventListener('focus', refreshDashboardData)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener('focus', refreshDashboardData)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [reloadItems, reloadDashboard])
+
   const stockDistribution = useMemo(() => {
     if (Array.isArray(dashboard?.stockDistribution) && dashboard.stockDistribution.length) {
-      return dashboard.stockDistribution
+      return getTopStockDistribution(
+        dashboard.stockDistribution
         .map((entry, index) => ({
           name: entry?.name || entry?.supplier_name || `Supplier ${index + 1}`,
-          share: Number(entry?.share ?? entry?.percentage ?? entry?.value ?? 0),
+          share: safeToNumber(entry?.share ?? entry?.percentage ?? entry?.percent ?? entry?.value ?? entry?.amount ?? 0),
           color: entry?.color || CARD_COLORS[index % CARD_COLORS.length],
         }))
-        .filter((entry) => entry.name && entry.share > 0)
+        .filter((entry) => entry.name && entry.share > 0),
+      )
     }
 
     if (!hasItemData) return []
 
-    return aggregateItems(items, (item) => getSupplierName(item))
+    return getTopStockDistribution(aggregateItems(items, (item) => getSupplierName(item)))
   }, [dashboard, items, hasItemData])
 
   const topSellingCategories = useMemo(() => {
-    if (Array.isArray(dashboard?.topSellingCategories) && dashboard.topSellingCategories.length) {
-      const mappedCategories = dashboard.topSellingCategories
-        .map((entry, index) => ({
-          name: entry?.name || entry?.category || `Category ${index + 1}`,
-          amount: Number(entry?.amount ?? entry?.total ?? 0),
-          share: Number(entry?.share ?? entry?.percentage ?? 0),
-        }))
-        .filter((entry) => entry.name && entry.amount >= 0)
-
-      const totalAmount = mappedCategories.reduce((sum, current) => sum + Number(current.amount || 0), 0)
-
-      return mappedCategories.map((entry, index) => ({
-        ...entry,
-        share: entry.share || (totalAmount ? Math.round((Number(entry.amount || 0) / totalAmount) * 100) : 0),
-        color: CARD_COLORS[index % CARD_COLORS.length],
-      }))
+    if (hasItemData) {
+      const liveCategories = getTopSellingCategories(aggregateItems(items, (item) => getCategoryName(item)))
+      if (liveCategories.length) return liveCategories
     }
 
-    if (!hasItemData) return []
+    if (Array.isArray(dashboard?.topSellingCategories) && dashboard.topSellingCategories.length) {
+      return getTopSellingCategories(
+        dashboard.topSellingCategories
+        .map((entry, index) => ({
+          name:
+            entry?.name ||
+            entry?.category ||
+            entry?.category_name ||
+            entry?.categoryName ||
+            entry?.label ||
+            `Category ${index + 1}`,
+          amount: safeToNumber(
+            entry?.amount ??
+            entry?.total ??
+            entry?.total_amount ??
+            entry?.sales_amount ??
+            entry?.salesTotal ??
+            entry?.value ??
+            0,
+          ),
+          share: safeToNumber(entry?.share ?? entry?.percentage ?? entry?.percent ?? 0),
+        }))
+        .filter((entry) => entry.name && entry.amount >= 0),
+      )
+    }
 
-    return aggregateItems(items, (item) => getCategoryName(item))
+    return []
   }, [dashboard, items, hasItemData])
 
   const liveFeedEntries = useMemo(() => {
@@ -603,26 +691,128 @@ const Dashboard = () => {
     [permissions],
   )
 
-  const salesBiData = useMemo(
-    () => salesTrend.map((point) => ({ day: point?.label || '-', amount: Number(point?.amount || 0) })),
-    [salesTrend],
-  )
+  const salesPulseKpi = useMemo(() => {
+    const totalSalesToday = safeToNumber(summary.total_sales_today)
+    const totalSalesCount = Math.max(0, safeToNumber(summary.total_sales_count_today))
+    const normalizedTrend = salesTrend.map((point) => ({
+      label: point?.label || '-',
+      amount: safeToNumber(point?.amount || 0),
+    }))
 
-  const stockRiskValue = useMemo(() => {
-    const totalItems = Number(summary.total_items || 0)
-    const lowStockCount = Number(summary.low_stock_count || 0)
-    if (!totalItems) return 0
-    return Math.min(100, Math.round((lowStockCount / totalItems) * 100))
-  }, [summary])
+    const weekTotal = normalizedTrend.reduce((sum, point) => sum + point.amount, 0)
+    const weekAvg = normalizedTrend.length ? weekTotal / normalizedTrend.length : 0
+    const avgTicket = totalSalesCount > 0 ? totalSalesToday / totalSalesCount : 0
+    const bestDay = normalizedTrend.reduce(
+      (best, point) => (point.amount > best.amount ? point : best),
+      { label: '-', amount: 0 },
+    )
 
-  const grnBiData = useMemo(() => {
-    const total = Number(summary.total_grn_today || 0)
-    const pending = Number(summary.pending_grn_today || 0)
-    return [
-      { name: 'Processed', value: Math.max(total - pending, 0), fill: '#2563eb' },
-      { name: 'Pending', value: pending, fill: '#f59e0b' },
-    ]
-  }, [summary])
+    const todayVsAvgPct = weekAvg > 0 ? ((totalSalesToday - weekAvg) / weekAvg) * 100 : 0
+    const todayIndexPct = weekAvg > 0 ? Math.min(200, Math.round((totalSalesToday / weekAvg) * 100)) : 0
+
+    return {
+      totalSalesToday,
+      totalSalesCount,
+      weekTotal,
+      weekAvg,
+      avgTicket,
+      bestDay,
+      todayVsAvgPct,
+      todayIndexPct,
+    }
+  }, [summary, salesTrend])
+
+  const inventoryHealth = useMemo(() => {
+    if (hasItemData) {
+      const counts = items.reduce(
+        (acc, item) => {
+          const qty = getItemQuantity(item)
+          const reorder = getItemReorderLevel(item)
+
+          if (qty <= 0) {
+            acc.outOfStock += 1
+          } else if (reorder > 0 && qty <= reorder) {
+            acc.lowStock += 1
+          } else {
+            acc.healthy += 1
+          }
+
+          return acc
+        },
+        { healthy: 0, lowStock: 0, outOfStock: 0 },
+      )
+
+      const total = counts.healthy + counts.lowStock + counts.outOfStock
+      return {
+        ...counts,
+        total,
+        riskPercent: total ? Math.round(((counts.lowStock + counts.outOfStock) / total) * 100) : 0,
+      }
+    }
+
+    const total = Number(summary.total_items || 0)
+    const lowStock = Number(summary.low_stock_count || 0)
+    return {
+      healthy: Math.max(total - lowStock, 0),
+      lowStock,
+      outOfStock: 0,
+      total,
+      riskPercent: total ? Math.round((lowStock / total) * 100) : 0,
+    }
+  }, [items, hasItemData, summary])
+
+  const inboundSnapshot = useMemo(() => {
+    const statusBuckets = purchaseActivity.reduce(
+      (acc, row) => {
+        const normalizedStatus = String(
+          row?.status_name || row?.status || row?.grn_status || row?.grnStatus || '',
+        )
+          .trim()
+          .toLowerCase()
+
+        if (normalizedStatus.includes('fully received') || normalizedStatus.includes('fully_received')) {
+          acc.fullyReceivedCount += 1
+        } else if (
+          normalizedStatus.includes('partially received') ||
+          normalizedStatus.includes('partially_received') ||
+          normalizedStatus.includes('partial')
+        ) {
+          acc.partiallyReceivedCount += 1
+        } else if (normalizedStatus) {
+          acc.otherCount += 1
+        }
+
+        return acc
+      },
+      { fullyReceivedCount: 0, partiallyReceivedCount: 0, otherCount: 0 },
+    )
+
+    const rowTotal =
+      statusBuckets.fullyReceivedCount + statusBuckets.partiallyReceivedCount + statusBuckets.otherCount
+    const total = rowTotal || Number(summary.total_grn_today || 0)
+    const fullyReceivedRate = total ? Math.round((statusBuckets.fullyReceivedCount / total) * 100) : 0
+
+    const todayInboundValue = purchaseActivity.reduce(
+      (sum, row) => sum + safeToNumber(row?.total_amount),
+      0,
+    )
+
+    const activeSuppliers = new Set(
+      purchaseActivity
+        .map((row) => row?.supplier_name)
+        .filter(Boolean),
+    ).size
+
+    return {
+      total,
+      fullyReceivedCount: statusBuckets.fullyReceivedCount,
+      partiallyReceivedCount: statusBuckets.partiallyReceivedCount,
+      otherCount: statusBuckets.otherCount,
+      fullyReceivedRate,
+      todayInboundValue,
+      activeSuppliers,
+    }
+  }, [summary, purchaseActivity])
 
   const trendToneClass =
     decisionModel.trendChange < -10
@@ -677,73 +867,90 @@ const Dashboard = () => {
         <div className="relative mb-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
             <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">Sales Pulse</p>
-            <p className="mb-2 text-lg font-bold text-slate-900">{fmtCompactMoney(decisionModel.totalSalesToday)}</p>
-            <div className="h-16">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={salesBiData}>
-                  <Bar dataKey="amount" radius={[4, 4, 0, 0]} fill="#3b82f6" />
-                </BarChart>
-              </ResponsiveContainer>
+            <p className="text-lg font-bold text-slate-900">{fmtCompactMoney(salesPulseKpi.totalSalesToday)}</p>
+            <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-600">
+              <span>{salesPulseKpi.totalSalesCount} txns</span>
+              <span>Avg bill {fmtCompactMoney(salesPulseKpi.avgTicket)}</span>
             </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-linear-to-r from-blue-500 to-cyan-500"
+                style={{ width: `${Math.min(100, Math.max(0, salesPulseKpi.todayIndexPct / 2))}%` }}
+              />
+            </div>
+            <p className="mt-2 text-[11px] font-semibold text-slate-500">
+              {salesPulseKpi.todayVsAvgPct >= 0 ? '+' : ''}{salesPulseKpi.todayVsAvgPct.toFixed(1)}% vs 7-day avg
+            </p>
           </div>
 
           <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
             <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">Sales Flow</p>
-            <div className={`mb-2 inline-flex rounded-lg border px-2 py-1 text-[11px] font-semibold ${trendToneClass}`}>
+            <div className={`inline-flex rounded-lg border px-2 py-1 text-[11px] font-semibold ${trendToneClass}`}>
               {decisionModel.trendChange >= 0 ? '+' : ''}{decisionModel.trendChange.toFixed(1)}%
             </div>
-            <div className="h-16">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={salesBiData}>
-                  <Line type="monotone" dataKey="amount" stroke="#2563eb" strokeWidth={2.5} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
+            <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
+              <div className="rounded-lg bg-slate-50 px-2 py-1.5">
+                <p className="font-semibold text-slate-500">7-day total</p>
+                <p className="font-bold text-slate-800">{fmtCompactMoney(salesPulseKpi.weekTotal)}</p>
+              </div>
+              <div className="rounded-lg bg-slate-50 px-2 py-1.5">
+                <p className="font-semibold text-slate-500">Daily avg</p>
+                <p className="font-bold text-slate-800">{fmtCompactMoney(salesPulseKpi.weekAvg)}</p>
+              </div>
             </div>
+            <p className="mt-2 text-[11px] font-semibold text-slate-500">
+              Best day {salesPulseKpi.bestDay.label}: {fmtCompactMoney(salesPulseKpi.bestDay.amount)}
+            </p>
           </div>
 
           <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
-            <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">Stock Risk</p>
-            <div className="flex items-center justify-between">
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">Inventory Health</p>
+            <div className="flex items-end justify-between gap-3">
               <div>
-                <p className="text-xl font-bold text-slate-900">{stockRiskValue}%</p>
-                <p className="text-[11px] font-semibold text-slate-500">At-risk items</p>
+                <p className="text-xl font-bold text-slate-900">{inventoryHealth.riskPercent}%</p>
+                <p className="text-[11px] font-semibold text-slate-500">Needs action</p>
               </div>
-              <div className="h-20 w-20">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RadialBarChart
-                    cx="50%"
-                    cy="50%"
-                    innerRadius="65%"
-                    outerRadius="100%"
-                    barSize={10}
-                    data={[{ value: stockRiskValue }]}
-                    startAngle={90}
-                    endAngle={-270}
-                  >
-                    <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
-                    <RadialBar dataKey="value" cornerRadius={10} fill={stockRiskValue > 25 ? '#f59e0b' : '#2563eb'} />
-                  </RadialBarChart>
-                </ResponsiveContainer>
-              </div>
+              <p className="text-[11px] font-semibold text-slate-500">
+                {inventoryHealth.total} items tracked
+              </p>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-linear-to-r from-amber-400 to-rose-500"
+                style={{ width: `${Math.min(100, Math.max(0, inventoryHealth.riskPercent))}%` }}
+              />
+            </div>
+            <div className="mt-2 grid grid-cols-3 gap-2 text-[11px]">
+              <div className="rounded-lg bg-emerald-50 px-2 py-1 font-semibold text-emerald-700">Healthy {inventoryHealth.healthy}</div>
+              <div className="rounded-lg bg-amber-50 px-2 py-1 font-semibold text-amber-700">Low {inventoryHealth.lowStock}</div>
+              <div className="rounded-lg bg-rose-50 px-2 py-1 font-semibold text-rose-700">Out {inventoryHealth.outOfStock}</div>
             </div>
           </div>
 
           <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">GRN Mix</p>
-            <div className="h-16">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={grnBiData} layout="vertical" margin={{ left: 4, right: 4, top: 0, bottom: 0 }}>
-                  <XAxis type="number" hide />
-                  <YAxis type="category" dataKey="name" width={58} tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <Bar dataKey="value" radius={[0, 6, 6, 0]}>
-                    {grnBiData.map((entry) => (
-                      <Cell key={entry.name} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">Inbound Ops</p>
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <p className="text-xl font-bold text-slate-900">{inboundSnapshot.fullyReceivedRate}%</p>
+                <p className="text-[11px] font-semibold text-slate-500">Fully received rate</p>
+              </div>
+              <p className="text-[11px] font-semibold text-slate-500">
+                {inboundSnapshot.partiallyReceivedCount} partially received
+              </p>
             </div>
-            <p className="mt-2 text-xs font-semibold text-slate-600">{summary.pending_grn_today || 0} pending</p>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-linear-to-r from-blue-500 to-indigo-600"
+                style={{ width: `${Math.min(100, Math.max(0, inboundSnapshot.fullyReceivedRate))}%` }}
+              />
+            </div>
+            <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-600">
+              <span>
+                Fully {inboundSnapshot.fullyReceivedCount} / Total {inboundSnapshot.total}
+              </span>
+              <span>Value {fmtCompactMoney(inboundSnapshot.todayInboundValue)}</span>
+            </div>
+            <p className="mt-1 text-[11px] font-semibold text-slate-500">{inboundSnapshot.activeSuppliers} suppliers active</p>
           </div>
         </div>
 
@@ -771,44 +978,6 @@ const Dashboard = () => {
             </div>
           </div>
         )}
-      </section>
-
-      <section className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <MetricTile
-          label="Sales Today"
-          value={fmtMoney(summary.total_sales_today)}
-          hint={`${summary.total_sales_count_today || 0} transactions`}
-          icon="payments"
-          tone="blue"
-        />
-        <MetricTile
-          label="Total Items"
-          value={summary.total_items || 0}
-          hint="Registered inventory"
-          icon="inventory_2"
-          tone="indigo"
-        />
-        <MetricTile
-          label="Items to Reorder"
-          value={summary.low_stock_count || 0}
-          hint="Needs attention"
-          icon="warning"
-          tone="amber"
-        />
-        <MetricTile
-          label="Suppliers"
-          value={summary.total_suppliers || 0}
-          hint="Active in system"
-          icon="local_shipping"
-          tone="teal"
-        />
-        <MetricTile
-          label="GRN Today"
-          value={summary.total_grn_today || 0}
-          hint={`Pending ${summary.pending_grn_today || 0}`}
-          icon="receipt_long"
-          tone="rose"
-        />
       </section>
 
       <section className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-12">
