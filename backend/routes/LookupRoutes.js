@@ -1,6 +1,14 @@
 const express = require('express');
-const { getAllUserRoles, getAllUserStatuses, getAllCategories, getAllItemStatuses, getAllPoStatuses, getAllSuppliers, getAllUsers, getAllGrnStatuses } = require('../controllers/LookupController');
-const { route } = require('./PurchaseOrderRoutes');
+const {
+    getAllUserRoles,
+    getAllUserStatuses,
+    getAllCategories,
+    getAllItemStatuses,
+    getAllPoStatuses,
+    getAllSuppliers,
+    getAllUsers,
+    getAllGrnStatuses
+} = require('../controllers/LookupController');
 
 const router = express.Router();
 

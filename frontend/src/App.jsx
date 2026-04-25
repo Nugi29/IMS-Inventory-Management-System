@@ -2,6 +2,7 @@ import { useContext } from "react"
 import { Navigate, Outlet, Route, Routes } from "react-router-dom"
 import Login from "./pages/Login"
 import Home from "./pages/Home"
+import SupplierPage from "./pages/SupplierPage"
 import { ToastContainer } from "react-toastify"
 import "react-toastify/dist/ReactToastify.css"
 import { AppContext } from "./context/AppContext"
@@ -14,6 +15,7 @@ import { ItemForm } from "./components/ItemForm"
 import { PoPage } from "./pages/PoPage"
 import { PoForm } from "./components/PoForm"
 import { GrnPage } from "./pages/GrnPage"
+import { SupplierForm } from "./components/SupplierForm"
 
 const ProtectedRoute = () => {
   const { token } = useContext(AppContext)
@@ -39,15 +41,18 @@ function App() {
             <Route path="/items" element={<ItemPage />} />
             <Route path="/itemform" element={<ItemForm />} />
             <Route path="/categories" element={<HomeContent />} />
-            <Route path="/suppliers" element={<HomeContent />} />
             <Route path="/po" element={<PoPage />} />
             <Route path="/poform" element={<PoForm />} />
             <Route path="/sales" element={<SalesPage />} />
             <Route path="/grns" element={<GrnPage />} />
+            <Route path="/grn" element={<HomeContent />} />
+            <Route path="/sales" element={<HomeContent />} />
             <Route path="/stock-movement" element={<HomeContent />} />
             <Route path="/users" element={<UserPage />} />
             <Route path="/reports" element={<HomeContent />} />
             <Route path="/settings" element={<HomeContent />} />
+            <Route path="/suppliers" element={<SupplierPage />} />
+            <Route path="/supplierform" element={<SupplierForm />} />
           </Route>
         </Route>
         <Route element={<AuthRoute />}>
