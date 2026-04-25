@@ -295,7 +295,7 @@ const SupplierPage = () => {
                                     <td className="px-6 py-4 text-sm text-slate-500">{supplier.email || '-'}</td>
                                     <td className="px-6 py-4 text-sm text-slate-500">{supplier.address || '-'}</td>
                                     <td className="px-6 py-4 text-center">
-                                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 ${getStatusClasses(supplier.supplier_status)} font-bold text-[10px] rounded-full uppercase tracking-tight font-label`}>
+                                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 ${supplier.supplier_status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-600'} font-bold text-[10px] rounded-full uppercase tracking-tight font-label`}>
                                             <span className={`w-1.5 h-1.5 rounded-full ${supplier.supplier_status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`}></span>
                                             {formatSupplierStatus(supplier.supplier_status)}
                                         </span>
