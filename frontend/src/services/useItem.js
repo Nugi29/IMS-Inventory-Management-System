@@ -3,10 +3,10 @@ import axios, { SESSION_EXPIRED_MESSAGE, isSessionExpiredError } from "./httpCli
 import { AppContext } from "../context/AppContext";
 
 const ENDPOINTS = {
-  list:   "/api/item/all-items",
-  create: "/api/item/create-item",
-  update: "/api/item/update-item",
-  remove: "/api/item/delete-item",
+  list:   "/api/items/all-items",
+  create: "/api/items/create-item",
+  update: "/api/items/update-item",
+  remove: "/api/items/delete-item",
 };
 
 export function useItem() {
