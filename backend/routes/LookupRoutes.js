@@ -7,6 +7,7 @@ const {
     getAllPoStatuses,
     getAllSuppliers,
     getAllUsers,
+    getAllGrnStatuses
 } = require('../controllers/LookupController');
 
 const router = express.Router();

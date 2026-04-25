@@ -4,39 +4,23 @@ import { toast } from 'react-toastify'
 import { AppContext } from '../context/AppContext'
 
 const ENDPOINTS = {
-    list: '/api/supplier/get-all-suppliers',
+    list: '/api/supplier',
     listFallbacks: [
-        '/api/suppliers/get-all-suppliers',
-        '/api/supplier/all-suppliers',
-        '/api/suppliers/all-suppliers',
-        '/api/supplier',
-        '/api/suppliers',
+        '/api/supplier/all',
     ],
-    create: '/api/supplier/create-supplier',
+    create: '/api/supplier',
     createFallbacks: [
-        '/api/suppliers/create-supplier',
-        '/api/supplier/add-supplier',
-        '/api/suppliers/add-supplier',
         '/api/supplier/create',
-        '/api/suppliers/create',
-        '/api/supplier',
-        '/api/suppliers',
     ],
     update: '/api/supplier/update-supplier',
     updateFallbacks: [
-        '/api/suppliers/update-supplier',
-        '/api/supplier/edit-supplier',
-        '/api/suppliers/edit-supplier',
         '/api/supplier/update',
-        '/api/suppliers/update',
+        '/api/supplier',
     ],
-    remove: '/api/supplier/delete-supplier',
+    remove: '/api/supplier/delete',
     removeFallbacks: [
-        '/api/suppliers/delete-supplier',
-        '/api/supplier/remove-supplier',
-        '/api/suppliers/remove-supplier',
-        '/api/supplier/delete',
-        '/api/suppliers/delete',
+        '/api/supplier/delete-supplier',
+        '/api/supplier',
     ],
 }
 
@@ -193,7 +177,7 @@ export const useSupplier = () => {
         if (notFoundCount === updateAttempts.length) {
             return {
                 success: false,
-                message: 'Supplier update endpoint not found. Expected PUT /api/supplier/update-supplier/:id',
+                message: 'Supplier update endpoint not found. Expected PUT /api/supplier/update-supplier/:id, /api/supplier/update/:id, or /api/supplier/:id',
             }
         }
 

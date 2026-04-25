@@ -1,44 +1,47 @@
 const Sequelize = require('sequelize');
 module.exports = function(sequelize, DataTypes) {
-  return sequelize.define('user', {
+  return sequelize.define('purchase_order', {
     id: {
       autoIncrement: true,
       type: DataTypes.INTEGER,
       allowNull: false,
       primaryKey: true
     },
-    name: {
-      type: DataTypes.STRING(100),
-      allowNull: false
+    order_date: {
+      type: DataTypes.DATE,
+      allowNull: true
     },
-    username: {
-      type: DataTypes.STRING(50),
-      allowNull: false,
-      unique: "username"
+    total_amount: {
+      type: DataTypes.DECIMAL(12,2),
+      allowNull: true
     },
-    password: {
-      type: DataTypes.STRING(255),
-      allowNull: false
-    },
-    role_id: {
+    supplier_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'user_role',
+        model: 'supplier',
         key: 'id'
       }
     },
-    user_status_id: {
+    created_by: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'user_status',
+        model: 'user',
+        key: 'id'
+      }
+    },
+    po_status_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'po_status',
         key: 'id'
       }
     }
   }, {
     sequelize,
-    tableName: 'user',
+    tableName: 'purchase_order',
     timestamps: false,
     indexes: [
       {
@@ -50,25 +53,24 @@ module.exports = function(sequelize, DataTypes) {
         ]
       },
       {
-        name: "username",
-        unique: true,
+        name: "fk_purchase_order_supplier1_idx",
         using: "BTREE",
         fields: [
-          { name: "username" },
+          { name: "supplier_id" },
         ]
       },
       {
-        name: "role_id",
+        name: "fk_purchase_order_user1_idx",
         using: "BTREE",
         fields: [
-          { name: "role_id" },
+          { name: "created_by" },
         ]
       },
       {
-        name: "fk_user_user_status1_idx",
+        name: "fk_purchase_order_po_status1_idx",
         using: "BTREE",
         fields: [
-          { name: "user_status_id" },
+          { name: "po_status_id" },
         ]
       },
     ]

@@ -9,6 +9,7 @@ const salesRoutes = require('./routes/salesRoutes');
 const purchaseOrderRoutes = require('./routes/PurchaseOrderRoutes');
 const grnRoutes = require('./routes/grnRoutes');
 const supplierRoutes = require('./routes/supplierRoutes');
+const itemRoutes = require('./routes/itemRoutes');
 
 const app = express();
 
@@ -20,7 +21,7 @@ app.use('/api/customer', customerRoutes);
 app.use('/api/sales', salesRoutes);
 app.use('/api/po', purchaseOrderRoutes);
 app.use('/api/grns', grnRoutes);
-
+app.use('/api/items', itemRoutes);
 app.use('/api/supplier', supplierRoutes);
 
 app.get('/', (req, res) => {

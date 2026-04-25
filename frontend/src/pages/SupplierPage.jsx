@@ -56,13 +56,6 @@ const SupplierPage = () => {
         await reloadSuppliers()
     }
 
-    const handleRefresh = async () => {
-        setSearchTerm('')
-        setSelectedStatus('all')
-        setCurrentPage(1)
-        await reloadSuppliers()
-    }
-
     const normalizedSuppliers = useMemo(() => {
         return suppliers.map((supplier) => {
             const normalizedStatus = normalizeSupplierStatus(
@@ -233,6 +226,8 @@ const SupplierPage = () => {
                             ))}
                         </select>
                     </div>
+                </div>
+                <div className="lg:col-span-4 flex items-center justify-between gap-3">
                     <button
                         className="px-4 py-3 rounded-xl font-semibold text-sm border border-slate-200 bg-white text-slate-600 hover:text-primary hover:border-primary/40 transition-colors"
                         type="button"
@@ -240,15 +235,15 @@ const SupplierPage = () => {
                     >
                         Reset Filters
                     </button>
+                    <button
+                        className="bg-blue-600 text-white px-5 py-3 rounded-xl font-bold flex items-center gap-2 shadow-sm hover:bg-blue-700 transition-all active:scale-95 duration-150 whitespace-nowrap"
+                        type="button"
+                        onClick={() => navigate('/supplierform', { state: { mode: 'add' } })}
+                    >
+                        <span className="material-symbols-outlined" data-icon="add">add</span>
+                        New Supplier
+                    </button>
                 </div>
-                <button
-                    className="bg-primary text-(--color-on-primary) px-5 py-3 rounded-xl font-bold flex items-center gap-2 shadow-sm hover:brightness-95 transition-all active:scale-95 duration-150 whitespace-nowrap"
-                    type="button"
-                    onClick={() => navigate('/supplierform', { state: { mode: 'add' } })}
-                >
-                    <span className="material-symbols-outlined">add</span>
-                    Add New Supplier
-                </button>
             </div>
 
             <div className="bg-white border border-slate-200 dark:border-slate-800 rounded-4xl shadow-sm overflow-hidden p-2">

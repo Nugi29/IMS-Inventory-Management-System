@@ -7,7 +7,6 @@ const supplierStatusInclude = {
     as: 'supplier_status',
     attributes: ['id', 'name'],
 };
-const { supplier: Supplier } = models;
 
 //create Supplier
 const createSupplier = async (req, res) => {

@@ -34,7 +34,7 @@ module.exports = function(sequelize, DataTypes) {
   }, {
     sequelize,
     tableName: 'stock_adjustment',
-    timestamps: true,
+    timestamps: false,
     indexes: [
       {
         name: "PRIMARY",
