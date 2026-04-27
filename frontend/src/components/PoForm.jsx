@@ -254,9 +254,11 @@ export const PoForm = () => {
 
     const mode = location.state?.mode === 'update' ? 'update' : location.state?.mode === 'view' ? 'view' : 'add'
     const selectedPo = location.state?.po
+    const preselectedItem = mode === 'add' ? location.state?.preselectedItem : null
     const selectedPoId = String(location.state?.poId || selectedPo?.id || selectedPo?.po_id || selectedPo?._id || '')
     const [freshPoById, setFreshPoById] = useState(null)
     const [isLoadingFreshPo, setIsLoadingFreshPo] = useState(false)
+    const [hasAppliedPreselectedItem, setHasAppliedPreselectedItem] = useState(false)
 
     const latestPo = useMemo(() => {
         if (!selectedPoId) return null
@@ -376,6 +378,79 @@ export const PoForm = () => {
         () => Object.fromEntries(itemOptions.map((item) => [String(item.id), item])),
         [itemOptions],
     )
+
+    useEffect(() => {
+        if (mode !== 'add') return
+        if (hasAppliedPreselectedItem) return
+        if (!preselectedItem || typeof preselectedItem !== 'object') {
+            setHasAppliedPreselectedItem(true)
+            return
+        }
+        if (!itemOptions.length) return
+
+        const preselectedId = String(preselectedItem?.id || '')
+        const preselectedSku = normalizeMatchValue(preselectedItem?.sku)
+        const preselectedName = normalizeMatchValue(preselectedItem?.item_name || preselectedItem?.name || preselectedItem?.label)
+
+        const matchedItem = itemOptions.find((option) => preselectedId && String(option.id) === preselectedId)
+            || itemOptions.find((option) => preselectedSku && normalizeMatchValue(option.sku) === preselectedSku)
+            || itemOptions.find((option) => preselectedName && normalizeMatchValue(option.label) === preselectedName)
+
+        if (!matchedItem) {
+            setHasAppliedPreselectedItem(true)
+            return
+        }
+
+        const matchedSupplierId = String(
+            preselectedItem?.supplier_id
+            || preselectedItem?.supplierId
+            || matchedItem?.supplierId
+            || '',
+        )
+
+        const requestedQuantity = Number(preselectedItem?.suggestedQuantity ?? 1)
+        const defaultQuantity = Number.isFinite(requestedQuantity) && requestedQuantity > 0 ? Math.floor(requestedQuantity) : 1
+
+        setFormData((prev) => ({
+            ...prev,
+            supplierId: prev.supplierId || matchedSupplierId,
+        }))
+
+        setLineItems((prev) => {
+            const existingLineIndex = prev.findIndex((line) => String(line.itemId) === String(matchedItem.id))
+            const replacement = {
+                key: existingLineIndex >= 0 ? prev[existingLineIndex].key : `line-${Date.now()}-preselected`,
+                itemId: String(matchedItem.id),
+                description: matchedItem.label,
+                sku: matchedItem.sku,
+                quantity:
+                    existingLineIndex >= 0 && Number(prev[existingLineIndex].quantity) > 0
+                        ? Number(prev[existingLineIndex].quantity)
+                        : defaultQuantity,
+                unitPrice:
+                    existingLineIndex >= 0 && Number(prev[existingLineIndex].unitPrice) > 0
+                        ? Number(prev[existingLineIndex].unitPrice)
+                        : Number(matchedItem.price) || 0,
+            }
+
+            let nextItems
+
+            if (existingLineIndex >= 0) {
+                nextItems = prev.map((line, index) => (index === existingLineIndex ? replacement : line))
+            } else {
+                const emptyLineIndex = prev.findIndex((line) => !line.itemId)
+                if (emptyLineIndex >= 0) {
+                    nextItems = prev.map((line, index) => (index === emptyLineIndex ? replacement : line))
+                } else {
+                    nextItems = [replacement, ...prev]
+                }
+            }
+
+            return ensureEmptyLineItem(nextItems)
+        })
+
+        setHasAppliedPreselectedItem(true)
+    }, [mode, hasAppliedPreselectedItem, preselectedItem, itemOptions])
 
     useEffect(() => {
         if (!itemOptions.length) return

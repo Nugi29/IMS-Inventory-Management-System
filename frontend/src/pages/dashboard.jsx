@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo } from 'react'
+import { useContext, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Area,
@@ -13,6 +13,7 @@ import { AppContext } from '../context/AppContext'
 import { resolveRoleConfig } from '../constants/accessControl'
 import { useDashboard } from '../services/useDashboard'
 import { useItem } from '../services/useItem'
+import { useSale } from '../services/useSale'
 
 const fmtMoney = (value) =>
   `Rs ${Number(value || 0).toLocaleString('en-US', {
@@ -37,17 +38,313 @@ const safeToNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
+const safeToPercent = (value) => {
+  if (typeof value === 'string') {
+    const parsed = Number(value.replace(/%/g, '').replace(/,/g, '').trim())
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+
+  return safeToNumber(value)
+}
+
+const clampPercent = (value) => Math.min(100, Math.max(0, safeToPercent(value)))
+
+const parseDateValue = (value) => {
+  if (!value) return null
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value
+  }
+
+  if (typeof value === 'object') {
+    if (typeof value?.toDate === 'function') {
+      const fromToDate = value.toDate()
+      if (fromToDate instanceof Date && !Number.isNaN(fromToDate.getTime())) {
+        return fromToDate
+      }
+    }
+
+    const secondsLike = value?.seconds ?? value?._seconds ?? value?.epochSecond ?? value?.unix
+    if (Number.isFinite(Number(secondsLike))) {
+      const parsed = new Date(Number(secondsLike) * 1000)
+      if (!Number.isNaN(parsed.getTime())) return parsed
+    }
+
+    const millisLike = value?.milliseconds ?? value?.millis ?? value?.epochMillis ?? value?.timestampMs
+    if (Number.isFinite(Number(millisLike))) {
+      const parsed = new Date(Number(millisLike))
+      if (!Number.isNaN(parsed.getTime())) return parsed
+    }
+
+    if (value?.$date) {
+      return parseDateValue(value.$date)
+    }
+  }
+
+  if (typeof value === 'number') {
+    const normalized = value < 1_000_000_000_000 ? value * 1000 : value
+    const parsed = new Date(normalized)
+    return Number.isNaN(parsed.getTime()) ? null : parsed
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) return null
+
+    if (/^\d{14,17}$/.test(trimmed)) {
+      const asNumber = Number(trimmed)
+      const normalized = trimmed.length >= 16 ? Math.floor(asNumber / 1000) : asNumber
+      const parsed = new Date(normalized)
+      return Number.isNaN(parsed.getTime()) ? null : parsed
+    }
+
+    if (/^\d{10,13}$/.test(trimmed)) {
+      const asNumber = Number(trimmed)
+      const normalized = trimmed.length === 10 ? asNumber * 1000 : asNumber
+      const parsed = new Date(normalized)
+      return Number.isNaN(parsed.getTime()) ? null : parsed
+    }
+
+    const normalized =
+      trimmed.includes(' ') && !trimmed.includes('T') ? trimmed.replace(' ', 'T') : trimmed
+    const parsed = new Date(normalized)
+    return Number.isNaN(parsed.getTime()) ? null : parsed
+  }
+
+  return null
+}
+
+const parseObjectIdDate = (value) => {
+  const raw = String(value || '').trim()
+  if (!/^[0-9a-fA-F]{24}$/.test(raw)) return null
+
+  const seconds = Number.parseInt(raw.slice(0, 8), 16)
+  if (!Number.isFinite(seconds)) return null
+
+  const parsed = new Date(seconds * 1000)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
 const relTime = (dateValue) => {
   if (!dateValue) return 'Just now'
-  const d = new Date(dateValue)
-  if (Number.isNaN(d.getTime())) return 'Just now'
-  const minutes = Math.floor((Date.now() - d.getTime()) / 60_000)
+
+  if (typeof dateValue === 'string') {
+    const raw = dateValue.trim()
+    const lowered = raw.toLowerCase()
+    if (
+      lowered === 'just now' ||
+      lowered.includes('ago') ||
+      lowered.startsWith('in ') ||
+      lowered.includes('minute') ||
+      lowered.includes('hour') ||
+      lowered.includes('day')
+    ) {
+      return raw
+    }
+  }
+
+  const d = parseDateValue(dateValue)
+  if (!d) return 'Just now'
+
+  const diffMinutes = Math.floor((Date.now() - d.getTime()) / 60_000)
+  const minutes = Math.abs(diffMinutes)
   if (minutes < 1) return 'Just now'
+  if (diffMinutes < 0 && minutes < 60) return `in ${minutes}m`
+  if (diffMinutes < 0) {
+    const hoursAhead = Math.floor(minutes / 60)
+    if (hoursAhead < 24) return `in ${hoursAhead}h`
+    return `in ${Math.floor(hoursAhead / 24)}d`
+  }
   if (minutes < 60) return `${minutes}m ago`
   const hours = Math.floor(minutes / 60)
   if (hours < 24) return `${hours}h ago`
   return `${Math.floor(hours / 24)}d ago`
 }
+
+const formatLiveFeedDateTime = (dateValue) => {
+  const parsed = parseDateValue(dateValue)
+  if (!parsed) return null
+
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(parsed)
+  } catch {
+    return parsed.toLocaleString()
+  }
+}
+
+const resolveStockMovementCreatedAt = (entry = {}) => {
+  // Check standard variations of stock_movement field
+  const stockMovement = entry?.stock_movement ?? entry?.stockMovement ?? entry?.movement ?? null
+  
+  if (stockMovement) {
+    const value = 
+      stockMovement?.created_at ??
+      stockMovement?.createdAt ??
+      stockMovement?.created ??
+      stockMovement?.timestamp ??
+      stockMovement?.date ??
+      null
+    if (value) return value
+  }
+
+  // Check root-level stock_movement_* fields
+  return (
+    entry?.stock_movement_created_at ??
+    entry?.stockMovementCreatedAt ??
+    entry?.stock_movement_timestamp ??
+    entry?.stockMovementTimestamp ??
+    entry?.movement_created_at ??
+    entry?.movementCreatedAt ??
+    null
+  )
+}
+
+const resolveLiveFeedResolvedDate = (entry = {}) => {
+  // Priority 1: Extract stock_movement.created_at (primary source for timestamp)
+  const stockMovementCreatedAt = resolveStockMovementCreatedAt(entry)
+  if (stockMovementCreatedAt) {
+    const parsed = parseDateValue(stockMovementCreatedAt)
+    if (parsed) return parsed
+  }
+
+  // Priority 2: Try comprehensive timestamp search across entry fields
+  const timestamp = resolveLiveFeedTimestamp(entry)
+  if (timestamp) {
+    const parsed = parseDateValue(timestamp)
+    if (parsed) return parsed
+  }
+
+  // Priority 3: Try relative time labels (already formatted by backend)
+  const timeLabel = resolveLiveFeedTimeLabel(entry)
+  if (timeLabel) {
+    const parsed = parseDateValue(timeLabel)
+    if (parsed) return parsed
+  }
+
+  // No timestamp found - return null to trigger fallback in buildLiveFeedTiming
+  return null
+}
+
+const buildLiveFeedTiming = ({ resolvedDate, fallbackBase, fallbackIndex }) => {
+  // Only use fallback if no real timestamp was resolved
+  const fallbackTimestamp = new Date(fallbackBase.getTime() - (fallbackIndex + 1) * 5 * 60_000)
+  const effectiveDate = resolvedDate || fallbackTimestamp
+  const displayTimeExact = formatLiveFeedDateTime(effectiveDate) || 'Unknown time'
+
+  return {
+    createdAt: effectiveDate,
+    displayTime: relTime(effectiveDate),
+    displayTimeExact,
+    timeTitle: displayTimeExact,
+  }
+}
+
+const resolveLiveFeedTimestamp = (entry = {}) => {
+  const isLikelyTimestampKey = (key = '') => {
+    const normalized = String(key).trim()
+    if (!normalized) return false
+
+    return /(^|_|-)(created|updated|event|occurred|time|date|timestamp)(_|-|$)|(?:created|updated|occurred|event)At$/i.test(normalized)
+  }
+
+  const stockMovementCreatedAt = resolveStockMovementCreatedAt(entry)
+  if (stockMovementCreatedAt) return stockMovementCreatedAt
+
+  const directTimestamp =
+    entry?.createdAt ??
+    entry?.created_at ??
+    entry?.created ??
+    entry?.createdOn ??
+    entry?.timestamp ??
+    entry?.time ??
+    entry?.date ??
+    entry?.eventDate ??
+    entry?.event_time ??
+    entry?.eventTime ??
+    entry?.occurred_at ??
+    entry?.occurredAt ??
+    entry?.loggedAt ??
+    entry?.sale_date ??
+    entry?.order_date ??
+    entry?.grn_date ??
+    entry?.transaction_date ??
+    entry?.datetime ??
+    entry?.date_time ??
+    entry?.updatedAt ??
+    entry?.updated_at ??
+    entry?.lastUpdated ??
+    entry?.last_updated ??
+    null
+
+  if (directTimestamp) return directTimestamp
+
+  // Some APIs place event time in nested payload blocks (e.g. sale, grn, item).
+  // Walk a small object tree and pick the first parseable timestamp candidate.
+  const findNestedTimestamp = (value, depth = 0) => {
+    if (depth > 3 || value == null) return null
+
+    if (Array.isArray(value)) {
+      for (const row of value) {
+        const nested = findNestedTimestamp(row, depth + 1)
+        if (nested) return nested
+      }
+      return null
+    }
+
+    if (typeof value !== 'object') return null
+
+    for (const [key, raw] of Object.entries(value)) {
+      const looksLikeTimeKey = isLikelyTimestampKey(key)
+
+      if (looksLikeTimeKey && parseDateValue(raw)) {
+        return raw
+      }
+
+      const nested = findNestedTimestamp(raw, depth + 1)
+      if (nested) return nested
+    }
+
+    return null
+  }
+
+  const nestedTimestamp = findNestedTimestamp(entry)
+  if (nestedTimestamp) return nestedTimestamp
+
+  const idLikeCandidates = [
+    entry?.id,
+    entry?._id,
+    entry?.event_id,
+    entry?.eventId,
+    entry?.sale_id,
+    entry?.saleId,
+    entry?.grn_id,
+    entry?.grnId,
+    entry?.po_id,
+    entry?.poId,
+    entry?.item_id,
+    entry?.itemId,
+  ]
+
+  for (const candidate of idLikeCandidates) {
+    const parsedFromObjectId = parseObjectIdDate(candidate)
+    if (parsedFromObjectId) return parsedFromObjectId
+  }
+
+  const keyMatch = Object.keys(entry).find((key) => isLikelyTimestampKey(key))
+
+  return keyMatch ? entry[keyMatch] : null
+}
+
+const resolveLiveFeedTimeLabel = (entry = {}) =>
+  entry?.relativeTime ||
+  entry?.relative_time ||
+  entry?.timeAgo ||
+  entry?.time_ago ||
+  entry?.when ||
+  null
 
 const EMPTY_SUMMARY = {
   total_sales_today: 0,
@@ -107,6 +404,63 @@ const FALLBACK_LIVE_FEED = [
   },
 ]
 
+const resolveLiveFeedVisual = (entry = {}) => {
+  const eventText = [
+    entry?.type,
+    entry?.category,
+    entry?.title,
+    entry?.label,
+    entry?.description,
+    entry?.details,
+    entry?.message,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+
+  if (
+    eventText.includes('adjust') ||
+    eventText.includes('adjustment') ||
+    eventText.includes('stock adjusted')
+  ) {
+    return { icon: 'build', tone: 'yellow' }
+  }
+
+  if (
+    eventText.includes('purchase order') ||
+    eventText.includes('po ') ||
+    eventText.startsWith('po:') ||
+    eventText.includes('p.o') ||
+    eventText.includes('po#') ||
+    eventText.includes('po-') ||
+    eventText.includes('order sent') ||
+    eventText.includes('sent to supplier') ||
+    eventText.includes('po created') ||
+    eventText.includes('purchase order created')
+  ) {
+    return { icon: 'arrow_forward', tone: 'blue' }
+  }
+
+  if (
+    eventText.includes('grn') ||
+    eventText.includes('delivery') ||
+    eventText.includes('received') ||
+    eventText.includes('inbound')
+  ) {
+    return { icon: 'local_shipping', tone: 'green' }
+  }
+
+  if (
+    eventText.includes('sale') ||
+    eventText.includes('invoice') ||
+    eventText.includes('checkout')
+  ) {
+    return { icon: 'shopping_cart', tone: 'red' }
+  }
+
+  return { icon: 'notifications', tone: 'slate' }
+}
+
 const CARD_COLORS = ['#2563eb', '#004ac6', '#0f766e', '#943700', '#7c3aed', '#f59e0b']
 const TOP_LIST_LIMIT = 5
 
@@ -161,6 +515,12 @@ const getItemValue = (item) => {
   const quantity = getItemQuantity(item)
   const unitValue = getItemUnitValue(item)
   return quantity > 0 && unitValue > 0 ? quantity * unitValue : quantity || unitValue || 0
+}
+
+const getSaleDateValue = (sale) => {
+  const dateValue = sale?.sale_date || sale?.saleDate || sale?.createdAt || sale?.created_at || sale?.date || null
+  const timestamp = dateValue ? new Date(dateValue).getTime() : 0
+  return Number.isFinite(timestamp) ? timestamp : 0
 }
 
 const aggregateItems = (items, getKey) => {
@@ -240,8 +600,8 @@ const permissionBlock = (title) => (
   </div>
 )
 
-const SectionCard = ({ title, subtitle, children, right }) => (
-  <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+const SectionCard = ({ title, subtitle, children, right, className = '', contentClassName = '' }) => (
+  <section className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm ${className}`}>
     <div className="mb-4 flex items-start justify-between gap-3">
       <div>
         <h2 className="text-base font-bold text-slate-900">{title}</h2>
@@ -249,7 +609,7 @@ const SectionCard = ({ title, subtitle, children, right }) => (
       </div>
       {right}
     </div>
-    {children}
+    <div className={contentClassName}>{children}</div>
   </section>
 )
 
@@ -293,52 +653,54 @@ const SalesChart = ({ trend }) => {
   )
 
   return (
-    <div className="h-72 w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-          <defs>
-            <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#2563eb" stopOpacity={0.35} />
-              <stop offset="95%" stopColor="#2563eb" stopOpacity={0.03} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="4 4" stroke="#e2e8f0" vertical={false} />
-          <XAxis
-            dataKey="displayLabel"
-            tickLine={false}
-            axisLine={false}
-            tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
-          />
-          <YAxis
-            tickLine={false}
-            axisLine={false}
-            tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
-            tickFormatter={(value) => fmtCompactMoney(value)}
-            width={70}
-          />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: '#ffffff',
-              border: '1px solid #cbd5e1',
-              borderRadius: '14px',
-              boxShadow: '0 12px 30px rgba(15, 23, 42, 0.08)',
-            }}
-            labelStyle={{ color: '#334155', fontWeight: 700 }}
-            formatter={(value) => [fmtMoney(value), 'Sales']}
-          />
-          <Area
-            type="monotone"
-            dataKey="amount"
-            stroke="#2563eb"
-            strokeWidth={3}
-            fill="url(#salesGradient)"
-            activeDot={{ r: 6, stroke: '#2563eb', strokeWidth: 2, fill: '#ffffff' }}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
+    <div className="rounded-2xl border border-slate-200 bg-linear-to-b from-slate-50 to-white p-3">
+      <div className="h-72 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#2563eb" stopOpacity={0.35} />
+                <stop offset="95%" stopColor="#2563eb" stopOpacity={0.03} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="4 4" stroke="#e2e8f0" vertical={false} />
+            <XAxis
+              dataKey="displayLabel"
+              tickLine={false}
+              axisLine={false}
+              tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
+            />
+            <YAxis
+              tickLine={false}
+              axisLine={false}
+              tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
+              tickFormatter={(value) => fmtCompactMoney(value)}
+              width={70}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: '#ffffff',
+                border: '1px solid #cbd5e1',
+                borderRadius: '14px',
+                boxShadow: '0 12px 30px rgba(15, 23, 42, 0.08)',
+              }}
+              labelStyle={{ color: '#334155', fontWeight: 700 }}
+              formatter={(value) => [fmtMoney(value), 'Sales']}
+            />
+            <Area
+              type="monotone"
+              dataKey="amount"
+              stroke="#2563eb"
+              strokeWidth={3}
+              fill="url(#salesGradient)"
+              activeDot={{ r: 6, stroke: '#2563eb', strokeWidth: 2, fill: '#ffffff' }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
       <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-500">
-        <span>Peak: {fmtCompactMoney(peak)}</span>
-        <span>7 day trend</span>
+        <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-1">Peak: {fmtCompactMoney(peak)}</span>
+        <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-1">7 day trend</span>
       </div>
     </div>
   )
@@ -435,8 +797,8 @@ const TopSellingCategoriesCard = ({ items }) => (
             <div
               className={`h-full rounded-xl bg-linear-to-r ${categoryToneClass(index)} transition-all duration-500`}
               style={{
-                width: `${Math.max(0, safeToNumber(item.share))}%`,
-                minWidth: safeToNumber(item.share) > 0 ? '8px' : undefined,
+                width: `${clampPercent(item.share)}%`,
+                minWidth: clampPercent(item.share) > 0 ? '8px' : undefined,
                 backgroundColor: item.color || '#2563eb',
               }}
             />
@@ -447,46 +809,72 @@ const TopSellingCategoriesCard = ({ items }) => (
   </section>
 )
 
-const LiveFeedCard = ({ entries, right }) => {
+const LiveFeedCard = ({ entries = [], right }) => {
   const tones = {
     blue: 'bg-blue-600',
-    teal: 'bg-teal-600',
-    rose: 'bg-rose-600',
-    amber: 'bg-amber-500',
+    red: 'bg-red-600',
+    green: 'bg-emerald-600',
+    yellow: 'bg-amber-500',
     slate: 'bg-slate-600',
   }
+
+  const safeEntries = Array.isArray(entries) ? entries : []
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-5 flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-base font-bold text-slate-900">Live Feed</h2>
-          <p className="text-xs text-slate-500">Latest stock and sales events</p>
+          <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-blue-700">
+            <span className="h-2 w-2 rounded-full bg-blue-500" />
+            Live Feed
+          </div>
+          <h2 className="mt-3 text-base font-bold text-slate-900">Latest stock and sales events</h2>
+          <p className="text-xs text-slate-500">Most recent activity appears at the top.</p>
         </div>
-        {right && <div>{right}</div>}
+        <div className="flex flex-col items-end gap-2">{right}</div>
       </div>
 
-      <div className="relative space-y-5 before:absolute before:bottom-2 before:left-3 before:top-2 before:w-px before:bg-slate-200">
-        {entries.map((entry, index) => (
-          <div key={entry.id || `${entry.title}-${index}`} className="relative flex gap-4">
-            <div className={`z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white ${tones[entry.tone] || tones.slate}`}>
-              <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+      <div className="relative space-y-3 before:absolute before:bottom-2 before:left-4 before:top-2 before:w-px before:bg-slate-200">
+        {safeEntries.map((entry, index) => (
+          <div
+            key={entry.id || `${entry.title}-${index}`}
+            className="relative flex gap-4 rounded-xl border border-slate-100 bg-slate-50/70 p-3 transition-colors hover:border-slate-200 hover:bg-white"
+          >
+            <div className={`z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white shadow-sm ${tones[entry.tone] || tones.slate}`}>
+              <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>
                 {entry.icon}
               </span>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-slate-900">{entry.title}</p>
-              <p className="text-[10px] text-slate-500">
-                {entry.actor} • {relTime(entry.createdAt)}
-              </p>
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-slate-900">{entry.title}</p>
+                  <p className="truncate text-[10px] text-slate-500">{entry.actor || 'System'}</p>
+                </div>
+                <span
+                  className="shrink-0 rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-700"
+                  title={entry.timeTitle || entry.createdAt || entry.timeLabel || ''}
+                >
+                  {entry.displayTimeExact || entry.displayTime || entry.timeLabel || 'Unknown time'}
+                </span>
+              </div>
+              <p className="text-[10px] font-medium text-slate-500">{entry.displayTime || 'Unknown time'}</p>
               {entry.description && (
-                <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
-                  <p className="text-[10px] font-medium text-slate-600">{entry.description}</p>
+                <div className="rounded-lg border border-slate-200 bg-white p-2">
+                  <p className="text-[10px] font-medium leading-5 text-slate-600">{entry.description}</p>
                 </div>
               )}
             </div>
           </div>
         ))}
+        {!safeEntries.length && (
+          <div className="relative rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 pl-12 text-xs text-slate-500">
+            <span className="absolute left-4 top-4 text-slate-400">
+              <span className="material-symbols-outlined text-[18px]">notifications</span>
+            </span>
+            No live feed activity yet.
+          </div>
+        )}
       </div>
     </section>
   )
@@ -500,6 +888,8 @@ const Dashboard = () => {
 
   const { dashboard, isLoadingDashboard, reloadDashboard } = useDashboard()
   const { items, isLoadingItems, reloadItems } = useItem()
+  const { sales, isLoadingSales, reloadSales } = useSale()
+  const hasItemData = Array.isArray(items) && items.length > 0
   const summary = useMemo(() => dashboard?.summary || EMPTY_SUMMARY, [dashboard])
 
   const salesTrend = useMemo(
@@ -507,14 +897,59 @@ const Dashboard = () => {
     [dashboard],
   )
 
-  const recentSales = useMemo(
-    () => (Array.isArray(dashboard?.recentSales) ? dashboard.recentSales : EMPTY_LIST),
-    [dashboard],
-  )
+  const recentSales = useMemo(() => {
+    const salesSource = Array.isArray(sales) && sales.length
+      ? sales
+      : (Array.isArray(dashboard?.recentSales) ? dashboard.recentSales : EMPTY_LIST)
+
+    return [...salesSource].sort((left, right) => getSaleDateValue(right) - getSaleDateValue(left))
+  }, [sales, dashboard])
   const lowStockItems = useMemo(
     () => (Array.isArray(dashboard?.lowStockItems) ? dashboard.lowStockItems : EMPTY_LIST),
     [dashboard],
   )
+  const inventoryAlerts = useMemo(() => {
+    if (hasItemData) {
+      return items
+        .map((item, index) => {
+          const quantity = getItemQuantity(item)
+          const reorderLevel = getItemReorderLevel(item)
+          const isOut = quantity <= 0
+          const isLow = !isOut && reorderLevel > 0 && quantity <= reorderLevel
+
+          if (!isOut && !isLow) return null
+
+          const levelPercent = reorderLevel > 0 ? Math.min(100, Math.round((quantity / reorderLevel) * 100)) : 0
+
+          return {
+            id: item?.id || `item-${index}`,
+            item_name: item?.item_name || item?.name || 'Unnamed item',
+            sku: item?.sku || item?.item_code || '',
+            supplier_id: item?.supplier?.id || item?.supplier?.supplier_id || item?.supplier_id || item?.supplierId || '',
+            quantity,
+            is_out_of_stock: isOut,
+            level_percent: levelPercent,
+          }
+        })
+        .filter(Boolean)
+        .sort((left, right) => {
+          if (left.is_out_of_stock !== right.is_out_of_stock) {
+            return left.is_out_of_stock ? -1 : 1
+          }
+          return left.quantity - right.quantity
+        })
+    }
+
+    return lowStockItems.map((item, index) => ({
+      id: item?.id || `item-${index}`,
+      item_name: item?.item_name || item?.name || 'Unnamed item',
+      sku: item?.sku || item?.item_code || '',
+      supplier_id: item?.supplier?.id || item?.supplier?.supplier_id || item?.supplier_id || item?.supplierId || '',
+      quantity: Number(item?.quantity || 0),
+      is_out_of_stock: Boolean(item?.is_out_of_stock),
+      level_percent: Number(item?.level_percent || 0),
+    }))
+  }, [items, hasItemData, lowStockItems])
   const purchaseActivity = useMemo(
     () => (Array.isArray(dashboard?.purchaseActivity) ? dashboard.purchaseActivity : EMPTY_LIST),
     [dashboard],
@@ -523,13 +958,14 @@ const Dashboard = () => {
     () => (Array.isArray(dashboard?.liveFeed) ? dashboard.liveFeed : EMPTY_LIST),
     [dashboard],
   )
-
-  const hasItemData = Array.isArray(items) && items.length > 0
+  const [stockValueRefreshAt, setStockValueRefreshAt] = useState(new Date().toISOString())
 
   useEffect(() => {
     const refreshDashboardData = () => {
       reloadItems()
       reloadDashboard()
+      reloadSales()
+      setStockValueRefreshAt(new Date().toISOString())
     }
 
     const handleVisibilityChange = () => {
@@ -540,12 +976,14 @@ const Dashboard = () => {
 
     window.addEventListener('focus', refreshDashboardData)
     document.addEventListener('visibilitychange', handleVisibilityChange)
+    const realtimeRefresh = window.setInterval(refreshDashboardData, 30_000)
 
     return () => {
       window.removeEventListener('focus', refreshDashboardData)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.clearInterval(realtimeRefresh)
     }
-  }, [reloadItems, reloadDashboard])
+  }, [reloadItems, reloadDashboard, reloadSales])
 
   const stockDistribution = useMemo(() => {
     if (Array.isArray(dashboard?.stockDistribution) && dashboard.stockDistribution.length) {
@@ -602,19 +1040,60 @@ const Dashboard = () => {
 
   const liveFeedEntries = useMemo(() => {
     const source = liveFeed.length ? liveFeed : FALLBACK_LIVE_FEED
+    const fallbackBase = parseDateValue(stockValueRefreshAt) || new Date(stockValueRefreshAt)
 
-    return source.map((entry, index) => ({
-      id: entry?.id || index,
-      title: entry?.title || entry?.label || 'System event',
-      actor: entry?.actor || entry?.source || 'System',
-      createdAt: entry?.createdAt || entry?.created_at || entry?.timestamp || new Date().toISOString(),
-      description: entry?.description || entry?.details || entry?.message || '',
-      icon:
-        entry?.icon ||
-        (index === 0 ? 'add' : index === 1 ? 'local_shipping' : index === 2 ? 'close' : 'sell'),
-      tone: entry?.tone || (index === 0 ? 'blue' : index === 1 ? 'teal' : index === 2 ? 'rose' : 'amber'),
-    }))
-  }, [liveFeed])
+    const normalized = source.map((entry, index) => {
+      const resolvedDate = resolveLiveFeedResolvedDate(entry)
+      const resolvedTime = resolvedDate?.getTime() ?? Number.NEGATIVE_INFINITY
+
+      // Debug: Log timestamp extraction
+      if (process.env.NODE_ENV === 'development' && !resolvedDate) {
+        console.warn(`[LiveFeed] Entry ${index} ("${entry?.title}") has no timestamp extracted`, {
+          entry,
+          stockMovement: entry?.stock_movement,
+          timestamp: entry?.createdAt || entry?.created_at,
+        })
+      }
+
+      return {
+        entry,
+        index,
+        resolvedDate,
+        resolvedTime,
+      }
+    })
+
+    normalized.sort((left, right) => {
+      if (left.resolvedTime === right.resolvedTime) return left.index - right.index
+      return right.resolvedTime - left.resolvedTime
+    })
+
+    return normalized
+      .map((row, sortedIndex) => {
+        const entry = row.entry
+        const visual = resolveLiveFeedVisual(entry)
+        const eventTimeLabel = resolveLiveFeedTimeLabel(entry)
+        const timing = buildLiveFeedTiming({
+          resolvedDate: row.resolvedDate,
+          fallbackBase,
+          fallbackIndex: sortedIndex,
+        })
+
+        return {
+          id: entry?.id || row.index,
+          title: entry?.title || entry?.label || 'System event',
+          actor: entry?.actor || entry?.source || 'System',
+          createdAt: timing.createdAt,
+          timeLabel: eventTimeLabel,
+          displayTime: timing.displayTime,
+          displayTimeExact: timing.displayTimeExact,
+          timeTitle: timing.timeTitle,
+          description: entry?.description || entry?.details || entry?.message || '',
+          icon: visual.icon,
+          tone: visual.tone,
+        }
+      })
+  }, [liveFeed, stockValueRefreshAt])
 
   const recentSalesTotal = useMemo(
     () => recentSales.reduce((sum, sale) => sum + Number(sale?.total_amount || 0), 0),
@@ -722,6 +1201,48 @@ const Dashboard = () => {
     }
   }, [summary, salesTrend])
 
+  const salesTrendPeak = useMemo(
+    () => Math.max(...salesTrend.map((point) => safeToNumber(point?.amount || 0)), 0),
+    [salesTrend],
+  )
+
+  const stockValueCard = useMemo(() => {
+    const totalStockValue = safeToNumber(summary.total_stock_value)
+    const totalItems = Math.max(0, safeToNumber(summary.total_items))
+    const lowStockCount = Math.max(0, safeToNumber(summary.low_stock_count))
+    const healthyRatio = totalItems > 0 ? Math.round(((totalItems - lowStockCount) / totalItems) * 100) : 0
+    const averagePerItem = totalItems > 0 ? totalStockValue / totalItems : 0
+    const todaySales = safeToNumber(decisionModel.totalSalesToday)
+    const avgDailySales = safeToNumber(salesPulseKpi.weekAvg)
+    const stockToSales = todaySales > 0 ? totalStockValue / todaySales : 0
+    const lowStockShare = totalItems > 0 ? (lowStockCount / totalItems) * 100 : 0
+    const lowStockValueEstimate = lowStockCount * averagePerItem
+    const coverageDays = avgDailySales > 0 ? totalStockValue / avgDailySales : 0
+
+    const coverageLabel =
+      coverageDays <= 0
+        ? 'No sales baseline'
+        : coverageDays < 14
+          ? 'Tight coverage'
+          : coverageDays < 45
+            ? 'Balanced coverage'
+            : 'High coverage'
+
+    return {
+      totalStockValue,
+      totalItems,
+      lowStockCount,
+      healthyRatio: Math.min(100, Math.max(0, healthyRatio)),
+      averagePerItem,
+      stockToSales,
+      avgDailySales,
+      coverageDays,
+      coverageLabel,
+      lowStockShare: Math.min(100, Math.max(0, lowStockShare)),
+      lowStockValueEstimate,
+    }
+  }, [summary, decisionModel.totalSalesToday, salesPulseKpi.weekAvg])
+
   const inventoryHealth = useMemo(() => {
     if (hasItemData) {
       const counts = items.reduce(
@@ -821,48 +1342,28 @@ const Dashboard = () => {
         ? 'text-amber-700 bg-amber-50 border-amber-200'
         : 'text-emerald-700 bg-emerald-50 border-emerald-200'
 
+  const handleInventoryAlertClick = (item) => {
+    if (!permissions.purchaseOrders) return
+
+    navigate('/poform', {
+      state: {
+        mode: 'add',
+        preselectedItem: {
+          id: item?.id,
+          item_name: item?.item_name || '',
+          sku: item?.sku || '',
+          supplier_id: item?.supplier_id || '',
+          suggestedQuantity: 1,
+        },
+      },
+    })
+  }
+
   return (
     <main className="min-h-screen bg-slate-100 p-4 sm:p-6 lg:p-8">
       <section className="relative mb-6 overflow-hidden rounded-3xl border border-blue-100 bg-linear-to-br from-blue-50 via-white to-slate-50 p-5 shadow-sm sm:p-6 lg:p-7">
         <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-blue-200/50 blur-3xl" />
         <div className="absolute -bottom-20 -left-20 h-40 w-40 rounded-full bg-indigo-200/40 blur-3xl" />
-
-        <div className="relative mb-4 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-blue-700">
-              <span className="h-2 w-2 rounded-full bg-blue-500" />
-              BI Snapshot
-            </div>
-            <h2 className="mt-3 text-2xl font-bold tracking-tight text-slate-900 sm:text-[27px]">
-              First look recommendations
-            </h2>
-          </div>
-          <div className="inline-flex items-center gap-2 rounded-2xl border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm">
-            <span className="material-symbols-outlined text-sm text-blue-600">schedule</span>
-            Updated from live dashboard data
-          </div>
-        </div>
-
-        <div className="relative mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-          <DecisionBadge
-            label="Health"
-            value={decisionModel.health.label}
-            tone={decisionModel.health.tone}
-            icon="monitoring"
-          />
-          <DecisionBadge
-            label="Momentum"
-            value={`${decisionModel.trendChange >= 0 ? '+' : ''}${decisionModel.trendChange.toFixed(1)}% vs yesterday`}
-            tone={decisionModel.trendChange < -10 ? 'rose' : decisionModel.trendChange < 0 ? 'amber' : 'emerald'}
-            icon="trending_up"
-          />
-          <DecisionBadge
-            label="Today"
-            value={`${fmtCompactMoney(decisionModel.totalSalesToday)} · ${decisionModel.totalSalesCount} sales`}
-            tone="blue"
-            icon="payments"
-          />
-        </div>
 
         <div className="relative mb-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
@@ -874,8 +1375,11 @@ const Dashboard = () => {
             </div>
             <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
               <div
-                className="h-full rounded-full bg-linear-to-r from-blue-500 to-cyan-500"
-                style={{ width: `${Math.min(100, Math.max(0, salesPulseKpi.todayIndexPct / 2))}%` }}
+                className="h-full rounded-full"
+                style={{
+                  width: `${clampPercent(salesPulseKpi.todayIndexPct / 2)}%`,
+                  background: 'linear-gradient(90deg, #3b82f6 0%, #06b6d4 100%)',
+                }}
               />
             </div>
             <p className="mt-2 text-[11px] font-semibold text-slate-500">
@@ -916,8 +1420,11 @@ const Dashboard = () => {
             </div>
             <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
               <div
-                className="h-full rounded-full bg-linear-to-r from-amber-400 to-rose-500"
-                style={{ width: `${Math.min(100, Math.max(0, inventoryHealth.riskPercent))}%` }}
+                className="h-full rounded-full"
+                style={{
+                  width: `${clampPercent(inventoryHealth.riskPercent)}%`,
+                  background: 'linear-gradient(90deg, #f59e0b 0%, #f43f5e 100%)',
+                }}
               />
             </div>
             <div className="mt-2 grid grid-cols-3 gap-2 text-[11px]">
@@ -940,8 +1447,11 @@ const Dashboard = () => {
             </div>
             <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
               <div
-                className="h-full rounded-full bg-linear-to-r from-blue-500 to-indigo-600"
-                style={{ width: `${Math.min(100, Math.max(0, inboundSnapshot.fullyReceivedRate))}%` }}
+                className="h-full rounded-full"
+                style={{
+                  width: `${clampPercent(inboundSnapshot.fullyReceivedRate)}%`,
+                  background: 'linear-gradient(90deg, #3b82f6 0%, #4f46e5 100%)',
+                }}
               />
             </div>
             <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-600">
@@ -989,13 +1499,20 @@ const Dashboard = () => {
         </div>
       </section>
 
-      <section className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-12">
+      <section className="mb-4 grid grid-cols-1 items-stretch gap-5 lg:grid-cols-12 ">
         <div className="lg:col-span-8">
           {permissions.sales ? (
             <SectionCard
               title="Sales Trend"
               subtitle="Revenue for the last 7 days"
-              right={<p className="text-xs font-semibold text-slate-600">Peak: {fmtCompactMoney(Math.max(...salesTrend.map((t) => Number(t.amount || 0)), 0))}</p>}
+              className="flex h-full flex-col"
+              contentClassName="flex flex-1 flex-col"
+              right={
+                <span className="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700">
+                  <span className="material-symbols-outlined text-sm">insights</span>
+                  Peak {fmtCompactMoney(salesTrendPeak)}
+                </span>
+              }
             >
               <SalesChart trend={salesTrend} />
             </SectionCard>
@@ -1004,21 +1521,81 @@ const Dashboard = () => {
           )}
         </div>
         <div className="lg:col-span-4">
-          <SectionCard title="Stock Value" subtitle="Current valuation">
-            <p className="text-3xl font-bold text-slate-900">{fmtCompactMoney(summary.total_stock_value)}</p>
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200">
-              <div className="h-full w-3/4 rounded-full bg-linear-to-r from-blue-500 to-indigo-500" />
+          <SectionCard
+            title="Stock Value"
+            subtitle="Full valuation with live refresh"
+            className="flex h-full flex-col"
+            contentClassName="flex flex-1 flex-col"
+            right={
+              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                Live
+              </span>
+            }
+          >
+            <p className="text-[32px] leading-none font-bold tracking-tight text-slate-900">{fmtMoney(stockValueCard.totalStockValue)}</p>
+
+            <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="font-semibold text-slate-500">Avg per item</p>
+                <p className="mt-1 text-sm font-bold text-slate-900">{fmtMoney(stockValueCard.averagePerItem)}</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="font-semibold text-slate-500">Stock / sales</p>
+                <p className="mt-1 text-sm font-bold text-slate-900">{stockValueCard.stockToSales.toFixed(1)}x</p>
+              </div>
             </div>
-            <p className="mt-2 text-xs text-slate-500">Calculated from latest purchase layer values.</p>
+
+            <div className="mt-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
+              <div className="flex items-center justify-between gap-2 text-[11px] font-semibold text-blue-700">
+                <span>Coverage runway</span>
+                <span>{stockValueCard.coverageDays > 0 ? `${stockValueCard.coverageDays.toFixed(1)} days` : '-'}</span>
+              </div>
+              <p className="mt-1 text-[11px] font-medium text-blue-700">{stockValueCard.coverageLabel}</p>
+            </div>
+
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${clampPercent(stockValueCard.healthyRatio)}%`,
+                  background: 'linear-gradient(90deg, #10b981 0%, #3b82f6 100%)',
+                }}
+              />
+            </div>
+
+            <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-500">
+              <span>{stockValueCard.totalItems} items tracked</span>
+              <span>{stockValueCard.lowStockCount} low stock</span>
+            </div>
+
+            <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                <p className="font-semibold text-amber-700">Low stock share</p>
+                <p className="mt-1 text-sm font-bold text-amber-700">{stockValueCard.lowStockShare.toFixed(1)}%</p>
+              </div>
+              <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">
+                <p className="font-semibold text-rose-700">At risk value</p>
+                <p className="mt-1 text-sm font-bold text-rose-700">{fmtCompactMoney(stockValueCard.lowStockValueEstimate)}</p>
+              </div>
+            </div>
+
+            <p className="mt-auto pt-3 text-[11px] font-medium text-slate-500">
+              Updated {relTime(stockValueRefreshAt)}. Refreshes every 30s and on window focus.
+            </p>
           </SectionCard>
         </div>
       </section>
 
       <section className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
         {permissions.sales ? (
-          <SectionCard title="Recent Sales" subtitle={`Last ${Math.min(recentSales.length, 5)} transactions`}>
+          <SectionCard
+            title="Recent Sales"
+            subtitle={`All ${recentSales.length} transactions`}
+            contentClassName="h-96 overflow-y-auto pr-1"
+          >
             <div className="space-y-2">
-              {recentSales.slice(0, 5).map((sale, index) => (
+              {recentSales.map((sale, index) => (
                 <div
                   key={sale?.id || index}
                   className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5"
@@ -1038,13 +1615,25 @@ const Dashboard = () => {
         )}
 
         {permissions.inventory ? (
-          <SectionCard title="Inventory Alerts" subtitle="Low stock and out-of-stock items">
+          <SectionCard
+            title="Inventory Alerts"
+            subtitle="Low stock and out-of-stock items"
+            contentClassName="h-96 overflow-y-auto pr-1"
+          >
             <div className="space-y-2">
-              {lowStockItems.slice(0, 5).map((item, index) => {
-                const level = Number(item?.level_percent || 0)
+              {inventoryAlerts.map((item, index) => {
+                const level = clampPercent(item?.level_percent)
                 const isOut = Boolean(item?.is_out_of_stock)
+                const isClickable = permissions.purchaseOrders
                 return (
-                  <div key={item?.id || index} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <button
+                    key={item?.id || index}
+                    type="button"
+                    onClick={() => handleInventoryAlertClick(item)}
+                    disabled={!isClickable}
+                    className={`w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-left transition ${isClickable ? 'cursor-pointer hover:border-blue-300 hover:bg-blue-50/40' : 'cursor-default'}`}
+                    title={isClickable ? 'Create purchase order for this item' : 'No purchase order permission'}
+                  >
                     <div className="mb-2 flex items-center justify-between gap-3">
                       <p className="truncate text-sm font-semibold text-slate-800">{item?.item_name || 'Unnamed item'}</p>
                       <span className={`text-xs font-bold ${isOut ? 'text-rose-600' : 'text-amber-600'}`}>
@@ -1052,12 +1641,12 @@ const Dashboard = () => {
                       </span>
                     </div>
                     <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
-                      <div className={`h-full rounded-full ${isOut ? 'bg-rose-500' : 'bg-amber-500'}`} style={{ width: `${isOut ? 0 : level}%` }} />
+                      <div className={`h-full rounded-full ${isOut ? 'bg-rose-500' : 'bg-amber-500'}`} style={{ width: `${isOut ? 0 : clampPercent(level)}%` }} />
                     </div>
-                  </div>
+                  </button>
                 )
               })}
-              {!lowStockItems.length && <p className="py-4 text-center text-sm text-slate-500">No low stock alerts.</p>}
+              {!inventoryAlerts.length && <p className="py-4 text-center text-sm text-slate-500">No low stock alerts.</p>}
             </div>
           </SectionCard>
         ) : (
@@ -1065,42 +1654,8 @@ const Dashboard = () => {
         )}
       </section>
 
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <div className="lg:col-span-8">
-          {permissions.grn ? (
-            <SectionCard title="Purchase Activity" subtitle="Incoming stock and GRN summary">
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-xs uppercase tracking-[0.08em] text-slate-500">
-                      <th className="px-3 py-2">GRN</th>
-                      <th className="px-3 py-2">Supplier</th>
-                      <th className="px-3 py-2">Units</th>
-                      <th className="px-3 py-2">Status</th>
-                      <th className="px-3 py-2 text-right">Value</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {purchaseActivity.slice(0, 5).map((row, index) => (
-                      <tr key={row?.id || index} className="border-b border-slate-100 last:border-b-0">
-                        <td className="px-3 py-3 font-semibold text-slate-800">{row?.grn_no || `GRN-${row?.id || index}`}</td>
-                        <td className="px-3 py-3 text-slate-600">{row?.supplier_name || '-'}</td>
-                        <td className="px-3 py-3 text-slate-600">{row?.items_received || 0} units</td>
-                        <td className="px-3 py-3 text-slate-600">{row?.status_name || 'Unknown'}</td>
-                        <td className="px-3 py-3 text-right font-semibold text-slate-800">{fmtMoney(row?.total_amount)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {!purchaseActivity.length && <p className="py-4 text-center text-sm text-slate-500">No purchase activity.</p>}
-              </div>
-            </SectionCard>
-          ) : (
-            permissionBlock('Purchase Activity')
-          )}
-        </div>
-
-        <div className="lg:col-span-4">
+      <section className="grid grid-cols-1 gap-4">
+        <div>
           {permissions.stockMovement ? (
             <LiveFeedCard
               entries={liveFeedEntries}
@@ -1112,7 +1667,7 @@ const Dashboard = () => {
         </div>
       </section>
 
-          {(isLoadingDashboard || isLoadingItems) && (
+          {(isLoadingDashboard || isLoadingItems || isLoadingSales) && (
             <div className="fixed bottom-6 right-6 inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-lg">
               <span className="h-2 w-2 animate-pulse rounded-full bg-blue-500" />
               Loading dashboard data

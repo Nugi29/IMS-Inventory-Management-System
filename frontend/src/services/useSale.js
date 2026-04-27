@@ -1,20 +1,70 @@
-import { useCallback, useContext } from 'react'
+import { useCallback, useContext, useEffect, useState } from 'react'
 import axios, { SESSION_EXPIRED_MESSAGE, isSessionExpiredError } from './httpClient'
 import { AppContext } from '../context/AppContext'
 
-const CREATE_ENDPOINTS = [
-  '/api/sale/create',
-  '/api/sales/create',
-  '/api/transaction/create',
-  '/api/checkout',
-  '/api/order/create',
+const LIST_ENDPOINTS = [
+  '/api/sales/all',
+  '/api/sale/all',
 ]
+
+const CREATE_ENDPOINTS = [
+  '/api/sales/create',
+  '/api/sale/create',
+]
+
+const parseSales = (data) =>
+  data?.salesData ?? data?.saleData ?? data?.sales ?? data?.data ?? (Array.isArray(data) ? data : [])
 
 export function useSale() {
   const { backendUrl, token } = useContext(AppContext)
+  const [sales, setSales] = useState([])
+  const [isLoadingSales, setIsLoadingSales] = useState(false)
 
   const headers = useCallback(() => ({ headers: { token } }), [token])
   const endpoint = useCallback((path) => `${backendUrl}${path}`, [backendUrl])
+
+  const isEndpointProbeError = (status) => status === 404 || status === 500
+
+  const loadSales = useCallback(async () => {
+    if (!token) {
+      setSales([])
+      return { success: false, message: 'Unauthorized' }
+    }
+
+    setIsLoadingSales(true)
+    try {
+      for (const path of LIST_ENDPOINTS) {
+        try {
+          const { data } = await axios.get(endpoint(path), headers())
+          const parsed = parseSales(data)
+          if (Array.isArray(parsed)) {
+            setSales(parsed)
+            return { success: true }
+          }
+        } catch (error) {
+          const status = error?.response?.status
+
+          if (isEndpointProbeError(status)) {
+            continue
+          }
+
+          if (status === 401 || isSessionExpiredError(error)) {
+            return { success: false, message: SESSION_EXPIRED_MESSAGE }
+          }
+
+          return {
+            success: false,
+            message: error?.response?.data?.message || error?.message || 'Failed to load sales list',
+          }
+        }
+      }
+
+      setSales([])
+      return { success: false, message: 'Failed to load sales list' }
+    } finally {
+      setIsLoadingSales(false)
+    }
+  }, [token, endpoint, headers])
 
   const createSale = async (payload) => {
     if (!payload?.items || !Array.isArray(payload.items) || payload.items.length === 0) {
@@ -37,7 +87,7 @@ export function useSale() {
       }
     }
 
-    for (const path of CREATE_ENDPOINTS) {
+    for (const [index, path] of CREATE_ENDPOINTS.entries()) {
       try {
         const { data } = await axios.post(endpoint(path), payload, headers())
 
@@ -59,9 +109,8 @@ export function useSale() {
         }
       } catch (error) {
         const status = error?.response?.status
-        console.warn(`Endpoint ${path} failed with status ${status}:`, error.message)
 
-        if (status === 404 || status === 500) {
+        if (isEndpointProbeError(status)) {
           continue
         }
 
@@ -80,13 +129,18 @@ export function useSale() {
           }
         }
 
-        if (path === CREATE_ENDPOINTS[CREATE_ENDPOINTS.length - 1]) {
+        if (index === CREATE_ENDPOINTS.length - 1) {
           return {
             success: false,
             message:
               error?.response?.data?.message ||
               `Failed to create sale: ${error.message}. Please ensure the backend endpoint exists.`,
           }
+        }
+
+        return {
+          success: false,
+          message: error?.response?.data?.message || `Failed to create sale: ${error.message}`,
         }
       }
     }
@@ -97,5 +151,9 @@ export function useSale() {
     }
   }
 
-  return { createSale }
+  useEffect(() => {
+    loadSales()
+  }, [loadSales])
+
+  return { createSale, sales, isLoadingSales, reloadSales: loadSales }
 }

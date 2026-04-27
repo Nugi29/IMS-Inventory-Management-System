@@ -14,7 +14,7 @@ import { ItemForm } from "./components/ItemForm"
 import { PoPage } from "./pages/PoPage"
 import { PoForm } from "./components/PoForm"
 import { GrnPage } from "./pages/GrnPage"
-import { Dashboard } from "./pages/Dashboard"
+import { Dashboard } from "./pages/dashboard"
 
 
 const ProtectedRoute = () => {
