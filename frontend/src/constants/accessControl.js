@@ -26,7 +26,7 @@ export const ROLE_ACCESS = {
       summary: true,
       sales: true,
       inventory: true,
-      grn: false,
+      grn: true,
       stockMovement: true,
       users: false,
       suppliers: true,

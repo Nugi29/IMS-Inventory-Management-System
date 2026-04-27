@@ -237,9 +237,10 @@ const getLiveFeedData = async () => {
 			{ model: User, as: 'user', attributes: ['id', 'name'] },
 			{ model: MovementType, as: 'movement_type', attributes: ['id', 'name'] },
 		],
-		order: [['id', 'DESC']],
+		order: [['createdAt', 'DESC']],
 		limit: 6,
 	});
+
 
 	return rows.map((row) => ({
 		id: row.id,
@@ -247,6 +248,7 @@ const getLiveFeedData = async () => {
 		description: `${toNumber(row.quantity)} units`,
 		actor: row.user?.name || 'System',
 		movement_type: row.movement_type?.name || 'Stock',
+		timestamp: row.createdAt,
 	}));
 };
 

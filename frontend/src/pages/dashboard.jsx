@@ -114,16 +114,6 @@ const parseDateValue = (value) => {
   return null
 }
 
-const parseObjectIdDate = (value) => {
-  const raw = String(value || '').trim()
-  if (!/^[0-9a-fA-F]{24}$/.test(raw)) return null
-
-  const seconds = Number.parseInt(raw.slice(0, 8), 16)
-  if (!Number.isFinite(seconds)) return null
-
-  const parsed = new Date(seconds * 1000)
-  return Number.isNaN(parsed.getTime()) ? null : parsed
-}
 
 const relTime = (dateValue) => {
   if (!dateValue) return 'Just now'
@@ -175,167 +165,52 @@ const formatLiveFeedDateTime = (dateValue) => {
   }
 }
 
-const resolveStockMovementCreatedAt = (entry = {}) => {
-  // Check standard variations of stock_movement field
-  const stockMovement = entry?.stock_movement ?? entry?.stockMovement ?? entry?.movement ?? null
-  
-  if (stockMovement) {
-    const value = 
-      stockMovement?.created_at ??
-      stockMovement?.createdAt ??
-      stockMovement?.created ??
-      stockMovement?.timestamp ??
-      stockMovement?.date ??
-      null
-    if (value) return value
-  }
-
-  // Check root-level stock_movement_* fields
-  return (
-    entry?.stock_movement_created_at ??
-    entry?.stockMovementCreatedAt ??
-    entry?.stock_movement_timestamp ??
-    entry?.stockMovementTimestamp ??
-    entry?.movement_created_at ??
-    entry?.movementCreatedAt ??
-    null
-  )
-}
-
 const resolveLiveFeedResolvedDate = (entry = {}) => {
-  // Priority 1: Extract stock_movement.created_at (primary source for timestamp)
-  const stockMovementCreatedAt = resolveStockMovementCreatedAt(entry)
-  if (stockMovementCreatedAt) {
-    const parsed = parseDateValue(stockMovementCreatedAt)
-    if (parsed) return parsed
-  }
-
-  // Priority 2: Try comprehensive timestamp search across entry fields
+  // Try comprehensive timestamp search across entry fields
   const timestamp = resolveLiveFeedTimestamp(entry)
   if (timestamp) {
     const parsed = parseDateValue(timestamp)
     if (parsed) return parsed
   }
 
-  // Priority 3: Try relative time labels (already formatted by backend)
+  // Fallback to relative time labels (if backend provides them)
   const timeLabel = resolveLiveFeedTimeLabel(entry)
   if (timeLabel) {
     const parsed = parseDateValue(timeLabel)
     if (parsed) return parsed
   }
 
-  // No timestamp found - return null to trigger fallback in buildLiveFeedTiming
   return null
 }
 
-const buildLiveFeedTiming = ({ resolvedDate, fallbackBase, fallbackIndex }) => {
-  // Only use fallback if no real timestamp was resolved
-  const fallbackTimestamp = new Date(fallbackBase.getTime() - (fallbackIndex + 1) * 5 * 60_000)
-  const effectiveDate = resolvedDate || fallbackTimestamp
-  const displayTimeExact = formatLiveFeedDateTime(effectiveDate) || 'Unknown time'
+const buildLiveFeedTiming = ({ resolvedDate }) => {
+  const displayTimeExact = formatLiveFeedDateTime(resolvedDate) || 'Unknown time'
 
   return {
-    createdAt: effectiveDate,
-    displayTime: relTime(effectiveDate),
+    createdAt: resolvedDate,
+    displayTime: relTime(resolvedDate),
     displayTimeExact,
     timeTitle: displayTimeExact,
   }
 }
 
 const resolveLiveFeedTimestamp = (entry = {}) => {
-  const isLikelyTimestampKey = (key = '') => {
-    const normalized = String(key).trim()
-    if (!normalized) return false
-
-    return /(^|_|-)(created|updated|event|occurred|time|date|timestamp)(_|-|$)|(?:created|updated|occurred|event)At$/i.test(normalized)
-  }
-
-  const stockMovementCreatedAt = resolveStockMovementCreatedAt(entry)
-  if (stockMovementCreatedAt) return stockMovementCreatedAt
-
+  // Check direct timestamp field first (primary source)
   const directTimestamp =
+    entry?.timestamp ??
     entry?.createdAt ??
     entry?.created_at ??
     entry?.created ??
-    entry?.createdOn ??
-    entry?.timestamp ??
     entry?.time ??
     entry?.date ??
     entry?.eventDate ??
     entry?.event_time ??
-    entry?.eventTime ??
-    entry?.occurred_at ??
-    entry?.occurredAt ??
-    entry?.loggedAt ??
-    entry?.sale_date ??
-    entry?.order_date ??
-    entry?.grn_date ??
-    entry?.transaction_date ??
     entry?.datetime ??
-    entry?.date_time ??
     entry?.updatedAt ??
     entry?.updated_at ??
-    entry?.lastUpdated ??
-    entry?.last_updated ??
     null
 
-  if (directTimestamp) return directTimestamp
-
-  // Some APIs place event time in nested payload blocks (e.g. sale, grn, item).
-  // Walk a small object tree and pick the first parseable timestamp candidate.
-  const findNestedTimestamp = (value, depth = 0) => {
-    if (depth > 3 || value == null) return null
-
-    if (Array.isArray(value)) {
-      for (const row of value) {
-        const nested = findNestedTimestamp(row, depth + 1)
-        if (nested) return nested
-      }
-      return null
-    }
-
-    if (typeof value !== 'object') return null
-
-    for (const [key, raw] of Object.entries(value)) {
-      const looksLikeTimeKey = isLikelyTimestampKey(key)
-
-      if (looksLikeTimeKey && parseDateValue(raw)) {
-        return raw
-      }
-
-      const nested = findNestedTimestamp(raw, depth + 1)
-      if (nested) return nested
-    }
-
-    return null
-  }
-
-  const nestedTimestamp = findNestedTimestamp(entry)
-  if (nestedTimestamp) return nestedTimestamp
-
-  const idLikeCandidates = [
-    entry?.id,
-    entry?._id,
-    entry?.event_id,
-    entry?.eventId,
-    entry?.sale_id,
-    entry?.saleId,
-    entry?.grn_id,
-    entry?.grnId,
-    entry?.po_id,
-    entry?.poId,
-    entry?.item_id,
-    entry?.itemId,
-  ]
-
-  for (const candidate of idLikeCandidates) {
-    const parsedFromObjectId = parseObjectIdDate(candidate)
-    if (parsedFromObjectId) return parsedFromObjectId
-  }
-
-  const keyMatch = Object.keys(entry).find((key) => isLikelyTimestampKey(key))
-
-  return keyMatch ? entry[keyMatch] : null
+  return directTimestamp
 }
 
 const resolveLiveFeedTimeLabel = (entry = {}) =>
@@ -367,42 +242,8 @@ const EMPTY_SALES_TREND = [
   { label: 'Sun', amount: 0 },
 ]
 
-const EMPTY_LIST = []
 
-const FALLBACK_LIVE_FEED = [
-  {
-    title: 'Stock Adjusted: INV-902',
-    actor: 'Admin Alex',
-    createdAt: new Date(Date.now() - 5 * 60_000).toISOString(),
-    description: '+100 units due to inventory recount.',
-    icon: 'add',
-    tone: 'blue',
-  },
-  {
-    title: 'GRN Created: #2024-001',
-    actor: 'Warehouse Dock 4',
-    createdAt: new Date(Date.now() - 22 * 60_000).toISOString(),
-    description: 'Inbound delivery received and matched.',
-    icon: 'local_shipping',
-    tone: 'teal',
-  },
-  {
-    title: 'Stock Damaged Report',
-    actor: 'Item: Crystal Vase',
-    createdAt: new Date(Date.now() - 60 * 60_000).toISOString(),
-    description: '05 units written off as breakage.',
-    icon: 'close',
-    tone: 'rose',
-  },
-  {
-    title: 'Bulk Sale: INV-8919',
-    actor: 'Register 01',
-    createdAt: new Date(Date.now() - 3 * 60 * 60_000).toISOString(),
-    description: 'High-volume sale completed successfully.',
-    icon: 'sell',
-    tone: 'amber',
-  },
-]
+const EMPTY_LIST = []
 
 const resolveLiveFeedVisual = (entry = {}) => {
   const eventText = [
@@ -613,28 +454,7 @@ const SectionCard = ({ title, subtitle, children, right, className = '', content
   </section>
 )
 
-const MetricTile = ({ label, value, hint, icon, tone = 'blue' }) => {
-  const tones = {
-    blue: 'bg-blue-50 text-blue-700 border-blue-100',
-    indigo: 'bg-indigo-50 text-indigo-700 border-indigo-100',
-    teal: 'bg-teal-50 text-teal-700 border-teal-100',
-    amber: 'bg-amber-50 text-amber-700 border-amber-100',
-    rose: 'bg-rose-50 text-rose-700 border-rose-100',
-  }
 
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="mb-2 flex items-center justify-between">
-        <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">{label}</p>
-        <span className={`rounded-lg border p-1.5 ${tones[tone] || tones.blue}`}>
-          <span className="material-symbols-outlined text-base">{icon}</span>
-        </span>
-      </div>
-      <p className="text-2xl font-bold tracking-tight text-slate-900">{value}</p>
-      <p className="mt-1 text-xs text-slate-500">{hint}</p>
-    </div>
-  )
-}
 
 const SalesChart = ({ trend }) => {
   const chartData = useMemo(
@@ -706,25 +526,7 @@ const SalesChart = ({ trend }) => {
   )
 }
 
-const DecisionBadge = ({ label, value, tone = 'slate', icon }) => {
-  const tones = {
-    slate: 'border-slate-200 bg-slate-50 text-slate-700',
-    blue: 'border-blue-200 bg-blue-50 text-blue-700',
-    amber: 'border-amber-200 bg-amber-50 text-amber-700',
-    rose: 'border-rose-200 bg-rose-50 text-rose-700',
-    emerald: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  }
 
-  return (
-    <div className={`rounded-xl border px-3 py-2 ${tones[tone] || tones.slate}`}>
-      <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em]">
-        {icon && <span className="material-symbols-outlined text-sm">{icon}</span>}
-        {label}
-      </div>
-      <p className="text-sm font-bold">{value}</p>
-    </div>
-  )
-}
 
 const StockDistributionCard = ({ items }) => {
   const capacity = 84
@@ -1039,19 +841,14 @@ const Dashboard = () => {
   }, [dashboard, items, hasItemData])
 
   const liveFeedEntries = useMemo(() => {
-    const source = liveFeed.length ? liveFeed : FALLBACK_LIVE_FEED
-    const fallbackBase = parseDateValue(stockValueRefreshAt) || new Date(stockValueRefreshAt)
-
-    const normalized = source.map((entry, index) => {
+    const normalized = liveFeed.map((entry, index) => {
       const resolvedDate = resolveLiveFeedResolvedDate(entry)
       const resolvedTime = resolvedDate?.getTime() ?? Number.NEGATIVE_INFINITY
 
-      // Debug: Log timestamp extraction
-      if (process.env.NODE_ENV === 'development' && !resolvedDate) {
+      if (import.meta.env.DEV && !resolvedDate) {
         console.warn(`[LiveFeed] Entry ${index} ("${entry?.title}") has no timestamp extracted`, {
           entry,
-          stockMovement: entry?.stock_movement,
-          timestamp: entry?.createdAt || entry?.created_at,
+          timestamp: entry?.timestamp,
         })
       }
 
@@ -1069,14 +866,12 @@ const Dashboard = () => {
     })
 
     return normalized
-      .map((row, sortedIndex) => {
+      .map((row) => {
         const entry = row.entry
         const visual = resolveLiveFeedVisual(entry)
         const eventTimeLabel = resolveLiveFeedTimeLabel(entry)
         const timing = buildLiveFeedTiming({
           resolvedDate: row.resolvedDate,
-          fallbackBase,
-          fallbackIndex: sortedIndex,
         })
 
         return {
@@ -1093,7 +888,7 @@ const Dashboard = () => {
           tone: visual.tone,
         }
       })
-  }, [liveFeed, stockValueRefreshAt])
+  }, [liveFeed])
 
   const recentSalesTotal = useMemo(
     () => recentSales.reduce((sum, sale) => sum + Number(sale?.total_amount || 0), 0),
@@ -1366,9 +1161,10 @@ const Dashboard = () => {
         <div className="absolute -bottom-20 -left-20 h-40 w-40 rounded-full bg-indigo-200/40 blur-3xl" />
 
         <div className="relative mb-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">Sales Pulse</p>
-            <p className="text-lg font-bold text-slate-900">{fmtCompactMoney(salesPulseKpi.totalSalesToday)}</p>
+          {permissions.sales && (
+            <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">Sales Pulse</p>
+              <p className="text-lg font-bold text-slate-900">{fmtCompactMoney(salesPulseKpi.totalSalesToday)}</p>
             <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-600">
               <span>{salesPulseKpi.totalSalesCount} txns</span>
               <span>Avg bill {fmtCompactMoney(salesPulseKpi.avgTicket)}</span>
@@ -1386,9 +1182,11 @@ const Dashboard = () => {
               {salesPulseKpi.todayVsAvgPct >= 0 ? '+' : ''}{salesPulseKpi.todayVsAvgPct.toFixed(1)}% vs 7-day avg
             </p>
           </div>
+          )}
 
-          <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">Sales Flow</p>
+          {permissions.sales && (
+            <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">Sales Flow</p>
             <div className={`inline-flex rounded-lg border px-2 py-1 text-[11px] font-semibold ${trendToneClass}`}>
               {decisionModel.trendChange >= 0 ? '+' : ''}{decisionModel.trendChange.toFixed(1)}%
             </div>
@@ -1406,8 +1204,10 @@ const Dashboard = () => {
               Best day {salesPulseKpi.bestDay.label}: {fmtCompactMoney(salesPulseKpi.bestDay.amount)}
             </p>
           </div>
+          )}
 
-          <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
+          {permissions.inventory && (
+            <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
             <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">Inventory Health</p>
             <div className="flex items-end justify-between gap-3">
               <div>
@@ -1433,9 +1233,11 @@ const Dashboard = () => {
               <div className="rounded-lg bg-rose-50 px-2 py-1 font-semibold text-rose-700">Out {inventoryHealth.outOfStock}</div>
             </div>
           </div>
+          )}
 
-          <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
-            <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">Inbound Ops</p>
+          {permissions.grn && (
+            <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
+              <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">Inbound Ops</p>
             <div className="flex items-end justify-between gap-3">
               <div>
                 <p className="text-xl font-bold text-slate-900">{inboundSnapshot.fullyReceivedRate}%</p>
@@ -1462,6 +1264,7 @@ const Dashboard = () => {
             </div>
             <p className="mt-1 text-[11px] font-semibold text-slate-500">{inboundSnapshot.activeSuppliers} suppliers active</p>
           </div>
+          )}
         </div>
 
         {quickLinks.length > 0 && (
@@ -1491,12 +1294,16 @@ const Dashboard = () => {
       </section>
 
       <section className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <div className="lg:col-span-4">
-          <StockDistributionCard items={stockDistribution} />
-        </div>
-        <div className="lg:col-span-8">
-          <TopSellingCategoriesCard items={topSellingCategories} />
-        </div>
+        {permissions.inventory && (
+          <div className="lg:col-span-4">
+            <StockDistributionCard items={stockDistribution} />
+          </div>
+        )}
+        {permissions.sales && (
+          <div className={`${permissions.inventory ? 'lg:col-span-8' : 'lg:col-span-12'}`}>
+            <TopSellingCategoriesCard items={topSellingCategories} />
+          </div>
+        )}
       </section>
 
       <section className="mb-4 grid grid-cols-1 items-stretch gap-5 lg:grid-cols-12 ">
