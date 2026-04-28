@@ -16,6 +16,8 @@ import { PoPage } from "./pages/PoPage"
 import { PoForm } from "./components/PoForm"
 import { GrnPage } from "./pages/GrnPage"
 import { SupplierForm } from "./components/SupplierForm"
+import { Dashboard } from "./pages/dashboard"
+
 
 const ProtectedRoute = () => {
   const { token } = useContext(AppContext)
@@ -35,7 +37,7 @@ function App() {
       <Routes>
         <Route element={<ProtectedRoute />}>
           <Route element={<Home />}>
-            <Route path="/" element={<HomeContent />} />
+            <Route path="/" element={<Dashboard />} />
             <Route path="/profile" element={<HomeContent />} />
             <Route path="/userform" element={<Userform />} />
             <Route path="/items" element={<ItemPage />} />

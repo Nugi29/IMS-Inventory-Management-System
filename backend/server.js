@@ -10,6 +10,7 @@ const purchaseOrderRoutes = require('./routes/PurchaseOrderRoutes');
 const grnRoutes = require('./routes/grnRoutes');
 const supplierRoutes = require('./routes/supplierRoutes');
 const itemRoutes = require('./routes/itemRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
 
 const app = express();
 
@@ -22,7 +23,8 @@ app.use('/api/sales', salesRoutes);
 app.use('/api/po', purchaseOrderRoutes);
 app.use('/api/grns', grnRoutes);
 app.use('/api/items', itemRoutes);
-app.use('/api/supplier', supplierRoutes);
+app.use('/api/supplier', supplierRoutes);app.use('/api/dashboard', dashboardRoutes);
+
 
 app.get('/', (req, res) => {
   res.send('API is running...');
