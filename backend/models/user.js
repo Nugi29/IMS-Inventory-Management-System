@@ -1,5 +1,5 @@
 const Sequelize = require('sequelize');
-module.exports = function(sequelize, DataTypes) {
+module.exports = function (sequelize, DataTypes) {
   return sequelize.define('user', {
     id: {
       autoIncrement: true,
@@ -35,6 +35,11 @@ module.exports = function(sequelize, DataTypes) {
         model: 'user_status',
         key: 'id'
       }
+    },
+    createdAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: 'created_at'
     }
   }, {
     sequelize,

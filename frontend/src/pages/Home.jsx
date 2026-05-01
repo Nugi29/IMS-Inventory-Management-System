@@ -21,7 +21,7 @@ const Home = () => {
   else if (location.pathname.includes('/stock-movement')) currentModule = "Stock Movement"
   else if (location.pathname.includes('/reports')) currentModule = "Reports"
   else if (location.pathname.includes('/settings')) currentModule = "Settings"
-  else if (location.pathname.includes('/profile')) currentModule = "Profile"
+  else if (location.pathname.includes('/profile')) currentModule = "User Profile"
 
   return (
     <div>
