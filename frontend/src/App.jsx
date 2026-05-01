@@ -18,6 +18,7 @@ import { GrnPage } from "./pages/GrnPage"
 import { SupplierForm } from "./components/SupplierForm"
 import { Dashboard } from "./pages/dashboard"
 import { UserProfile } from "./pages/UserProfile"
+import { Reports } from "./pages/Reports"
 
 
 const ProtectedRoute = () => {
@@ -52,7 +53,7 @@ function App() {
             <Route path="/sales" element={<HomeContent />} />
             <Route path="/stock-movement" element={<HomeContent />} />
             <Route path="/users" element={<UserPage />} />
-            <Route path="/reports" element={<HomeContent />} />
+            <Route path="/reports" element={<Reports />} />
             <Route path="/settings" element={<HomeContent />} />
             <Route path="/suppliers" element={<SupplierPage />} />
             <Route path="/supplierform" element={<SupplierForm />} />
