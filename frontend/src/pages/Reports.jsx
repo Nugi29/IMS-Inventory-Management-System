@@ -41,43 +41,43 @@ const fmtDate = (d) =>
 const Loader = () => (
   <div className="flex items-center justify-center py-20">
     <div className="relative">
-      <div className="w-12 h-12 rounded-full border-2 border-emerald-500/20 border-t-emerald-500 animate-spin" />
-      <div className="absolute inset-2 rounded-full border-2 border-teal-400/20 border-b-teal-400 animate-spin" style={{ animationDirection: "reverse" }} />
+      <div className="w-12 h-12 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+      <div className="absolute inset-2 rounded-full border-2 border-slate-200/70 border-b-slate-300 animate-spin" style={{ animationDirection: "reverse" }} />
     </div>
   </div>
 );
 
 const SectionTitle = ({ children, sub }) => (
   <div className="mb-6">
-    <h2 className="text-xl font-bold text-slate-100 tracking-tight">{children}</h2>
-    {sub && <p className="text-sm text-slate-400 mt-0.5">{sub}</p>}
+    <h2 className="text-xl font-bold text-slate-900 tracking-tight">{children}</h2>
+    {sub && <p className="text-sm text-slate-500 mt-0.5">{sub}</p>}
   </div>
 );
 
 const Card = ({ children, className }) => (
-  <div className={`bg-slate-800 bg-opacity-60 border border-slate-700 border-opacity-50 rounded-2xl ${className || ""}`}>
+  <div className={`bg-white border border-slate-200 rounded-2xl shadow-sm ${className || ""}`}>
     {children}
   </div>
 );
 
 const KpiCard = ({ label, value, sub, icon, color }) => {
   const gradients = {
-    emerald: "border-emerald-500 border-opacity-20 text-emerald-400",
-    rose: "border-rose-500 border-opacity-20 text-rose-400",
-    sky: "border-sky-500 border-opacity-20 text-sky-400",
-    amber: "border-amber-500 border-opacity-20 text-amber-400",
-    violet: "border-violet-500 border-opacity-20 text-violet-400",
-    teal: "border-teal-500 border-opacity-20 text-teal-400",
+    emerald: "border-emerald-200 text-emerald-600",
+    rose: "border-rose-200 text-rose-600",
+    sky: "border-sky-200 text-sky-600",
+    amber: "border-amber-200 text-amber-600",
+    violet: "border-violet-200 text-violet-600",
+    teal: "border-teal-200 text-teal-600",
   };
   return (
-    <div className={`border rounded-2xl p-5 flex flex-col gap-3 bg-slate-800 bg-opacity-40 ${gradients[color || "emerald"]}`}>
+    <div className={`border rounded-2xl p-5 flex flex-col gap-3 bg-slate-50 ${gradients[color || "emerald"]}`}>
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">{label}</span>
-        <span className="text-2xl opacity-80">{icon}</span>
+        <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">{label}</span>
+        <span className="text-2xl opacity-90">{icon}</span>
       </div>
       <div>
-        <div className="text-2xl font-bold text-slate-100 leading-tight">{value}</div>
-        {sub && <div className="text-xs text-slate-400 mt-1">{sub}</div>}
+        <div className="text-2xl font-bold text-slate-900 leading-tight">{value}</div>
+        {sub && <div className="text-xs text-slate-500 mt-1">{sub}</div>}
       </div>
     </div>
   );
@@ -85,11 +85,11 @@ const KpiCard = ({ label, value, sub, icon, color }) => {
 
 const Badge = ({ label, variant }) => {
   const v = {
-    default: "bg-slate-700 text-slate-300",
-    success: "bg-emerald-900 bg-opacity-60 text-emerald-300 border border-emerald-700",
-    warning: "bg-amber-900 bg-opacity-60 text-amber-300 border border-amber-700",
-    danger: "bg-rose-900 bg-opacity-60 text-rose-300 border border-rose-700",
-    info: "bg-sky-900 bg-opacity-60 text-sky-300 border border-sky-700",
+    default: "bg-slate-100 text-slate-600 border border-slate-200",
+    success: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+    warning: "bg-amber-50 text-amber-700 border border-amber-200",
+    danger: "bg-rose-50 text-rose-700 border border-rose-200",
+    info: "bg-sky-50 text-sky-700 border border-sky-200",
   };
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${v[variant || "default"]}`}>
@@ -100,11 +100,11 @@ const Badge = ({ label, variant }) => {
 
 const DataTable = ({ headers, rows }) => (
   <div className="overflow-x-auto">
-    <table className="w-full text-sm">
+    <table className="w-full text-sm bg-white rounded-2xl overflow-hidden shadow-sm">
       <thead>
-        <tr className="border-b border-slate-700">
+        <tr className="bg-slate-50 border-b border-slate-200">
           {headers.map((h, i) => (
-            <th key={i} className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-400">
+            <th key={i} className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
               {h}
             </th>
           ))}
@@ -112,9 +112,9 @@ const DataTable = ({ headers, rows }) => (
       </thead>
       <tbody>
         {rows.map((row, i) => (
-          <tr key={i} className="border-b border-slate-700 border-opacity-40 hover:bg-slate-700 hover:bg-opacity-20 transition-colors">
+          <tr key={i} className="border-b border-slate-200 last:border-0 hover:bg-slate-50 transition-colors">
             {row.map((cell, j) => (
-              <td key={j} className="py-3 px-4 text-slate-300">{cell}</td>
+              <td key={j} className="py-3 px-4 text-slate-700">{cell}</td>
             ))}
           </tr>
         ))}
@@ -126,13 +126,13 @@ const DataTable = ({ headers, rows }) => (
 const TipTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 shadow-xl">
-      <p className="text-xs text-slate-400 mb-2 font-medium">{label}</p>
+    <div className="bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-lg">
+      <p className="text-xs text-slate-500 mb-2 font-medium">{label}</p>
       {payload.map((p, i) => (
         <div key={i} className="flex items-center gap-2 text-sm">
           <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: p.color }} />
-          <span className="text-slate-300">{p.name}:</span>
-          <span className="text-slate-100 font-semibold">Rs. {p.value?.toLocaleString()}</span>
+          <span className="text-slate-600">{p.name}:</span>
+          <span className="text-slate-900 font-semibold">Rs. {p.value?.toLocaleString()}</span>
         </div>
       ))}
     </div>
@@ -141,13 +141,13 @@ const TipTooltip = ({ active, payload, label }) => {
 
 const StockBar = ({ pct, isOut }) => (
   <div className="flex items-center gap-3">
-    <div className="flex-1 bg-slate-700 rounded-full h-1.5 overflow-hidden">
+    <div className="flex-1 bg-slate-200 rounded-full h-1.5 overflow-hidden">
       <div
         className={`h-full rounded-full ${isOut ? "bg-rose-500" : pct < 30 ? "bg-amber-500" : "bg-emerald-500"}`}
         style={{ width: `${Math.min(pct, 100)}%` }}
       />
     </div>
-    <span className={`text-xs font-medium w-8 text-right ${isOut ? "text-rose-400" : pct < 30 ? "text-amber-400" : "text-emerald-400"}`}>
+    <span className={`text-xs font-medium w-8 text-right ${isOut ? "text-rose-600" : pct < 30 ? "text-amber-600" : "text-emerald-600"}`}>
       {pct}%
     </span>
   </div>
@@ -158,6 +158,8 @@ const TABS = [
   { id: "sales", label: "Sales", icon: "💰" },
   { id: "inventory", label: "Inventory", icon: "📦" },
   { id: "purchases", label: "Purchases", icon: "🚚" },
+  { id: "stock-movement", label: "Stock Movement", icon: "🔄" },
+  { id: "adjustments", label: "Adjustments", icon: "⚙️" },
   { id: "suppliers", label: "Suppliers", icon: "🏭" },
   { id: "profit", label: "Profit", icon: "📈" },
 ];
@@ -255,9 +257,9 @@ function OverviewTab({ api }) {
             {lowStockItems.map((item) => (
               <div key={item.id}>
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-sm text-slate-300 font-medium truncate" style={{ maxWidth: "60%" }}>{item.item_name}</span>
+                  <span className="text-sm text-slate-700 font-medium truncate" style={{ maxWidth: "60%" }}>{item.item_name}</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-400">{item.quantity}/{item.reorder_level}</span>
+                    <span className="text-xs text-slate-500">{item.quantity}/{item.reorder_level}</span>
                     {item.is_out_of_stock ? <Badge label="Out" variant="danger" /> : <Badge label="Low" variant="warning" />}
                   </div>
                 </div>
@@ -296,11 +298,12 @@ function SalesTab({ api }) {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [daily, monthly, byItem, byCashier, topItems] = await Promise.all([
-        api.getSalesDaily(), api.getSalesMonthly(), api.getSalesByItem(),
+      const [sales, daily, monthly, byItem, byCashier, topItems] = await Promise.all([
+        api.getSales(), api.getSalesDaily(), api.getSalesMonthly(), api.getSalesByItem(),
         api.getSalesByCashier(), api.getTopSellingItems(),
       ]);
       setData({
+        sales: sales?.sales || [],
         daily: daily?.daily || [],
         monthly: monthly?.monthly || [],
         byItem: byItem?.byItem || [],
@@ -312,7 +315,7 @@ function SalesTab({ api }) {
   }, [api]);
 
   if (loading) return <Loader />;
-  const { daily, monthly, byItem, byCashier, topItems } = data;
+  const { sales, daily, monthly, byItem, byCashier, topItems } = data;
 
   return (
     <div className="space-y-8">
@@ -347,10 +350,10 @@ function SalesTab({ api }) {
                 <span className="text-xs font-bold text-slate-500 w-5 text-right">{i + 1}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm text-slate-300 truncate">{item.item_name}</span>
-                    <span className="text-xs text-slate-400 ml-2 shrink-0">{fmtNum(item.quantity)} units</span>
+                    <span className="text-sm text-slate-700 truncate">{item.item_name}</span>
+                    <span className="text-xs text-slate-500 ml-2 shrink-0">{fmtNum(item.quantity)} units</span>
                   </div>
-                  <div className="bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                  <div className="bg-slate-200 rounded-full h-1.5 overflow-hidden">
                     <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min((item.revenue / topItems[0].revenue) * 100, 100)}%` }} />
                   </div>
                 </div>
@@ -368,7 +371,7 @@ function SalesTab({ api }) {
                 {byCashier.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
               </Pie>
               <Tooltip formatter={(v) => fmt(v)} />
-              <Legend iconType="circle" iconSize={8} formatter={(v) => <span className="text-slate-300 text-xs">{v}</span>} />
+              <Legend iconType="circle" iconSize={8} formatter={(v) => <span className="text-slate-500 text-xs">{v}</span>} />
             </PieChart>
           </ResponsiveContainer>
         </Card>
@@ -400,16 +403,22 @@ function InventoryTab({ api }) {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [inv, low, oos] = await Promise.all([
-        api.getInventory(), api.getLowStock(), api.getOutOfStock(),
+      const [inv, invValue, low, oos] = await Promise.all([
+        api.getInventory(), api.getInventoryValue(), api.getLowStock(), api.getOutOfStock(),
       ]);
-      setData({ inventory: inv?.inventory || [], low: low?.lowStock || [], oos: oos?.outOfStock || [] });
+      setData({
+        inventory: inv?.inventory || [],
+        inventoryValue: invValue?.total_value || 0,
+        itemValues: invValue?.itemValues || [],
+        low: low?.lowStock || [],
+        oos: oos?.outOfStock || [],
+      });
       setLoading(false);
     })();
   }, [api]);
 
   if (loading) return <Loader />;
-  const { inventory, low, oos } = data;
+  const { inventory, inventoryValue, itemValues, low, oos } = data;
 
   const filtered = inventory.filter((i) =>
     i.name.toLowerCase().includes(search.toLowerCase()) || i.code.toLowerCase().includes(search.toLowerCase())
@@ -428,8 +437,8 @@ function InventoryTab({ api }) {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard label="Total SKUs" value={inventory.length} icon="📦" color="sky" />
         <KpiCard label="Total Units" value={fmtNum(totalUnits)} icon="🔢" color="teal" />
+        <KpiCard label="Stock Value" value={fmt(inventoryValue)} icon="💰" color="emerald" />
         <KpiCard label="Low Stock" value={low.length} icon="⚠️" color="amber" sub="Below reorder" />
-        <KpiCard label="Out of Stock" value={oos.length} icon="🚫" color="rose" sub="Urgent reorder" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -454,9 +463,9 @@ function InventoryTab({ api }) {
               return (
                 <div key={item.id ?? item.item_id}>
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm text-slate-300 truncate" style={{ maxWidth: "65%" }}>{item.item_name ?? item.name}</span>
+                    <span className="text-sm text-slate-700 truncate" style={{ maxWidth: "65%" }}>{item.item_name ?? item.name}</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-400">{item.quantity}</span>
+                      <span className="text-xs text-slate-500">{item.quantity}</span>
                       {isOut ? <Badge label="Out" variant="danger" /> : <Badge label="Low" variant="warning" />}
                     </div>
                   </div>
@@ -476,7 +485,7 @@ function InventoryTab({ api }) {
             placeholder="Search items…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="bg-slate-700 border border-slate-600 text-slate-200 text-sm rounded-xl px-4 py-2 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-opacity-50 w-56"
+            className="bg-white border border-slate-200 text-slate-900 text-sm rounded-xl px-4 py-2 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 w-56"
           />
         </div>
         <DataTable
@@ -495,6 +504,21 @@ function InventoryTab({ api }) {
           })}
         />
       </Card>
+
+      {itemValues.length > 0 && (
+        <Card className="p-6">
+          <SectionTitle sub="Inventory value by item">Item Values</SectionTitle>
+          <DataTable
+            headers={["Item", "Qty", "Unit Price", "Total Value"]}
+            rows={itemValues.slice(0, 15).map((iv) => [
+              <span className="text-xs truncate">{iv.item_name}</span>,
+              iv.quantity,
+              fmt(iv.unit_price),
+              <span className="text-emerald-400 font-semibold">{fmt(iv.value)}</span>,
+            ])}
+          />
+        </Card>
+      )}
     </div>
   );
 }
@@ -509,24 +533,31 @@ function PurchasesTab({ api }) {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [grn, daily, monthly, byStatus] = await Promise.all([
-        api.getGrnHistory(), api.getGrnDaily(), api.getGrnMonthly(), api.getPurchaseOrdersByStatus(),
+      const [grn, grnSupplier, daily, monthly, byStatus, po, poPending, poCompleted] = await Promise.all([
+        api.getGrnHistory(), api.getGrnBySupplier(), api.getGrnDaily(), api.getGrnMonthly(),
+        api.getPurchaseOrdersByStatus(), api.getPurchaseOrders(), api.getPurchaseOrdersPending(),
+        api.getPurchaseOrdersCompleted(),
       ]);
       setData({
-        grn: grn?.grn || [],
+        grn: grn?.grnHistory || [],
+        grnSupplier: grnSupplier?.bySupplier || [],
         daily: daily?.daily || [],
         monthly: monthly?.monthly || [],
         byStatus: byStatus?.byStatus || [],
+        po: po?.purchaseOrders || [],
+        poPending: poPending?.pending || [],
+        poCompleted: poCompleted?.completed || [],
       });
       setLoading(false);
     })();
   }, [api]);
 
   if (loading) return <Loader />;
-  const { grn, daily, monthly, byStatus } = data;
+  const { grn, grnSupplier, daily, monthly, byStatus, po, poPending, poCompleted } = data;
 
   const totalGrn = grn.reduce((s, g) => s + (g.total_amount || 0), 0);
   const fullyReceived = grn.filter((g) => g.status === "Fully Received").length;
+  const totalPO = po.reduce((s, p) => s + (p.total_amount || 0), 0);
 
   return (
     <div className="space-y-8">
@@ -534,23 +565,23 @@ function PurchasesTab({ api }) {
         <KpiCard label="Total Purchases" value={fmt(totalGrn)} icon="🛒" color="sky" />
         <KpiCard label="Total GRNs" value={grn.length} icon="📋" color="teal" />
         <KpiCard label="Fully Received" value={fullyReceived} icon="✅" color="emerald" />
-        <KpiCard label="Monthly" value={fmt(monthly[0]?.total_amount)} icon="📅" color="violet" sub={`${monthly[0]?.count} GRNs`} />
+        <KpiCard label="Total POs" value={fmt(totalPO)} icon="📑" color="violet" sub={`${po.length} orders`} />
       </div>
 
-      <Card className="p-6">
-        <SectionTitle sub="Purchase amounts by day">Daily GRN Activity</SectionTitle>
-        <ResponsiveContainer width="100%" height={240}>
-          <BarChart data={daily.map((d) => ({ ...d, date: fmtDate(d.date) }))} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={C.slate700} vertical={false} />
-            <XAxis dataKey="date" tick={{ fill: C.slate400, fontSize: 11 }} tickLine={false} axisLine={false} />
-            <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} tick={{ fill: C.slate400, fontSize: 11 }} tickLine={false} axisLine={false} />
-            <Tooltip content={<TipTooltip />} />
-            <Bar dataKey="total_amount" name="Amount" fill={C.sky} radius={[6, 6, 0, 0]} maxBarSize={48} />
-          </BarChart>
-        </ResponsiveContainer>
-      </Card>
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="p-6">
+          <SectionTitle sub="Purchase amounts by day">Daily GRN Activity</SectionTitle>
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={daily.map((d) => ({ ...d, date: fmtDate(d.date) }))} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={C.slate700} vertical={false} />
+              <XAxis dataKey="date" tick={{ fill: C.slate400, fontSize: 11 }} tickLine={false} axisLine={false} />
+              <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} tick={{ fill: C.slate400, fontSize: 11 }} tickLine={false} axisLine={false} />
+              <Tooltip content={<TipTooltip />} />
+              <Bar dataKey="total_amount" name="Amount" fill={C.sky} radius={[6, 6, 0, 0]} maxBarSize={48} />
+            </BarChart>
+          </ResponsiveContainer>
+        </Card>
+
         <Card className="p-6">
           <SectionTitle sub="Fulfillment breakdown">PO by Status</SectionTitle>
           <ResponsiveContainer width="100%" height={260}>
@@ -559,24 +590,242 @@ function PurchasesTab({ api }) {
                 {byStatus.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
               </Pie>
               <Tooltip />
-              <Legend iconType="circle" iconSize={8} formatter={(v) => <span className="text-slate-300 text-xs">{v}</span>} />
+              <Legend iconType="circle" iconSize={8} formatter={(v) => <span className="text-slate-500 text-xs">{v}</span>} />
+            </PieChart>
+          </ResponsiveContainer>
+        </Card>
+      </div>
+
+      <Card className="p-6">
+        <SectionTitle sub="Recent goods received notes">GRN History</SectionTitle>
+        <DataTable
+          headers={["Supplier", "Amount", "Status", "Date"]}
+          rows={grn.slice(0, 10).map((g) => [
+            <span className="text-xs">{g.supplier}</span>,
+            fmt(g.total_amount),
+            <Badge label={g.status} variant={g.status === "Fully Received" ? "success" : g.status === "Cancelled" ? "danger" : "warning"} />,
+            fmtDate(g.grn_date),
+          ])}
+        />
+      </Card>
+
+      <Card className="p-6">
+        <SectionTitle sub="GRN breakdown by supplier">Supplier Performance</SectionTitle>
+        <DataTable
+          headers={["Supplier", "Orders", "Total Amount"]}
+          rows={grnSupplier.slice(0, 10).map((s) => [
+            <span className="text-xs">{s.supplier}</span>,
+            s.grn_count,
+            <span className="text-sky-400 font-semibold">{fmt(s.total_amount)}</span>,
+          ])}
+        />
+      </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="p-6">
+          <SectionTitle sub="All purchase orders">Purchase Orders</SectionTitle>
+          <DataTable
+            headers={["PO ID", "Supplier", "Amount", "Status"]}
+            rows={po.slice(0, 8).map((p) => [
+              <span className="font-mono text-xs text-sky-400">{p.po_id}</span>,
+              <span className="text-xs">{p.supplier}</span>,
+              fmt(p.total_amount),
+              <Badge label={p.status} variant={p.status === "Fully Received" ? "success" : "warning"} />,
+            ])}
+          />
+        </Card>
+
+        <Card className="p-6">
+          <SectionTitle sub="Pending PO orders">Pending Orders</SectionTitle>
+          <DataTable
+            headers={["PO ID", "Supplier", "Amount", "Status"]}
+            rows={poPending.slice(0, 8).map((p) => [
+              <span className="font-mono text-xs text-amber-400">{p.po_id}</span>,
+              <span className="text-xs">{p.supplier}</span>,
+              fmt(p.total_amount),
+              <Badge label={p.status} variant="warning" />,
+            ])}
+          />
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// STOCK MOVEMENT TAB
+// ══════════════════════════════════════════════════════════════════════════════
+function StockMovementTab({ api }) {
+  const [data, setData] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const [history, byItem, byType, summary] = await Promise.all([
+        api.getStockMovementHistory(), api.getStockMovementByItem(), api.getStockMovementByType(),
+        api.getStockMovementSummary(),
+      ]);
+      setData({
+        history: history?.movements || [],
+        byItem: byItem?.byItem || [],
+        byType: byType?.byType || [],
+        summary: summary?.summary || {},
+      });
+      setLoading(false);
+    })();
+  }, [api]);
+
+  if (loading) return <Loader />;
+  const { history, byItem, byType, summary } = data;
+
+  const grnTotal = byType.find((t) => t.type === "GRN")?.quantity || 0;
+  const saleTotal = byType.find((t) => t.type === "SALE")?.quantity || 0;
+  const adjTotal = byType.find((t) => t.type === "Adjustment")?.quantity || 0;
+
+  return (
+    <div className="space-y-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard label="Total Movements" value={fmtNum(summary.totalMovements)} icon="📊" color="sky" />
+        <KpiCard label="Total Quantity" value={fmtNum(summary.totalQuantity)} icon="📦" color="teal" />
+        <KpiCard label="GRN Quantity" value={fmtNum(grnTotal)} icon="⬆️" color="emerald" sub={`${byType.find((t) => t.type === "GRN")?.movements || 0} moves`} />
+        <KpiCard label="Sales Quantity" value={fmtNum(saleTotal)} icon="⬇️" color="rose" sub={`${byType.find((t) => t.type === "SALE")?.movements || 0} moves`} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="p-6">
+          <SectionTitle sub="Movement type breakdown">By Type</SectionTitle>
+          <ResponsiveContainer width="100%" height={260}>
+            <PieChart>
+              <Pie data={byType} dataKey="quantity" nameKey="type" cx="50%" cy="50%" outerRadius={100} innerRadius={45} paddingAngle={3}>
+                {byType.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+              </Pie>
+              <Tooltip formatter={(v) => fmtNum(v)} />
+              <Legend iconType="circle" iconSize={8} formatter={(v) => <span className="text-slate-500 text-xs">{v}</span>} />
             </PieChart>
           </ResponsiveContainer>
         </Card>
 
         <Card className="p-6">
-          <SectionTitle sub="Recent goods received notes">GRN History</SectionTitle>
+          <SectionTitle sub="Top items by movement">By Item Volume</SectionTitle>
+          <div className="space-y-3 overflow-y-auto" style={{ maxHeight: 280 }}>
+            {byItem.slice(0, 8).map((item, i) => (
+              <div key={item.item_id} className="flex items-center gap-3">
+                <span className="text-xs font-bold text-slate-500 w-4 text-right">{i + 1}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-sm text-slate-700 truncate">{item.item}</span>
+                    <span className="text-xs text-slate-500 shrink-0">{item.movements} moves</span>
+                  </div>
+                  <div className="bg-slate-200 rounded-full h-1 overflow-hidden">
+                    <div className="h-full bg-teal-500" style={{ width: `${Math.min((item.quantity / byItem[0].quantity) * 100, 100)}%` }} />
+                  </div>
+                </div>
+                <span className="text-sm font-semibold text-teal-400 shrink-0 w-14 text-right">{fmtNum(item.quantity)}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      <Card className="p-6">
+        <SectionTitle sub="Recent stock movements">Movement History</SectionTitle>
+        <DataTable
+          headers={["Item", "Quantity", "Type", "User", "Date"]}
+          rows={history.slice(0, 15).map((m) => [
+            <span className="text-xs truncate">{m.item}</span>,
+            <span className={`font-semibold ${m.quantity > 0 ? "text-emerald-400" : m.type === "Adjustment" ? "text-amber-400" : "text-slate-500"}`}>{m.quantity > 0 ? "+" : ""}{m.quantity}</span>,
+            <Badge label={m.type} variant={m.type === "GRN" ? "success" : m.type === "SALE" ? "danger" : "warning"} />,
+            <span className="text-xs text-slate-400">{m.user}</span>,
+            fmtDate(m.createdAt),
+          ])}
+        />
+      </Card>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ADJUSTMENTS TAB
+// ══════════════════════════════════════════════════════════════════════════════
+function AdjustmentsTab({ api }) {
+  const [data, setData] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const [adj, byItem, byReason] = await Promise.all([
+        api.getStockAdjustments(), api.getStockAdjustmentsByItem(), api.getStockAdjustmentsReasons(),
+      ]);
+      setData({
+        adjustments: adj?.adjustments || [],
+        byItem: byItem?.byItem || [],
+        byReason: byReason?.byReason || [],
+      });
+      setLoading(false);
+    })();
+  }, [api]);
+
+  if (loading) return <Loader />;
+  const { adjustments, byItem, byReason } = data;
+
+  const totalAdj = adjustments.length;
+  const positiveAdj = adjustments.filter((a) => a.quantity > 0).length;
+  const negativeAdj = adjustments.filter((a) => a.quantity < 0).length;
+  const totalQuantity = adjustments.reduce((s, a) => s + a.quantity, 0);
+
+  return (
+    <div className="space-y-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard label="Total Adjustments" value={totalAdj} icon="⚙️" color="sky" />
+        <KpiCard label="Total Quantity" value={fmtNum(totalQuantity)} icon="📊" color={totalQuantity >= 0 ? "emerald" : "rose"} />
+        <KpiCard label="Increases" value={positiveAdj} icon="⬆️" color="emerald" />
+        <KpiCard label="Decreases" value={negativeAdj} icon="⬇️" color="rose" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="p-6">
+          <SectionTitle sub="Adjustment impact per item">By Item</SectionTitle>
           <DataTable
-            headers={["Supplier", "Amount", "Status", "Date"]}
-            rows={grn.slice(0, 8).map((g) => [
-              <span className="text-xs">{g.supplier}</span>,
-              fmt(g.total_amount),
-              <Badge label={g.status} variant={g.status === "Fully Received" ? "success" : g.status === "Cancelled" ? "danger" : "warning"} />,
-              fmtDate(g.grn_date),
+            headers={["Item", "Qty", "Adjustments"]}
+            rows={byItem.slice(0, 10).map((item) => [
+              <span className="text-xs truncate">{item.item}</span>,
+              <span className={`font-semibold ${item.quantity >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{item.quantity > 0 ? "+" : ""}{item.quantity}</span>,
+              <span className="text-slate-400">{item.adjustments}</span>,
             ])}
           />
         </Card>
+
+        <Card className="p-6">
+          <SectionTitle sub="Top adjustment reasons">By Reason</SectionTitle>
+          <div className="space-y-3 overflow-y-auto" style={{ maxHeight: 320 }}>
+            {byReason.slice(0, 8).map((r, i) => (
+              <div key={i} className="flex items-start gap-3 pb-2 border-b border-slate-700 last:border-0">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-slate-700 mb-1">{r.reason}</p>
+                  <p className="text-xs text-slate-500 truncate">{r.item_name}</p>
+                </div>
+                <span className={`text-sm font-semibold shrink-0 ${r.quantity > 0 ? "text-emerald-400" : "text-rose-400"}`}>{r.quantity > 0 ? "+" : ""}{r.quantity}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
       </div>
+
+      <Card className="p-6">
+        <SectionTitle sub="All stock adjustments">Full History</SectionTitle>
+        <DataTable
+          headers={["Item", "Qty", "Reason", "User", "Date"]}
+          rows={adjustments.slice(0, 20).map((a) => [
+            <span className="text-xs truncate">{a.item}</span>,
+            <span className={`font-semibold ${a.quantity > 0 ? "text-emerald-400" : "text-rose-400"}`}>{a.quantity > 0 ? "+" : ""}{a.quantity}</span>,
+            <span className="text-xs text-slate-500 truncate max-w-xs">{a.reason}</span>,
+            <span className="text-xs text-slate-500">{a.user}</span>,
+            "—",
+          ])}
+        />
+      </Card>
     </div>
   );
 }
@@ -591,34 +840,31 @@ function SuppliersTab({ api }) {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const top = await api.getTopSuppliers();
+      const [summary, top, perf] = await Promise.all([
+        api.getSupplierSummary(), api.getTopSuppliers(), Promise.resolve({ suppliers: [] }),
+      ]);
       const topSuppliers = Array.isArray(top?.topSuppliers) ? top.topSuppliers : [];
-      setData({ topSuppliers });
+      setData({ summary: summary?.summary || {}, topSuppliers });
       setLoading(false);
     })();
   }, [api]);
 
   if (loading) return <Loader />;
-  const { topSuppliers } = data;
+  const { summary, topSuppliers } = data;
   const supplierList = Array.isArray(topSuppliers) ? topSuppliers : [];
   const totalSpend = supplierList.reduce((s, sup) => s + (sup.total_amount ?? sup.totalAmount ?? 0), 0);
 
   const topBarData = supplierList.slice(0, 8).map((s) => ({
-    name: (s.supplier_name ?? s.name ?? "").split(" ")[0],
+    name: (s.supplier ?? s.supplier_name ?? s.name ?? "").split(" ")[0],
     amount: s.total_amount ?? s.totalAmount ?? 0,
-  }));
-
-  const perfData = supplierList.filter((s) => s.supplier_name).slice(0, 6).map((s) => ({
-    supplier_name: s.supplier_name ?? s.name ?? "",
-    order_count: s.order_count ?? 1,
   }));
 
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <KpiCard label="Total Suppliers" value={supplierList.length} icon="🏭" color="amber" />
+        <KpiCard label="Total Suppliers" value={summary.totalSuppliers ?? supplierList.length} icon="🏭" color="amber" />
+        <KpiCard label="Active" value={summary.byStatus?.Active ?? supplierList.length} icon="✅" color="emerald" />
         <KpiCard label="Total Spend" value={fmt(totalSpend)} icon="💸" color="sky" />
-        <KpiCard label="Top Supplier" value={(supplierList[0]?.supplier_name ?? supplierList[0]?.name ?? "—").split(" ")[0]} icon="🏆" color="emerald" sub={fmt(supplierList[0]?.total_amount ?? supplierList[0]?.totalAmount)} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -640,29 +886,13 @@ function SuppliersTab({ api }) {
           <DataTable
             headers={["Supplier", "Orders", "Spend"]}
             rows={supplierList.slice(0, 10).map((s) => [
-              <span className="text-xs">{s.supplier_name ?? s.name}</span>,
-              s.order_count ?? s.orderCount ?? "—",
+              <span className="text-xs">{s.supplier ?? s.supplier_name ?? s.name}</span>,
+              s.grn_count ?? s.order_count ?? "—",
               <span className="text-amber-400 font-semibold">{fmt(s.total_amount ?? s.totalAmount)}</span>,
             ])}
           />
         </Card>
       </div>
-
-      {perfData.length > 0 && (
-        <Card className="p-6">
-          <SectionTitle sub="Top suppliers by order count">Supplier Performance</SectionTitle>
-          <ResponsiveContainer width="100%" height={320}>
-            <RadarChart data={perfData} cx="50%" cy="50%" outerRadius="70%">
-              <PolarGrid stroke={C.slate700} />
-              <PolarAngleAxis dataKey="supplier_name" tick={{ fill: C.slate400, fontSize: 11 }} />
-              <PolarRadiusAxis tick={{ fill: C.slate600, fontSize: 9 }} />
-              <Radar name="Orders" dataKey="order_count" stroke={C.emerald} fill={C.emerald} fillOpacity={0.2} />
-              <Legend iconType="circle" iconSize={8} formatter={(v) => <span className="text-slate-300 text-xs">{v}</span>} />
-              <Tooltip />
-            </RadarChart>
-          </ResponsiveContainer>
-        </Card>
-      )}
     </div>
   );
 }
@@ -729,7 +959,7 @@ function ProfitTab({ api }) {
             <XAxis dataKey="date" tick={{ fill: C.slate400, fontSize: 11 }} tickLine={false} axisLine={false} />
             <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} tick={{ fill: C.slate400, fontSize: 11 }} tickLine={false} axisLine={false} />
             <Tooltip content={<TipTooltip />} />
-            <Legend iconType="circle" iconSize={8} formatter={(v) => <span className="text-slate-300 text-xs">{v}</span>} />
+            <Legend iconType="circle" iconSize={8} formatter={(v) => <span className="text-slate-500 text-xs">{v}</span>} />
             <Area type="monotone" dataKey="total_sales" name="Sales" stroke={C.emerald} strokeWidth={2} fill="url(#sG)" />
             <Area type="monotone" dataKey="total_purchases" name="Purchases" stroke={C.sky} strokeWidth={2} fill="url(#pG)" />
             <Area type="monotone" dataKey="profit" name="Net Profit" stroke={C.amber} strokeWidth={2} fill="url(#nG)" />
@@ -746,10 +976,10 @@ function ProfitTab({ api }) {
                 <span className="text-xs font-bold text-slate-500 w-5 text-right">{i + 1}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm text-slate-300 truncate">{item.item_name}</span>
-                    <span className="text-xs text-slate-400 ml-2 shrink-0">{fmtNum(item.quantity)} units</span>
+                    <span className="text-sm text-slate-700 truncate">{item.item_name}</span>
+                    <span className="text-xs text-slate-500 ml-2 shrink-0">{fmtNum(item.quantity)} units</span>
                   </div>
-                  <div className="bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                  <div className="bg-slate-200 rounded-full h-1.5 overflow-hidden">
                     <div
                       className={`h-full rounded-full ${item.profit >= 0 ? "bg-emerald-500" : "bg-rose-500"}`}
                       style={{ width: `${Math.min((Math.abs(item.profit) / (Math.abs(sortedByProfit[0]?.profit) || 1)) * 100, 100)}%` }}
@@ -792,6 +1022,8 @@ export function Reports() {
       case "sales": return <SalesTab api={api} />;
       case "inventory": return <InventoryTab api={api} />;
       case "purchases": return <PurchasesTab api={api} />;
+      case "stock-movement": return <StockMovementTab api={api} />;
+      case "adjustments": return <AdjustmentsTab api={api} />;
       case "suppliers": return <SuppliersTab api={api} />;
       case "profit": return <ProfitTab api={api} />;
       default: return null;
@@ -799,45 +1031,21 @@ export function Reports() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100" style={{ fontFamily: "'DM Sans', 'Inter', sans-serif" }}>
-      {/* Ambient blobs */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full blur-3xl" style={{ background: "rgba(16,185,129,0.05)" }} />
-        <div className="absolute top-1/2 right-0 w-80 h-80 rounded-full blur-3xl" style={{ background: "rgba(14,165,233,0.05)" }} />
-        <div className="absolute bottom-0" style={{ left: "33%", width: 288, height: 288, borderRadius: "50%", filter: "blur(64px)", background: "rgba(139,92,246,0.04)" }} />
-      </div>
-
+    <div className="min-h-screen bg-slate-50 text-slate-900" style={{ fontFamily: "'DM Sans', 'Inter', sans-serif" }}>
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8 flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg" style={{ background: "linear-gradient(135deg,#10b981,#14b8a6)" }}>
-                📊
-              </div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-100">Inventory Reports</h1>
-            </div>
-            <p className="text-sm text-slate-400">Real-time analytics &amp; business intelligence</p>
-          </div>
-          <div className="hidden sm:flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs text-slate-400">Live</span>
-          </div>
-        </div>
 
         {/* Tabs */}
         <div className="mb-8 overflow-x-auto pb-1">
-          <div className="flex gap-1 bg-slate-800 bg-opacity-40 border border-slate-700 border-opacity-40 rounded-2xl p-1 w-fit">
+          <div className="flex gap-1 bg-white border border-slate-200 rounded-2xl p-1 w-fit shadow-sm">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${
                   activeTab === tab.id
-                    ? "text-white shadow-lg"
-                    : "text-slate-400 hover:text-slate-200"
+                    ? "bg-primary text-white shadow"
+                    : "text-slate-600 hover:text-primary"
                 }`}
-                style={activeTab === tab.id ? { background: "linear-gradient(90deg,#10b981,#14b8a6)", boxShadow: "0 4px 20px rgba(16,185,129,0.25)" } : {}}
               >
                 <span>{tab.icon}</span>
                 <span>{tab.label}</span>
