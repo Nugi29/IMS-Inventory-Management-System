@@ -17,6 +17,7 @@ import { PoForm } from "./components/PoForm"
 import { GrnPage } from "./pages/GrnPage"
 import { SupplierForm } from "./components/SupplierForm"
 import { Dashboard } from "./pages/dashboard"
+import { UserProfile } from "./pages/UserProfile"
 
 
 const ProtectedRoute = () => {
@@ -38,7 +39,7 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<Home />}>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/profile" element={<HomeContent />} />
+            <Route path="/profile" element={<UserProfile />} />
             <Route path="/userform" element={<Userform />} />
             <Route path="/items" element={<ItemPage />} />
             <Route path="/itemform" element={<ItemForm />} />
