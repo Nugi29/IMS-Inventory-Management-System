@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -6,6 +6,10 @@ import {
   Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts";
 import { useReports } from "../services/useReports";
+import {
+  useOverviewData, useSalesData, useInventoryData, usePurchasesData,
+  useStockMovementData, useAdjustmentsData, useSuppliersData, useProfitData,
+} from "../hooks/useReportTab";
 import {
   OverviewPDF, SalesPDF, InventoryPDF, PurchasesPDF,
   StockMovementPDF, AdjustmentsPDF, SuppliersPDF, ProfitPDF,
@@ -173,21 +177,9 @@ const TABS = [
 // OVERVIEW TAB
 // ══════════════════════════════════════════════════════════════════════════════
 function OverviewTab({ api }) {
-  const [summary, setSummary] = useState(null);
-  const [dashboard, setDashboard] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const [s, d] = await Promise.all([api.getSummary(), api.getDashboard()]);
-      setSummary(s?.summary);
-      setDashboard(d?.dashboardData);
-      setLoading(false);
-    })();
-  }, [api]);
-
+  const { data, loading } = useOverviewData(api);
   if (loading) return <Loader />;
+  const { summary, dashboard } = data || {};
   if (!summary || !dashboard) return <p className="text-slate-400 text-center py-12">Could not load overview data.</p>;
 
   const { salesTrend = [], recentSales = [], lowStockItems = [], purchaseActivity = [], liveFeed = [] } = dashboard;
@@ -234,7 +226,7 @@ function OverviewTab({ api }) {
                   {f.movement_type === "SALE" ? "S" : "G"}
                 </span>
                 <div className="min-w-0">
-                  <p className="text-sm text-slate-200 font-medium truncate">{f.title}</p>
+                  <p className="text-sm text-slate-700 font-medium truncate">{f.title}</p>
                   <p className="text-xs text-slate-500">{f.description} · {f.actor} · {fmtDate(f.timestamp)}</p>
                 </div>
               </div>
@@ -297,30 +289,9 @@ function OverviewTab({ api }) {
 // SALES TAB
 // ══════════════════════════════════════════════════════════════════════════════
 function SalesTab({ api }) {
-  const [data, setData] = useState({});
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const [sales, daily, monthly, byItem, byCashier, topItems] = await Promise.all([
-        api.getSales(), api.getSalesDaily(), api.getSalesMonthly(), api.getSalesByItem(),
-        api.getSalesByCashier(), api.getTopSellingItems(),
-      ]);
-      setData({
-        sales: sales?.sales || [],
-        daily: daily?.daily || [],
-        monthly: monthly?.monthly || [],
-        byItem: byItem?.byItem || [],
-        byCashier: byCashier?.byCashier || [],
-        topItems: topItems?.topItems || [],
-      });
-      setLoading(false);
-    })();
-  }, [api]);
-
+  const { data, loading } = useSalesData(api);
   if (loading) return <Loader />;
-  const { sales, daily, monthly, byItem, byCashier, topItems } = data;
+  const { sales, daily, monthly, byItem, byCashier, topItems } = data || {};
 
   return (
     <div className="space-y-8">
@@ -401,29 +372,10 @@ function SalesTab({ api }) {
 // INVENTORY TAB
 // ══════════════════════════════════════════════════════════════════════════════
 function InventoryTab({ api }) {
-  const [data, setData] = useState({});
-  const [loading, setLoading] = useState(true);
+  const { data, loading } = useInventoryData(api);
   const [search, setSearch] = useState("");
-
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const [inv, invValue, low, oos] = await Promise.all([
-        api.getInventory(), api.getInventoryValue(), api.getLowStock(), api.getOutOfStock(),
-      ]);
-      setData({
-        inventory: inv?.inventory || [],
-        inventoryValue: invValue?.total_value || 0,
-        itemValues: invValue?.itemValues || [],
-        low: low?.lowStock || [],
-        oos: oos?.outOfStock || [],
-      });
-      setLoading(false);
-    })();
-  }, [api]);
-
   if (loading) return <Loader />;
-  const { inventory, inventoryValue, itemValues, low, oos } = data;
+  const { inventory, inventoryValue, itemValues, low, oos } = data || {};
 
   const filtered = inventory.filter((i) =>
     i.name.toLowerCase().includes(search.toLowerCase()) || i.code.toLowerCase().includes(search.toLowerCase())
@@ -532,33 +484,9 @@ function InventoryTab({ api }) {
 // PURCHASES TAB
 // ══════════════════════════════════════════════════════════════════════════════
 function PurchasesTab({ api }) {
-  const [data, setData] = useState({});
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const [grn, grnSupplier, daily, monthly, byStatus, po, poPending, poCompleted] = await Promise.all([
-        api.getGrnHistory(), api.getGrnBySupplier(), api.getGrnDaily(), api.getGrnMonthly(),
-        api.getPurchaseOrdersByStatus(), api.getPurchaseOrders(), api.getPurchaseOrdersPending(),
-        api.getPurchaseOrdersCompleted(),
-      ]);
-      setData({
-        grn: grn?.grnHistory || [],
-        grnSupplier: grnSupplier?.bySupplier || [],
-        daily: daily?.daily || [],
-        monthly: monthly?.monthly || [],
-        byStatus: byStatus?.byStatus || [],
-        po: po?.purchaseOrders || [],
-        poPending: poPending?.pending || [],
-        poCompleted: poCompleted?.completed || [],
-      });
-      setLoading(false);
-    })();
-  }, [api]);
-
+  const { data, loading } = usePurchasesData(api);
   if (loading) return <Loader />;
-  const { grn, grnSupplier, daily, monthly, byStatus, po, poPending, poCompleted } = data;
+  const { grn, grnSupplier, daily, monthly, byStatus, po, poPending, poCompleted } = data || {};
 
   const totalGrn = grn.reduce((s, g) => s + (g.total_amount || 0), 0);
   const fullyReceived = grn.filter((g) => g.status === "Fully Received").length;
@@ -661,28 +589,9 @@ function PurchasesTab({ api }) {
 // STOCK MOVEMENT TAB
 // ══════════════════════════════════════════════════════════════════════════════
 function StockMovementTab({ api }) {
-  const [data, setData] = useState({});
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const [history, byItem, byType, summary] = await Promise.all([
-        api.getStockMovementHistory(), api.getStockMovementByItem(), api.getStockMovementByType(),
-        api.getStockMovementSummary(),
-      ]);
-      setData({
-        history: history?.movements || [],
-        byItem: byItem?.byItem || [],
-        byType: byType?.byType || [],
-        summary: summary?.summary || {},
-      });
-      setLoading(false);
-    })();
-  }, [api]);
-
+  const { data, loading } = useStockMovementData(api);
   if (loading) return <Loader />;
-  const { history, byItem, byType, summary } = data;
+  const { history, byItem, byType, summary } = data || {};
 
   const grnTotal = byType.find((t) => t.type === "GRN")?.quantity || 0;
   const saleTotal = byType.find((t) => t.type === "SALE")?.quantity || 0;
@@ -754,26 +663,9 @@ function StockMovementTab({ api }) {
 // ADJUSTMENTS TAB
 // ══════════════════════════════════════════════════════════════════════════════
 function AdjustmentsTab({ api }) {
-  const [data, setData] = useState({});
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const [adj, byItem, byReason] = await Promise.all([
-        api.getStockAdjustments(), api.getStockAdjustmentsByItem(), api.getStockAdjustmentsReasons(),
-      ]);
-      setData({
-        adjustments: adj?.adjustments || [],
-        byItem: byItem?.byItem || [],
-        byReason: byReason?.byReason || [],
-      });
-      setLoading(false);
-    })();
-  }, [api]);
-
+  const { data, loading } = useAdjustmentsData(api);
   if (loading) return <Loader />;
-  const { adjustments, byItem, byReason } = data;
+  const { adjustments, byItem, byReason } = data || {};
 
   const totalAdj = adjustments.length;
   const positiveAdj = adjustments.filter((a) => a.quantity > 0).length;
@@ -839,23 +731,9 @@ function AdjustmentsTab({ api }) {
 // SUPPLIERS TAB
 // ══════════════════════════════════════════════════════════════════════════════
 function SuppliersTab({ api }) {
-  const [data, setData] = useState({});
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const [summary, top, perf] = await Promise.all([
-        api.getSupplierSummary(), api.getTopSuppliers(), Promise.resolve({ suppliers: [] }),
-      ]);
-      const topSuppliers = Array.isArray(top?.topSuppliers) ? top.topSuppliers : [];
-      setData({ summary: summary?.summary || {}, topSuppliers });
-      setLoading(false);
-    })();
-  }, [api]);
-
+  const { data, loading } = useSuppliersData(api);
   if (loading) return <Loader />;
-  const { summary, topSuppliers } = data;
+  const { summary, topSuppliers } = data || {};
   const supplierList = Array.isArray(topSuppliers) ? topSuppliers : [];
   const totalSpend = supplierList.reduce((s, sup) => s + (sup.total_amount ?? sup.totalAmount ?? 0), 0);
 
@@ -906,26 +784,9 @@ function SuppliersTab({ api }) {
 // PROFIT TAB
 // ══════════════════════════════════════════════════════════════════════════════
 function ProfitTab({ api }) {
-  const [data, setData] = useState({});
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const [total, byItem, byDate] = await Promise.all([
-        api.getProfitTotal(), api.getProfitByItem(), api.getProfitByDate(),
-      ]);
-      setData({
-        total: total?.total ?? total?.profit ?? 0,
-        byItem: byItem?.byItem || [],
-        byDate: byDate?.byDate || [],
-      });
-      setLoading(false);
-    })();
-  }, [api]);
-
+  const { data, loading } = useProfitData(api);
   if (loading) return <Loader />;
-  const { total, byItem, byDate } = data;
+  const { total, byItem, byDate } = data || {};
 
   const sortedByProfit = [...byItem].sort((a, b) => b.profit - a.profit);
   const bestItem = sortedByProfit[0];
