@@ -6,6 +6,11 @@ import {
   Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts";
 import { useReports } from "../services/useReports";
+import {
+  OverviewPDF, SalesPDF, InventoryPDF, PurchasesPDF,
+  StockMovementPDF, AdjustmentsPDF, SuppliersPDF, ProfitPDF,
+  downloadPDF,
+} from "../components/ReportPDFs";
 
 // ─── Palette ─────────────────────────────────────────────────────────────────
 const C = {
@@ -28,8 +33,8 @@ const fmt = (n) =>
   n >= 1_000_000
     ? `Rs. ${(n / 1_000_000).toFixed(2)}M`
     : n >= 1_000
-    ? `Rs. ${(n / 1_000).toFixed(1)}K`
-    : `Rs. ${n?.toLocaleString() ?? 0}`;
+      ? `Rs. ${(n / 1_000).toFixed(1)}K`
+      : `Rs. ${n?.toLocaleString() ?? 0}`;
 
 const fmtNum = (n) =>
   n >= 1_000_000 ? `${(n / 1_000_000).toFixed(2)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : String(n ?? 0);
@@ -1014,7 +1019,80 @@ function ProfitTab({ api }) {
 // ══════════════════════════════════════════════════════════════════════════════
 export function Reports() {
   const [activeTab, setActiveTab] = useState("overview");
+  const [exporting, setExporting] = useState(false);
   const api = useReports();
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      if (activeTab === "overview") {
+        const [s, d] = await Promise.all([api.getSummary(), api.getDashboard()]);
+        await downloadPDF(OverviewPDF, { summary: s?.summary, dashboard: d?.dashboardData }, "overview-report.pdf");
+      } else if (activeTab === "sales") {
+        const [sales, daily, monthly, byItem, byCashier, topItems] = await Promise.all([
+          api.getSales(), api.getSalesDaily(), api.getSalesMonthly(),
+          api.getSalesByItem(), api.getSalesByCashier(), api.getTopSellingItems(),
+        ]);
+        await downloadPDF(SalesPDF, { data: {
+          sales: sales?.sales || [], daily: daily?.daily || [], monthly: monthly?.monthly || [],
+          byItem: byItem?.byItem || [], byCashier: byCashier?.byCashier || [], topItems: topItems?.topItems || [],
+        }}, "sales-report.pdf");
+      } else if (activeTab === "inventory") {
+        const [inv, invValue, low, oos] = await Promise.all([
+          api.getInventory(), api.getInventoryValue(), api.getLowStock(), api.getOutOfStock(),
+        ]);
+        await downloadPDF(InventoryPDF, { data: {
+          inventory: inv?.inventory || [], inventoryValue: invValue?.total_value || 0,
+          itemValues: invValue?.itemValues || [], low: low?.lowStock || [], oos: oos?.outOfStock || [],
+        }}, "inventory-report.pdf");
+      } else if (activeTab === "purchases") {
+        const [grn, grnSupplier, daily, monthly, byStatus, po, poPending, poCompleted] = await Promise.all([
+          api.getGrnHistory(), api.getGrnBySupplier(), api.getGrnDaily(), api.getGrnMonthly(),
+          api.getPurchaseOrdersByStatus(), api.getPurchaseOrders(),
+          api.getPurchaseOrdersPending(), api.getPurchaseOrdersCompleted(),
+        ]);
+        await downloadPDF(PurchasesPDF, { data: {
+          grn: grn?.grnHistory || [], grnSupplier: grnSupplier?.bySupplier || [],
+          daily: daily?.daily || [], monthly: monthly?.monthly || [],
+          byStatus: byStatus?.byStatus || [], po: po?.purchaseOrders || [],
+          poPending: poPending?.pending || [], poCompleted: poCompleted?.completed || [],
+        }}, "purchases-report.pdf");
+      } else if (activeTab === "stock-movement") {
+        const [history, byItem, byType, summary] = await Promise.all([
+          api.getStockMovementHistory(), api.getStockMovementByItem(),
+          api.getStockMovementByType(), api.getStockMovementSummary(),
+        ]);
+        await downloadPDF(StockMovementPDF, { data: {
+          history: history?.movements || [], byItem: byItem?.byItem || [],
+          byType: byType?.byType || [], summary: summary?.summary || {},
+        }}, "stock-movement-report.pdf");
+      } else if (activeTab === "adjustments") {
+        const [adj, byItem, byReason] = await Promise.all([
+          api.getStockAdjustments(), api.getStockAdjustmentsByItem(), api.getStockAdjustmentsReasons(),
+        ]);
+        await downloadPDF(AdjustmentsPDF, { data: {
+          adjustments: adj?.adjustments || [], byItem: byItem?.byItem || [], byReason: byReason?.byReason || [],
+        }}, "adjustments-report.pdf");
+      } else if (activeTab === "suppliers") {
+        const [summary, top] = await Promise.all([api.getSupplierSummary(), api.getTopSuppliers()]);
+        await downloadPDF(SuppliersPDF, { data: {
+          summary: summary?.summary || {}, topSuppliers: top?.topSuppliers || [],
+        }}, "suppliers-report.pdf");
+      } else if (activeTab === "profit") {
+        const [total, byItem, byDate] = await Promise.all([
+          api.getProfitTotal(), api.getProfitByItem(), api.getProfitByDate(),
+        ]);
+        await downloadPDF(ProfitPDF, { data: {
+          total: total?.total ?? total?.profit ?? 0,
+          byItem: byItem?.byItem || [], byDate: byDate?.byDate || [],
+        }}, "profit-report.pdf");
+      }
+    } catch (e) {
+      console.error("PDF export failed:", e);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const renderTab = () => {
     switch (activeTab) {
@@ -1034,24 +1112,44 @@ export function Reports() {
     <div className="min-h-screen bg-slate-50 text-slate-900" style={{ fontFamily: "'DM Sans', 'Inter', sans-serif" }}>
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-        {/* Tabs */}
-        <div className="mb-8 overflow-x-auto pb-1">
-          <div className="flex gap-1 bg-white border border-slate-200 rounded-2xl p-1 w-fit shadow-sm">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? "bg-primary text-white shadow"
-                    : "text-slate-600 hover:text-primary"
-                }`}
-              >
-                <span>{tab.icon}</span>
-                <span>{tab.label}</span>
-              </button>
-            ))}
+        {/* Tabs + Export */}
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+          <div className="overflow-x-auto pb-1">
+            <div className="flex gap-1 bg-white border border-slate-200 rounded-2xl p-1 w-fit shadow-sm">
+              {TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${activeTab === tab.id
+                      ? "bg-primary text-white shadow"
+                      : "text-slate-600 hover:text-primary"
+                    }`}
+                >
+                  <span>{tab.icon}</span>
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-primary text-white shadow hover:opacity-90 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {exporting ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Generating PDF…
+              </>
+            ) : (
+              <>
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+                </svg>
+                Export PDF
+              </>
+            )}
+          </button>
         </div>
 
         {/* Error */}
