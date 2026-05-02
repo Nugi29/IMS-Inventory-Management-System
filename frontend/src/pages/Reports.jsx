@@ -167,7 +167,7 @@ const TABS = [
   { id: "sales", label: "Sales", icon: "💰" },
   { id: "inventory", label: "Inventory", icon: "📦" },
   { id: "purchases", label: "Purchases", icon: "🚚" },
-  { id: "stock-movement", label: "Stock Movement", icon: "🔄" },
+  { id: "stock-movement", label: "Stocks", icon: "🔄" },
   { id: "adjustments", label: "Adjustments", icon: "⚙️" },
   { id: "suppliers", label: "Suppliers", icon: "🏭" },
   { id: "profit", label: "Profit", icon: "📈" },
