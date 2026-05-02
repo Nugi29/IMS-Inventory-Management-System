@@ -1,144 +1,405 @@
-import { useCallback, useContext, useEffect, useState } from 'react'
+import { useCallback, useContext, useState } from 'react'
 import axios, { SESSION_EXPIRED_MESSAGE, isSessionExpiredError } from './httpClient'
 import { AppContext } from '../context/AppContext'
 
-const EMPTY_REPORTS = {
-  summary: {
-    totalSales: 0,
-    totalPurchases: 0,
-    totalProfit: 0,
-    lowStock: 0,
-    totalOrders: 0,
-    totalSuppliers: 0,
-    totalStockValue: 0,
-  },
-  salesTrend: [],
-  stockDistribution: [],
-  topItems: [],
-  recentSales: [],
-}
-
-const toNumber = (value) => {
-  if (value === undefined || value === null || value === '') return 0
-  if (typeof value === 'number') return Number.isFinite(value) ? value : 0
-  if (typeof value === 'string') {
-    const sanitized = value.replace(/[^0-9.-]+/g, '')
-    const parsed = Number(sanitized)
-    return Number.isFinite(parsed) ? parsed : 0
-  }
-
-  const parsed = Number(value)
-  return Number.isFinite(parsed) ? parsed : 0
-}
-
-const coalesce = (...values) => {
-  for (const value of values) {
-    const normalized = toNumber(value)
-    if (normalized !== 0 || value === 0) {
-      return normalized
-    }
-  }
-  return 0
-}
-
-const normalizeReportPayload = (payload) => {
-  const source = payload?.dashboardData || payload?.data || payload || {}
-  const summary = source?.summary || {}
-  const topItemsData = source?.topItems || source?.top_selling_items || source?.salesByItem || source?.topSellingItems || source?.topSellingCategory || []
-  const distributionData = source?.stockDistribution || source?.inventoryDistribution || source?.stock_distribution || source?.categorySales || []
-  const recentSalesData = source?.recentSales || source?.latestSales || source?.sales || source?.salesHistory || []
-  const trendData = source?.salesTrend || source?.dailySales || source?.salesByDate || []
-
-  return {
-    summary: {
-      totalSales: coalesce(summary?.total_sales, summary?.totalSales, source?.total_sales, source?.totalSales),
-      totalPurchases: coalesce(summary?.total_purchases, summary?.totalPurchases, source?.total_purchases, source?.totalPurchases),
-      totalProfit: coalesce(summary?.total_profit, summary?.totalProfit, source?.total_profit, source?.totalProfit),
-      lowStock: coalesce(summary?.low_stock, summary?.lowStock, source?.low_stock, source?.lowStock),
-      totalOrders: coalesce(summary?.total_orders, summary?.totalOrders, source?.total_orders, source?.totalOrders),
-      totalSuppliers: coalesce(summary?.total_suppliers, summary?.totalSuppliers, source?.total_suppliers, source?.totalSuppliers),
-      totalStockValue: coalesce(summary?.total_stock_value, summary?.totalStockValue, source?.total_stock_value, source?.totalStockValue),
-    },
-    salesTrend: Array.isArray(trendData)
-      ? trendData.map((item) => ({
-          label: item.label || item.date || item.day || item.month || item._id || item.name || '',
-          value: coalesce(item.value, item.amount, item.sales, item.total_sales, item.total),
-        }))
-      : [],
-    stockDistribution: Array.isArray(distributionData)
-      ? distributionData.map((item) => ({
-          name: item.name || item.label || item.type || 'Unknown',
-          value: coalesce(item.value, item.count, item.quantity, item.percentage),
-        }))
-      : [],
-    topItems: Array.isArray(topItemsData)
-      ? topItemsData.map((item, index) => ({
-          name: item.name || item.itemName || item.label || `Item ${index + 1}`,
-          units: coalesce(item.units, item.qty, item.quantity, item.count),
-          revenue: coalesce(item.revenue, item.total_amount, item.total, item.salesAmount, item.amount),
-        }))
-      : [],
-    recentSales: Array.isArray(recentSalesData)
-      ? recentSalesData.map((item, index) => ({
-          date: item.date || item.transaction_date || item.createdAt || item.created_at || '',
-          invoiceId: item.invoice_id || item.invoiceId || item.reference || `INV-${index + 1}`,
-          cashier: item.cashier || item.user || item.salesperson || 'Unknown',
-          totalAmount: coalesce(item.total_amount, item.amount, item.total, item.revenue),
-          status: item.status || item.state || 'Completed',
-        }))
-      : [],
-  }
-}
-
 export function useReports() {
-  const { backendUrl, token } = useContext(AppContext)
-  const [reports, setReports] = useState(EMPTY_REPORTS)
-  const [isLoadingReports, setIsLoadingReports] = useState(false)
+  const { backendUrl } = useContext(AppContext)
   const [error, setError] = useState(null)
 
-  const fetchUrl = backendUrl ? `${backendUrl.replace(/\/$/, '')}/api/reports/dashboard` : '/api/reports/dashboard'
+  const baseUrl = backendUrl ? `${backendUrl.replace(/\/$/, '')}/api/reports` : '/api/reports'
 
-  const loadReports = useCallback(async () => {
-    if (!token) {
-      setReports(EMPTY_REPORTS)
-      return { success: false, message: 'Unauthorized' }
+  const handleError = useCallback((err) => {
+    if (isSessionExpiredError(err)) {
+      setError(SESSION_EXPIRED_MESSAGE)
+      return SESSION_EXPIRED_MESSAGE
     }
+    const message = err?.response?.data?.message || err?.message || 'Failed to load report data'
+    setError(message)
+    return message
+  }, [])
 
-    setIsLoadingReports(true)
-    setError(null)
-
+  // ─── SUMMARY & DASHBOARD ─────────────────────────────────────────────────
+  const getSummary = useCallback(async () => {
     try {
-      const { data } = await axios.get(fetchUrl)
-      const normalized = normalizeReportPayload(data)
-      setReports(normalized)
-      return { success: true }
+      const { data } = await axios.get(`${baseUrl}/summary`)
+      return data
     } catch (err) {
-      if (isSessionExpiredError(err)) {
-        return { success: false, message: SESSION_EXPIRED_MESSAGE }
-      }
-
-      const message = err?.response?.data?.message || err?.message || 'Failed to load report data'
-      setError(message)
-      setReports(EMPTY_REPORTS)
-      return { success: false, message }
-    } finally {
-      setIsLoadingReports(false)
+      handleError(err)
+      return null
     }
-  }, [fetchUrl, token])
+  }, [baseUrl, handleError])
 
-  useEffect(() => {
-    if (!token) {
-      setReports(EMPTY_REPORTS)
-      return
+  const getDashboard = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/dashboard`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
     }
+  }, [baseUrl, handleError])
 
-    loadReports()
-  }, [loadReports, token])
+  // ─── SALES ENDPOINTS ─────────────────────────────────────────────────────
+  const getSales = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/sales`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  const getSalesDaily = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/sales/daily`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  const getSalesMonthly = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/sales/monthly`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  const getSalesByItem = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/sales/by-item`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  const getSalesByCashier = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/sales/by-cashier`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  const getTopSellingItems = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/sales/top-items`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  // ─── INVENTORY ENDPOINTS ─────────────────────────────────────────────────
+  const getInventory = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/inventory`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  const getInventoryValue = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/inventory/value`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  const getLowStock = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/inventory/low-stock`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  const getOutOfStock = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/inventory/out-of-stock`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  // ─── GRN (GOODS RECEIVED NOTE) ENDPOINTS ──────────────────────────────────
+  const getGrnHistory = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/grn`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  const getGrnBySupplier = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/grn/by-supplier`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  const getGrnDaily = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/grn/daily`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  const getGrnMonthly = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/grn/monthly`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  // ─── PURCHASE ORDER ENDPOINTS ────────────────────────────────────────────
+  const getPurchaseOrders = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/purchase-orders`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  const getPurchaseOrdersByStatus = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/purchase-orders/status`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  const getPurchaseOrdersPending = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/purchase-orders/pending`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  const getPurchaseOrdersCompleted = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/purchase-orders/completed`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  // ─── SUPPLIER ENDPOINTS ──────────────────────────────────────────────────
+  const getSupplierSummary = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/suppliers`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  const getTopSuppliers = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/suppliers/top`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  const getSupplierPerformance = useCallback(async (id) => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/suppliers/${id}`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  // ─── PROFIT ENDPOINTS ────────────────────────────────────────────────────
+  const getProfitTotal = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/profit`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  const getProfitByItem = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/profit/by-item`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  const getProfitByDate = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/profit/by-date`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  // ─── STOCK MOVEMENT ENDPOINTS ────────────────────────────────────────────
+  const getStockMovementHistory = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/stock-movement`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  const getStockMovementByItem = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/stock-movement/by-item`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  const getStockMovementByType = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/stock-movement/by-type`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  const getStockMovementSummary = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/stock-movement/summary`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  // ─── STOCK ADJUSTMENTS ENDPOINTS ─────────────────────────────────────────
+  const getStockAdjustments = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/stock-adjustments`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  const getStockAdjustmentsByItem = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/stock-adjustments/by-item`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
+
+  const getStockAdjustmentsReasons = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${baseUrl}/stock-adjustments/reasons`)
+      return data
+    } catch (err) {
+      handleError(err)
+      return null
+    }
+  }, [baseUrl, handleError])
 
   return {
-    reports,
-    isLoadingReports,
     error,
-    reloadReports: loadReports,
+    // Summary & Dashboard
+    getSummary,
+    getDashboard,
+    // Sales
+    getSales,
+    getSalesDaily,
+    getSalesMonthly,
+    getSalesByItem,
+    getSalesByCashier,
+    getTopSellingItems,
+    // Inventory
+    getInventory,
+    getInventoryValue,
+    getLowStock,
+    getOutOfStock,
+    // GRN
+    getGrnHistory,
+    getGrnBySupplier,
+    getGrnDaily,
+    getGrnMonthly,
+    // Purchase Orders
+    getPurchaseOrders,
+    getPurchaseOrdersByStatus,
+    getPurchaseOrdersPending,
+    getPurchaseOrdersCompleted,
+    // Stock Movement
+    getStockMovementHistory,
+    getStockMovementByItem,
+    getStockMovementByType,
+    getStockMovementSummary,
+    // Stock Adjustments
+    getStockAdjustments,
+    getStockAdjustmentsByItem,
+    getStockAdjustmentsReasons,
+    // Suppliers
+    getSupplierSummary,
+    getTopSuppliers,
+    getSupplierPerformance,
+    // Profit
+    getProfitTotal,
+    getProfitByItem,
+    getProfitByDate,
   }
 }
