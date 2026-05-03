@@ -20,6 +20,8 @@ import { Dashboard } from "./pages/dashboard"
 import { UserProfile } from "./pages/UserProfile"
 import { Reports } from "./pages/Reports"
 
+import { StockMovementPage } from "./pages/StockMovementPage"
+import { StockAdjustmentForm } from "./components/StockAdjustmentForm"
 
 const ProtectedRoute = () => {
   const { token } = useContext(AppContext)
@@ -51,7 +53,9 @@ function App() {
             <Route path="/grns" element={<GrnPage />} />
             <Route path="/grn" element={<HomeContent />} />
             <Route path="/sales" element={<HomeContent />} />
-            <Route path="/stock-movement" element={<HomeContent />} />
+            <Route path="/stock-movement" element={<StockMovementPage />} />
+            <Route path="/stock-adjustments" element={<StockMovementPage />} />
+            <Route path="/stock-adjustment-form" element={<StockAdjustmentForm />} />
             <Route path="/users" element={<UserPage />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/settings" element={<HomeContent />} />

@@ -42,6 +42,14 @@ const SideNavbar = () => {
             return true;
         }
 
+        // Keep Stock highlighted for related stock-management routes.
+        if (itemPath === "/stock-movement" && (
+            location.pathname.startsWith("/stock-adjustments")
+            || location.pathname.startsWith("/stock-adjustment-form")
+        )) {
+            return true;
+        }
+
         return location.pathname === itemPath || location.pathname.startsWith(`${itemPath}/`);
     };
 
