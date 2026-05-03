@@ -253,6 +253,8 @@ const getLiveFeedData = async () => {
 			amount,
 			actor: row.user?.name || 'System',
 			movement_type: row.movement_type?.name || 'Stock',
+			sale_id: row.sale_id,
+			grn_id: row.grn_id,
 			timestamp: row.createdAt,
 		};
 	});

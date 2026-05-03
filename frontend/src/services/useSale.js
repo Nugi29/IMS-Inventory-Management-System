@@ -151,9 +151,25 @@ export function useSale() {
     }
   }
 
+  const getSale = useCallback(
+    async (id) => {
+      if (!token) return { success: false, message: 'Unauthorized' }
+      try {
+        const { data } = await axios.get(endpoint(`/api/sales/${id}`), headers())
+        return data
+      } catch (error) {
+        return {
+          success: false,
+          message: error?.response?.data?.message || error?.message || 'Failed to load sale details',
+        }
+      }
+    },
+    [token, endpoint, headers],
+  )
+
   useEffect(() => {
     loadSales()
   }, [loadSales])
 
-  return { createSale, sales, isLoadingSales, reloadSales: loadSales }
+  return { createSale, getSale, sales, isLoadingSales, reloadSales: loadSales }
 }

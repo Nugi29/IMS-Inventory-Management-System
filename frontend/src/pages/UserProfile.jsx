@@ -1,11 +1,13 @@
 import { useContext, useEffect, useMemo, useState } from 'react'
 import { toast } from 'react-toastify'
+import { useNavigate } from 'react-router-dom'
 import { AppContext } from '../context/AppContext'
 import { useUserProfile } from '../services/useUserProfile'
 
 export const UserProfile = () => {
     const { userData, loadUserProfileData, logout } = useContext(AppContext)
     const { updateUserProfile } = useUserProfile()
+    const navigate = useNavigate()
     const [formData, setFormData] = useState({
         id: '',
         username: '',
@@ -156,7 +158,21 @@ export const UserProfile = () => {
 
     return (
         <main className=" bg-gradient-to-br from-slate-100 via-white to-blue-50 p-4 sm:p-6">
-            <section className="mx-auto w-full max-w-3xl rounded-3xl border border-slate-200 bg-white shadow-xl">
+            <section className="mx-auto w-full max-w-3xl rounded-3xl border border-slate-200 bg-white shadow-xl overflow-hidden">
+                <header className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
+                    <div>
+                        <h1 className="text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">
+                            User Profile
+                        </h1>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => navigate(-1)}
+                        className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                    >
+                        Cancel
+                    </button>
+                </header>
 
                 {/* FORM */}
                 <form className="space-y-6 px-6 py-6" onSubmit={handleSubmit}>
@@ -253,7 +269,7 @@ export const UserProfile = () => {
                     </div>
 
                     {/* ACTIONS */}
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-end border-t border-slate-100 pt-6">
                         <button
                             type="submit"
                             disabled={isSaving}

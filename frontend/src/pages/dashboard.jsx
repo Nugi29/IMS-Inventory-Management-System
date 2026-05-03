@@ -611,7 +611,7 @@ const TopSellingCategoriesCard = ({ items }) => (
   </section>
 )
 
-const LiveFeedCard = ({ entries = [], right }) => {
+const LiveFeedCard = ({ entries = [], right, onEntryClick }) => {
   const tones = {
     blue: 'bg-blue-600',
     red: 'bg-red-600',
@@ -637,16 +637,24 @@ const LiveFeedCard = ({ entries = [], right }) => {
       </div>
 
       <div className="relative space-y-3 before:absolute before:bottom-2 before:left-4 before:top-2 before:w-px before:bg-slate-200">
-        {safeEntries.map((entry, index) => (
-          <div
-            key={entry.id || `${entry.title}-${index}`}
-            className="relative flex gap-4 rounded-xl border border-slate-100 bg-slate-50/70 p-3 transition-colors hover:border-slate-200 hover:bg-white"
-          >
-            <div className={`z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white shadow-sm ${tones[entry.tone] || tones.slate}`}>
-              <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                {entry.icon}
-              </span>
-            </div>
+        {safeEntries.map((entry, index) => {
+          const isClickable = Boolean(entry.sale_id || entry.grn_id)
+          return (
+            <button
+              key={entry.id || `${entry.title}-${index}`}
+              type="button"
+              onClick={() => isClickable && onEntryClick?.(entry)}
+              className={`relative flex w-full gap-4 rounded-xl border p-3 text-left transition-all ${
+                isClickable
+                  ? 'border-slate-100 bg-slate-50/70 hover:border-blue-300 hover:bg-white hover:shadow-md'
+                  : 'border-slate-100 bg-slate-50/70 cursor-default'
+              }`}
+            >
+              <div className={`z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white shadow-sm ${tones[entry.tone] || tones.slate}`}>
+                <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                  {entry.icon}
+                </span>
+              </div>
             <div className="min-w-0 flex-1 space-y-2">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -683,8 +691,9 @@ const LiveFeedCard = ({ entries = [], right }) => {
                 </div>
               )}
             </div>
-          </div>
-        ))}
+            </button>
+          )
+        })}
         {!safeEntries.length && (
           <div className="relative rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 pl-12 text-xs text-slate-500">
             <span className="absolute left-4 top-4 text-slate-400">
@@ -903,6 +912,8 @@ const Dashboard = () => {
           description: entry?.description || entry?.details || entry?.message || '',
           icon: visual.icon,
           tone: visual.tone,
+          sale_id: entry?.sale_id,
+          grn_id: entry?.grn_id,
         }
       })
   }, [liveFeed])
@@ -1171,6 +1182,12 @@ const Dashboard = () => {
     })
   }
 
+  const handleLiveFeedClick = (entry) => {
+    if (entry.sale_id) {
+      navigate(`/invoice/${entry.sale_id}`)
+    }
+  }
+
   // Count visible KPI cards: Sales Pulse + Sales Flow both need sales (count as 2), plus inventory and grn
   const kpiCount = (permissions.sales ? 2 : 0) + (permissions.inventory ? 1 : 0) + (permissions.grn ? 1 : 0)
   const kpiGridStyle = { gridTemplateColumns: `repeat(${Math.max(1, kpiCount)}, minmax(0, 1fr))` }
@@ -1425,16 +1442,21 @@ const Dashboard = () => {
             >
               <div className="space-y-2">
                 {recentSales.map((sale, index) => (
-                  <div
+                  <button
                     key={sale?.id || index}
-                    className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5"
+                    type="button"
+                    onClick={() => navigate(`/invoice/${sale?.id}`)}
+                    className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-left transition-all hover:border-blue-300 hover:bg-blue-50/40"
                   >
                     <div>
                       <p className="text-sm font-semibold text-slate-800">{sale?.invoice_no || `INV-${sale?.id || index}`}</p>
                       <p className="text-xs text-slate-500">{relTime(sale?.sale_date)} • {sale?.payment_method || 'Sale'}</p>
                     </div>
-                    <p className="text-sm font-bold text-slate-900">{fmtMoney(sale?.total_amount)}</p>
-                  </div>
+                    <div className="flex items-center gap-3">
+                      <p className="text-sm font-bold text-slate-900">{fmtMoney(sale?.total_amount)}</p>
+                      <span className="material-symbols-outlined text-[18px] text-slate-400">chevron_right</span>
+                    </div>
+                  </button>
                 ))}
                 {!recentSales.length && <p className="py-4 text-center text-sm text-slate-500">No recent sales.</p>}
               </div>
@@ -1483,6 +1505,7 @@ const Dashboard = () => {
         <section className="mb-4 grid grid-cols-1 gap-4">
           <LiveFeedCard
             entries={liveFeedEntries}
+            onEntryClick={handleLiveFeedClick}
             right={permissions.sales && <span className="text-xs font-semibold text-slate-600">Total: {fmtMoney(recentSalesTotal)}</span>}
           />
         </section>
