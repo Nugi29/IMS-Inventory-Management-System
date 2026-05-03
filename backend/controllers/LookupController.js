@@ -40,8 +40,6 @@ const getAllUserStatuses = async (req, res) => {
 const getAllCategories = async (req, res) => {
     try {
         const categories = await category.findAll();
-        console.log(categories);
-
 
         const data = categories.map((item) => {
             return {

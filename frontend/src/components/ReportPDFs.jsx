@@ -6,12 +6,12 @@ import {
 // ─── Shared Styles ────────────────────────────────────────────────────────────
 const S = StyleSheet.create({
   page: { backgroundColor: "#ffffff", padding: 36, fontFamily: "Helvetica", fontSize: 9, color: "#1e293b" },
-  header: { marginBottom: 20, paddingBottom: 12, borderBottomWidth: 2, borderBottomColor: "#10b981", flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
+  header: { marginBottom: 20, paddingBottom: 12, borderBottomWidth: 2, borderBottomColor: "#2563eb", flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
   headerLeft: {},
   headerTitle: { fontSize: 22, fontFamily: "Helvetica-Bold", color: "#0f172a", marginBottom: 2 },
   headerSub: { fontSize: 9, color: "#64748b" },
   headerRight: { alignItems: "flex-end" },
-  headerBadge: { backgroundColor: "#10b981", color: "#fff", fontSize: 8, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, fontFamily: "Helvetica-Bold" },
+  headerBadge: { backgroundColor: "#2563eb", color: "#fff", fontSize: 8, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, fontFamily: "Helvetica-Bold" },
   headerDate: { fontSize: 8, color: "#94a3b8", marginTop: 4 },
 
   section: { marginBottom: 16 },
@@ -49,9 +49,10 @@ const S = StyleSheet.create({
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (n) => n >= 1_000_000 ? `Rs. ${(n / 1_000_000).toFixed(2)}M` : n >= 1_000 ? `Rs. ${(n / 1_000).toFixed(1)}K` : `Rs. ${Number(n ?? 0).toLocaleString()}`;
+const fmtCurrency = (n) => `Rs. ${Number(n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtNum = (n) => n >= 1_000_000 ? `${(n / 1_000_000).toFixed(2)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : String(n ?? 0);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
-const now = () => new Date().toLocaleDateString("en-US", { dateStyle: "long" });
+const now = () => new Date().toLocaleString("en-US", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true });
 
 // ─── Shared Components ────────────────────────────────────────────────────────
 const PDFHeader = ({ title, subtitle, badge }) => (
@@ -440,6 +441,71 @@ export function ProfitPDF({ data }) {
           rows={sortedByProfit.slice(0, 20).map(i => [i.item_name, fmt(i.revenue), fmt(i.estimated_cost), fmt(i.profit)])}
         />
         <PDFFooter title="Profit & Loss Report" />
+      </Page>
+    </Document>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 9. GRN DETAIL PDF
+// ══════════════════════════════════════════════════════════════════════════════
+export function GrnDetailPDF({ grn, items, totals, supplierName, poNumber, grnDate, grnStatus, userName, userRole }) {
+  return (
+    <Document>
+      <Page size="A4" style={S.page}>
+        <PDFHeader title={`GRN - ${grn?.id || "Draft"}`} subtitle={`Supplier: ${supplierName} | PO: ${poNumber}`} badge="GRN DETAIL" />
+        
+        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 20, backgroundColor: "#f8fafc", padding: 12, borderRadius: 6, borderWidth: 1, borderColor: "#e2e8f0" }}>
+          <View>
+            <Text style={{ fontSize: 8, color: "#64748b", fontFamily: "Helvetica-Bold", textTransform: "uppercase", marginBottom: 4 }}>Date Received</Text>
+            <Text style={{ fontSize: 10, color: "#0f172a", fontFamily: "Helvetica-Bold" }}>{fmtDate(grnDate)}</Text>
+          </View>
+          <View>
+            <Text style={{ fontSize: 8, color: "#64748b", fontFamily: "Helvetica-Bold", textTransform: "uppercase", marginBottom: 4 }}>Status</Text>
+            <Text style={{ fontSize: 10, color: "#0f172a", fontFamily: "Helvetica-Bold" }}>{grnStatus || "—"}</Text>
+          </View>
+          <View>
+            <Text style={{ fontSize: 8, color: "#64748b", fontFamily: "Helvetica-Bold", textTransform: "uppercase", marginBottom: 4 }}>Processed By</Text>
+            <Text style={{ fontSize: 10, color: "#0f172a", fontFamily: "Helvetica-Bold" }}>{userName || "System User"}</Text>
+          </View>
+        </View>
+
+        <KpiRow items={[
+          { label: "Total Qty", value: String(totals?.totalQty || 0), color: "sky" },
+          { label: "Received Qty", value: String(totals?.receivedQty || 0), color: "green" },
+          { label: "Balance Qty", value: String(totals?.balanceQty || 0), color: totals?.balanceQty > 0 ? "amber" : "green" },
+          { label: "Bal. Value", value: fmtCurrency(totals?.balanceValue || 0), color: totals?.balanceValue > 0 ? "amber" : "green" },
+        ]} />
+        
+        <PDFTable
+          title="Received Items"
+          sub="Items included in this Goods Received Note"
+          headers={["Item", "SKU", "Total", "Rcvd", "Bal", "Price", "Subtotal", "Bal. Val"]}
+          rows={items.map(item => [
+            item.name,
+            item.sku,
+            String(item.totalQty),
+            String(item.receivedQty),
+            String(item.balanceQty),
+            fmtCurrency(item.unitPrice),
+            fmtCurrency(item.subtotal),
+            fmtCurrency(item.balanceValue),
+          ])}
+        />
+        
+        <View style={{ marginTop: 5, borderBottomColor: "#e2e8f0", paddingTop: 10 }}>
+          <Text style={{ fontSize: 14, fontFamily: "Helvetica-Bold", color: "#334155", textAlign: "right" }}>
+            Grand Total : {fmtCurrency(totals?.grandTotal || 0)}
+          </Text>
+        </View>
+
+        <View style={{ marginTop: 30, alignItems: "center" }}>
+          <Text style={{ fontSize: 8, color: "#94a3b8", fontStyle: "italic" }}>
+            This is a computer-generated receipt and does not require a physical signature.
+          </Text>
+        </View>
+
+        <PDFFooter title="GRN Detail Report" />
       </Page>
     </Document>
   );

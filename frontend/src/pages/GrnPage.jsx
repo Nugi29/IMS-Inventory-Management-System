@@ -1,15 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, useContext } from 'react'
 import { useLocation } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { useLookup } from '../services/useLookup'
 import { usePo } from '../services/usePo'
 import { useGrn } from '../services/useGrn'
+import { downloadPDF, GrnDetailPDF } from '../components/ReportPDFs'
+import { AppContext } from '../context/AppContext'
 
 // â”€â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const ALL_SUPPLIERS = 'All Suppliers'
 const ALL_STATUS = 'All Statuses'
-const ITEMS_PER_PAGE = 5
+const ITEMS_PER_PAGE = 4
 const GRN_STATUS = {
   DRAFT: 1,
   PARTIALLY_RECEIVED: 2,
@@ -288,6 +290,7 @@ const normalizePoReceivingItem = (item, index) => {
 // â”€â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const GrnPage = () => {
+  const { userData } = useContext(AppContext)
   const location = useLocation()
   const sourcePo = location.state?.source === 'po' ? (location.state?.po ?? null) : null
 
@@ -607,7 +610,7 @@ export const GrnPage = () => {
 
       const relatedGrns = grns.filter(
         (grn) => String(getGrnPoId(grn) || '') === String(selectedPoId) &&
-                 String(getGrnId(grn)) !== String(selectedGrnId),
+                 Number(getGrnId(grn)) < Number(selectedGrnId),
       )
 
       if (!relatedGrns.length) {
@@ -852,6 +855,90 @@ export const GrnPage = () => {
     setCurrentPage(1)
   }
 
+  const exportCsv = () => {
+    if (!filteredGrns.length) {
+      toast.error('No GRN data to export.')
+      return
+    }
+
+    const rows = filteredGrns.map((grn) => ({
+      grn_no: getGrnNumber(grn),
+      po_no: getGrnPoNumber(grn),
+      date: formatDateLabel(getGrnDate(grn)),
+      supplier: getGrnSupplierName(grn),
+      status: getGrnStatus(grn, statusLabelById),
+      total_amount: Number(grn?.total_amount || 0).toFixed(2),
+    }))
+
+    const headers = Object.keys(rows[0])
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) =>
+        headers.map((key) => `"${String(row[key] ?? '').replaceAll('"', '""')}"`).join(',')
+      ),
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `grns-${Date.now()}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
+  const handlePrintGrnDetail = async () => {
+    if (!selectedGrnId || !selectedGrn) {
+      toast.error('Please select a GRN to print.');
+      return;
+    }
+    
+    try {
+      const items = grnItems.map(item => {
+        const totalQty    = getItemCanonicalTotalQty(item)
+        const receivedQty = getItemReceivedQty(item)
+        const cumulativeBalanceQty = getItemCumulativeBalanceQty(item, relatedGrnsCumulativeReceivedByItem)
+        const unitPrice   = getItemUnitPrice(item)
+        const subtotal    = receivedQty * unitPrice
+        const balanceValue = cumulativeBalanceQty * unitPrice
+
+        return {
+          name: item?.item?.item_name || item?.item?.name || item?.item_name || item?.description || `Item #${item?.item_id || '-'}`,
+          sku: item?.item?.sku || item?.item?.code || item?.sku || item?.code || '-',
+          totalQty,
+          receivedQty,
+          balanceQty: cumulativeBalanceQty,
+          unitPrice,
+          subtotal,
+          balanceValue
+        }
+      });
+      
+      const supplierName = getGrnSupplierName(selectedGrn);
+      const poNumber = getGrnPoNumber(selectedGrn);
+      const grnDate = getGrnDate(selectedGrn);
+      const grnStatus = getGrnStatus(selectedGrn, statusLabelById);
+      const userName = userData?.name || userData?.first_name || userData?.email || 'Unknown User';
+      const userRole = userData?.role?.name || 'Staff';
+
+      await downloadPDF(GrnDetailPDF, { 
+        grn: selectedGrn, 
+        items, 
+        totals: grnTotals, 
+        supplierName, 
+        poNumber,
+        grnDate,
+        grnStatus,
+        userName,
+        userRole
+      }, `GRN_${getGrnNumber(selectedGrn)}.pdf`);
+    } catch (error) {
+      toast.error('Failed to generate PDF: ' + error.message);
+    }
+  }
+
   const confirmButtonLabel = isCreatingFromPo
     ? 'Creating...'
     : receivingMetrics.isPartial
@@ -1067,19 +1154,15 @@ export const GrnPage = () => {
           </div>
         </section>
 
-        {/* RIGHT â€” GRN Registry + GRN Items Detail */}
+        {/* RIGHT  GRN Registry + GRN Items Detail */}
         <section className="w-full space-y-5">
 
           {/* GRN Registry card */}
-          <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 p-2 shadow-sm backdrop-blur-sm">
-            <div className="px-3 sm:px-4 py-3 border-b border-slate-100 space-y-4">
+          <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-sm">
+            <div className="px-5 py-5 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">GRN Registry</p>
-                <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 w-fit">
-                  {isLoadingGrns || isRefreshingByFilter
-                    ? 'Loading...'
-                    : `${filteredGrns.length} Records`}
-                </span>
+
               </div>
 
               <div className="grid grid-cols-1 gap-3 xl:grid-cols-12 xl:items-center">
@@ -1157,140 +1240,179 @@ export const GrnPage = () => {
               </div>
             </div>
 
-            <div className="overflow-x-auto p-3">
-              <table className="w-full text-left border-separate border-spacing-y-1">
-                <thead className="sticky top-0 z-10">
-                  <tr className="text-on-surface-variant">
-                    <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider">GRN No.</th>
-                    <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider">PO</th>
-                    <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider">Date</th>
-                    <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider">Supplier</th>
-                    <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-center">Status</th>
-                    <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="text-sm">
-                  {(isLoadingGrns || isRefreshingByFilter) && (
-                    <tr>
-                      <td colSpan={8} className="px-6 py-10 text-center text-slate-400">Loading GRNs...</td>
-                    </tr>
-                  )}
-
-                  {!isLoadingGrns && !isRefreshingByFilter && paginatedGrns.map((grn) => {
-                    const id       = String(getGrnId(grn))
-                    const selected = id === String(selectedGrnId)
-                    const status   = getGrnStatus(grn, statusLabelById)
-
-                    return (
-                      <tr
-                        key={id}
-                        className={`transition-colors cursor-pointer ${
-                          selected
-                            ? 'bg-primary/8 ring-1 ring-primary/25'
-                            : 'bg-slate-50/50 hover:bg-slate-100/60'
-                        }`}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => setSelectedGrnId(id)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault()
-                            setSelectedGrnId(id)
-                          }
-                        }}
-                      >
-                        <td className="px-4 py-3.5 rounded-l-xl font-bold text-on-surface text-sm">{getGrnNumber(grn)}</td>
-                        <td className="px-4 py-3.5 text-slate-500 text-sm">{getGrnPoNumber(grn)}</td>
-                        <td className="px-4 py-3.5 text-slate-500 text-sm">{formatDateLabel(getGrnDate(grn))}</td>
-                        <td className="px-4 py-3.5 text-slate-600 font-medium text-sm">{getGrnSupplierName(grn)}</td>
-                        <td className="px-4 py-3.5 text-center">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-tight ${getStatusChipClass(status)}`}>
-                            {status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3.5 text-right font-bold text-on-surface rounded-r-xl text-sm">
-                          {formatCurrency(grn?.total_amount || 0)}
-                        </td>
-                      </tr>
-                    )
-                  })}
-
-                  {!isLoadingGrns && !isRefreshingByFilter && !filteredGrns.length && (
-                    <tr>
-                      <td colSpan={8} className="px-6 py-14 text-center">
-                        <span className="material-symbols-outlined text-slate-300 text-[40px] block mb-2" data-icon="inventory_2">inventory_2</span>
-                        <p className="text-sm font-semibold text-on-surface">No GRNs found</p>
-                        <p className="text-xs text-slate-400 mt-1">Try changing filters or create a new GRN from a purchase order.</p>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+            {/* Table Header Info Bar */}
+            <div className="flex items-center justify-between px-6 py-4 border-t border-b border-slate-100 bg-slate-50/60 mt-2">
+                <p className="text-xs font-semibold text-slate-500 tracking-wide uppercase">
+                    {filteredGrns.length} GRN{filteredGrns.length !== 1 ? 's' : ''} found
+                </p>
+                <p className="text-xs text-slate-400">
+                    Page <span className="font-bold text-slate-600">{safeCurrentPage}</span> of <span className="font-bold text-slate-600">{totalPages}</span>
+                </p>
             </div>
 
-            {/* Pagination */}
-            <div className="flex flex-col sm:flex-row items-center justify-between px-5 py-4 gap-3 border-t border-slate-100">
-              <p className="text-xs text-slate-400 font-medium">
-                Showing{' '}
-                <span className="font-bold text-on-surface">
-                  {filteredGrns.length
-                    ? `${startIndex + 1}-${Math.min(startIndex + ITEMS_PER_PAGE, filteredGrns.length)}`
-                    : 0}
-                </span>{' '}
-                of{' '}
-                <span className="font-bold text-on-surface">{filteredGrns.length}</span>
-              </p>
-              <div className="flex items-center gap-1.5">
-                <button
-                  className={`p-2 rounded-lg border border-slate-200 transition-all ${
-                    safeCurrentPage === 1
-                      ? 'bg-slate-50 text-slate-300 cursor-not-allowed opacity-50'
-                      : 'bg-slate-50 text-slate-600 hover:bg-primary hover:text-white hover:border-primary'
-                  }`}
-                  type="button"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={safeCurrentPage === 1}
-                  aria-label="Previous page"
-                >
-                  <span className="material-symbols-outlined text-[20px]" data-icon="chevron_left">chevron_left</span>
-                </button>
+            <table className="w-full text-left">
+                <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200">
+                        <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">GRN No.</th>
+                        <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">PO</th>
+                        <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Date</th>
+                        <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Supplier</th>
+                        <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center">Status</th>
+                        <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 text-right">Total</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                    {(isLoadingGrns || isRefreshingByFilter) && (
+                        <tr>
+                            <td colSpan={6} className="px-6 py-16 text-center">
+                                <span className="material-symbols-outlined animate-spin text-primary text-2xl block mx-auto mb-2">sync</span>
+                                <p className="text-sm text-slate-500 font-medium">Loading GRNs...</p>
+                            </td>
+                        </tr>
+                    )}
 
+                    {!isLoadingGrns && !isRefreshingByFilter && paginatedGrns.map((grn) => {
+                        const id       = String(getGrnId(grn))
+                        const selected = id === String(selectedGrnId)
+                        const status   = getGrnStatus(grn, statusLabelById)
+
+                        return (
+                            <tr
+                                key={id}
+                                className={`transition-colors cursor-pointer group ${
+                                    selected
+                                        ? 'bg-primary/5'
+                                        : 'hover:bg-slate-50/80'
+                                }`}
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => setSelectedGrnId(id)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault()
+                                        setSelectedGrnId(id)
+                                    }
+                                }}
+                            >
+                                <td className="px-6 py-4">
+                                    <p className="font-semibold text-sm text-slate-800 leading-snug">{getGrnNumber(grn)}</p>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <p className="text-sm text-slate-600">{getGrnPoNumber(grn)}</p>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <p className="text-sm text-slate-600">{formatDateLabel(getGrnDate(grn))}</p>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <p className="text-sm font-semibold text-slate-800">{getGrnSupplierName(grn)}</p>
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-tight ${getStatusChipClass(status)}`}>
+                                        {status}
+                                    </span>
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                    <span className="font-bold text-slate-800 text-sm">{formatCurrency(grn?.total_amount || 0)}</span>
+                                </td>
+                            </tr>
+                        )
+                    })}
+
+                    {!isLoadingGrns && !isRefreshingByFilter && !filteredGrns.length && (
+                        <tr>
+                            <td colSpan={6} className="px-6 py-20 text-center">
+                                <span className="material-symbols-outlined text-4xl text-slate-300 block mb-3">inventory_2</span>
+                                <p className="text-sm font-semibold text-slate-600">No GRNs found</p>
+                                <p className="text-xs text-slate-400 mt-1">Try changing your filters or create a new GRN.</p>
+                            </td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
+
+            {/* Pagination Footer */}
+            <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 bg-slate-50/60 border-t border-slate-100 gap-4">
+                {/* Count */}
+                <p className="text-xs text-slate-500 font-medium shrink-0">
+                    Showing{' '}
+                    <span className="font-bold text-slate-700">
+                        {filteredGrns.length ? `${startIndex + 1}–${Math.min(startIndex + ITEMS_PER_PAGE, filteredGrns.length)}` : 0}
+                    </span>
+                    {' '}of{' '}
+                    <span className="font-bold text-slate-700">{filteredGrns.length}</span>
+                    {' '}GRNs
+                </p>
+
+                {/* Page Numbers */}
                 <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => {
-                    const page     = i + 1
-                    const isActive = page === safeCurrentPage
-                    return (
-                      <button
-                        key={page}
-                        className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
-                          isActive
-                            ? 'bg-primary text-white'
-                            : 'bg-slate-50 text-slate-600 hover:bg-primary hover:text-white border border-slate-200'
-                        }`}
+                    {/* Prev */}
+                    <button
+                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                        disabled={safeCurrentPage === 1}
                         type="button"
-                        onClick={() => setCurrentPage(page)}
-                        aria-label={`Page ${page}`}
-                      >
-                        {page}
-                      </button>
-                    )
-                  })}
+                        className={`p-1.5 rounded-lg border transition-all ${safeCurrentPage === 1 ? 'border-slate-200 bg-white text-slate-300 cursor-not-allowed' : 'border-slate-200 bg-white text-slate-600 hover:bg-primary hover:text-white hover:border-primary'}`}
+                        aria-label="Previous page"
+                    >
+                        <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+                    </button>
+
+                    {/* Windowed page numbers */}
+                    {(() => {
+                        const maxVisible = 7
+                        let pages = []
+                        if (totalPages <= maxVisible) {
+                            pages = Array.from({ length: totalPages }, (_, i) => i + 1)
+                        } else {
+                            const half = Math.floor(maxVisible / 2)
+                            let start = Math.max(2, safeCurrentPage - half)
+                            let end = Math.min(totalPages - 1, start + maxVisible - 3)
+                            if (end === totalPages - 1) start = Math.max(2, end - (maxVisible - 3))
+
+                            pages = [1]
+                            if (start > 2) pages.push('...')
+                            for (let p = start; p <= end; p++) pages.push(p)
+                            if (end < totalPages - 1) pages.push('...')
+                            pages.push(totalPages)
+                        }
+
+                        return pages.map((page, idx) =>
+                            page === '...'
+                                ? <span key={`ellipsis-${idx}`} className="px-1 text-slate-400 text-xs select-none">···</span>
+                                : (
+                                    <button
+                                        key={page}
+                                        onClick={() => setCurrentPage(page)}
+                                        type="button"
+                                        className={`min-w-[32px] h-8 px-2 rounded-lg text-xs font-bold transition-all border ${page === safeCurrentPage ? 'bg-primary text-white border-primary shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-primary hover:text-white hover:border-primary'}`}
+                                    >
+                                        {page}
+                                    </button>
+                                )
+                        )
+                    })()}
+
+                    {/* Next */}
+                    <button
+                        onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                        disabled={safeCurrentPage === totalPages}
+                        type="button"
+                        className={`p-1.5 rounded-lg border transition-all ${safeCurrentPage === totalPages ? 'border-slate-200 bg-white text-slate-300 cursor-not-allowed' : 'border-slate-200 bg-white text-slate-600 hover:bg-primary hover:text-white hover:border-primary'}`}
+                        aria-label="Next page"
+                    >
+                        <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+                    </button>
                 </div>
 
+                {/* Export */}
                 <button
-                  className={`p-2 rounded-lg border border-slate-200 transition-all ${
-                    safeCurrentPage === totalPages
-                      ? 'bg-slate-50 text-slate-300 cursor-not-allowed opacity-50'
-                      : 'bg-slate-50 text-slate-600 hover:bg-primary hover:text-white hover:border-primary'
-                  }`}
-                  type="button"
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={safeCurrentPage === totalPages}
-                  aria-label="Next page"
+                    type="button"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors shrink-0"
+                    onClick={exportCsv}
+                    aria-label="Export GRNs to CSV"
                 >
-                  <span className="material-symbols-outlined text-[20px]" data-icon="chevron_right">chevron_right</span>
+                    <span className="material-symbols-outlined text-[16px]">download</span>
+                    Export CSV
                 </button>
-              </div>
             </div>
           </div>
 
@@ -1305,9 +1427,21 @@ export const GrnPage = () => {
                   </p>
                 )}
               </div>
-              <span className={`px-3 py-1 rounded-full text-[11px] font-bold ${selectedGrnId ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
-                {selectedGrnId ? `${grnItems.length} Items` : 'No GRN Selected'}
-              </span>
+              <div className="flex items-center gap-2">
+                {selectedGrn && (
+                  <button
+                    onClick={handlePrintGrnDetail}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider border border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-white transition-colors"
+                    aria-label="Print GRN details"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">print</span>
+                    Print
+                  </button>
+                )}
+                <span className={`px-3 py-1.5 rounded-full text-[11px] font-bold ${selectedGrnId ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
+                  {selectedGrnId ? `${grnItems.length} Items` : 'No GRN Selected'}
+                </span>
+              </div>
             </div>
 
             <div className="overflow-x-auto p-3">
