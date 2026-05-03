@@ -14,9 +14,22 @@ const normalizeCategory = (item) =>
 
 const toCurrency = (value) => `Rs ${Number(value || 0).toFixed(2)}`
 
+const ITEM_STATUS_ID = { ACTIVE: 1, INACTIVE: 2, DISCONTINUED: 3 }
+
 const getItemStock = (item) => Number(item?.current_stock ?? item?.quantity ?? 0)
 
-const getItemStockStatus = (item) => {
+// Returns false if the item is Inactive or Discontinued (admin-controlled status)
+const isItemSellable = (item) => {
+  const statusId = Number(item?.item_status_id ?? 1)
+  return statusId === ITEM_STATUS_ID.ACTIVE
+}
+
+// Returns a display label that respects admin-set status first, then stock level
+const getItemDisplayStatus = (item) => {
+  const statusId = Number(item?.item_status_id ?? 1)
+  if (statusId === ITEM_STATUS_ID.INACTIVE) return 'Inactive'
+  if (statusId === ITEM_STATUS_ID.DISCONTINUED) return 'Discontinued'
+
   const stock = getItemStock(item)
   if (stock === 0) return 'Out of Stock'
 
@@ -27,6 +40,8 @@ const getItemStockStatus = (item) => {
 const getStockBadgeColor = (status) => {
   if (status === 'Out of Stock') return 'bg-red-50 text-red-600'
   if (status === 'Low Stock') return 'bg-yellow-50 text-yellow-600'
+  if (status === 'Inactive') return 'bg-slate-100 text-slate-500'
+  if (status === 'Discontinued') return 'bg-orange-50 text-orange-600'
   return 'bg-emerald-50 text-emerald-600'
 }
 
@@ -125,8 +140,16 @@ export const SalesPage = () => {
   }, [customers, customerPhoneSearch])
 
   const addToCart = (product) => {
+    // Block Inactive and Discontinued items — they must never be sold
+    if (!isItemSellable(product)) {
+      const statusId = Number(product?.item_status_id ?? 1)
+      const label = statusId === ITEM_STATUS_ID.DISCONTINUED ? 'discontinued' : 'inactive'
+      toast.error(`Cannot sell this item — it is marked as ${label}.`)
+      return
+    }
+
     const stockAvailable = getItemStock(product)
-    
+
     setCart((prevCart) => {
       const existingItem = prevCart.find((entry) => Number(entry.id) === Number(product.id))
 
@@ -135,7 +158,7 @@ export const SalesPage = () => {
           toast.error(`Cannot add more than available stock (${stockAvailable}).`)
           return prevCart
         }
-        
+
         return prevCart.map((entry) =>
           Number(entry.id) === Number(product.id)
             ? { ...entry, quantity: entry.quantity + 1 }
@@ -454,45 +477,56 @@ export const SalesPage = () => {
             ) : (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
-                  {paginatedProducts.map((product) => (
-                    <article
-                      key={product.id}
-                      className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 flex flex-col gap-3 hover:border-primary/30 hover:bg-white transition-colors"
-                    >
-                      <div className="min-h-13">
-                        <h3 className="text-lg font-bold text-on-surface leading-tight wrap-break-word">{product.item_name}</h3>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="inline-flex text-[11px] uppercase tracking-tight font-bold px-2.5 py-1 rounded-full bg-slate-200 text-slate-600">
-                          {normalizeCategory(product)}
-                        </span>
-                        <span className="text-sm font-semibold text-slate-700">{getItemStock(product)} units</span>
-                      </div>
-                      <div>
-                        {(() => {
-                          const statusText = getItemStockStatus(product)
-                          return (
-                            <span
-                              className={`inline-flex text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tracking-tight ${getStockBadgeColor(statusText)}`}
-                            >
-                              {statusText}
-                            </span>
-                          )
-                        })()}
-                      </div>
-                      <div className="mt-auto flex items-center justify-between gap-3">
-                        <p className="text-xl font-extrabold text-primary">{toCurrency(product.selling_price)}</p>
-                        <button
-                          type="button"
-                          className="flex items-center justify-center h-10 w-10 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition shadow-sm"
-                          onClick={() => addToCart(product)}
-                          aria-label={`Add ${product.item_name} to cart`}
-                        >
-                          <span className="material-symbols-outlined text-[24px]">add</span>
-                        </button>
-                      </div>
-                    </article>
-                  ))}
+                  {paginatedProducts.map((product) => {
+                    const sellable = isItemSellable(product)
+                    const displayStatus = getItemDisplayStatus(product)
+                    const canAddToCart = sellable && getItemStock(product) > 0
+
+                    return (
+                      <article
+                        key={product.id}
+                        className={`rounded-2xl border p-4 flex flex-col gap-3 transition-colors ${
+                          sellable
+                            ? 'border-slate-200 bg-slate-50/60 hover:border-primary/30 hover:bg-white'
+                            : 'border-slate-200 bg-slate-50/30 opacity-70'
+                        }`}
+                      >
+                        <div className="min-h-13">
+                          <h3 className="text-lg font-bold text-on-surface leading-tight wrap-break-word">{product.item_name}</h3>
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="inline-flex text-[11px] uppercase tracking-tight font-bold px-2.5 py-1 rounded-full bg-slate-200 text-slate-600">
+                            {normalizeCategory(product)}
+                          </span>
+                          <span className="text-sm font-semibold text-slate-700">{getItemStock(product)} units</span>
+                        </div>
+                        <div>
+                          <span
+                            className={`inline-flex text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tracking-tight ${getStockBadgeColor(displayStatus)}`}
+                          >
+                            {displayStatus}
+                          </span>
+                        </div>
+                        <div className="mt-auto flex items-center justify-between gap-3">
+                          <p className="text-xl font-extrabold text-primary">{toCurrency(product.selling_price)}</p>
+                          <button
+                            type="button"
+                            className={`flex items-center justify-center h-10 w-10 rounded-full transition shadow-sm ${
+                              canAddToCart
+                                ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
+                                : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                            }`}
+                            onClick={() => addToCart(product)}
+                            disabled={!canAddToCart}
+                            aria-label={`Add ${product.item_name} to cart`}
+                            title={!sellable ? `Item is ${displayStatus.toLowerCase()} and cannot be sold` : !canAddToCart ? 'Out of stock' : ''}
+                          >
+                            <span className="material-symbols-outlined text-[24px]">add</span>
+                          </button>
+                        </div>
+                      </article>
+                    )
+                  })}
                 </div>
 
                 {!filteredProducts.length && (

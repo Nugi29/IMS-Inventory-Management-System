@@ -1,4 +1,5 @@
 const { models } = require('../config/db');
+const { syncItemStatusByQuantity } = require('../utils/itemStatusSync');
 
 const { item: Item, category: Category, supplier: Supplier, item_status: ItemStatus } = models;
 
@@ -163,7 +164,13 @@ const applyItemUpdates = async (itemData, fields) => {
         itemData.item_status_id = Number(item_status_id);
     }
 
-    await itemData.save();
+    // Auto-sync item status only when quantity was explicitly updated
+    // (skip if item_status_id was also explicitly set by the admin — they took manual control)
+    if (quantity !== undefined && item_status_id === undefined) {
+        await syncItemStatusByQuantity(itemData);
+    } else {
+        await itemData.save();
+    }
     return { success: true };
 };
 

@@ -1,5 +1,6 @@
 const { Op } = require('sequelize');
 const { sequelize, models } = require('../config/db');
+const { syncItemStatusByQuantity } = require('../utils/itemStatusSync');
 
 const {
     stock_adjustment: StockAdjustment,
@@ -84,6 +85,9 @@ const createStockAdjustment = async (req, res) => {
 
         itemData.quantity = nextQty;
         await itemData.save({ transaction });
+
+        // Auto-sync item status based on new quantity
+        await syncItemStatusByQuantity(itemData, { transaction });
 
         const adjustmentMovementTypeId = await getOrCreateAdjustmentMovementTypeId(transaction);
         await StockMovement.create({

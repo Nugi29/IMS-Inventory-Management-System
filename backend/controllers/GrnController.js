@@ -1,4 +1,5 @@
 const { sequelize, models } = require('../config/db');
+const { syncItemStatusByQuantity } = require('../utils/itemStatusSync');
 
 const {
     grn: Grn,
@@ -318,6 +319,9 @@ const applyItemStockChange = async (itemId, quantityDelta, transaction) => {
 
     itemData.quantity = nextQuantity;
     await itemData.save({ transaction });
+
+    // Auto-sync item status (Active <-> Out of Stock) based on new quantity
+    await syncItemStatusByQuantity(itemData, { transaction });
 
     return { success: true };
 };

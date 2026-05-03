@@ -1,6 +1,7 @@
 const { models, sequelize } = require('../config/db');
 const { Op } = require('sequelize');
 const { sale: Sale, sale_item: SaleItem, item: Item, customer: Customer, user: User, stock_movement: StockMovement } = models;
+const { syncItemStatusByQuantity } = require('../utils/itemStatusSync');
 
 const createSale = async (req, res) => {
     try {
@@ -31,13 +32,34 @@ const createSale = async (req, res) => {
                 return res.status(400).json({ success: false, message: 'One or more items not found' });
             }
 
-            // Check stock availability
+            // Check item status and stock availability
+            // item_status_id: 1 = Active, 2 = Inactive, 3 = Discontinued
+            const ITEM_STATUS = { ACTIVE: 1, INACTIVE: 2, DISCONTINUED: 3 };
+
             for (const item of items) {
                 const dbItem = dbItems.find(i => i.id === Number(item.item_id));
                 if (!dbItem) {
                     await transaction.rollback();
                     return res.status(400).json({ success: false, message: `Item ${item.item_id} not found` });
                 }
+
+                // Block selling Inactive or Discontinued items
+                const statusId = Number(dbItem.item_status_id);
+                if (statusId === ITEM_STATUS.INACTIVE) {
+                    await transaction.rollback();
+                    return res.status(400).json({
+                        success: false,
+                        message: `Cannot sell item "${dbItem.name}" — it is marked as Inactive.`
+                    });
+                }
+                if (statusId === ITEM_STATUS.DISCONTINUED) {
+                    await transaction.rollback();
+                    return res.status(400).json({
+                        success: false,
+                        message: `Cannot sell item "${dbItem.name}" — it is Discontinued.`
+                    });
+                }
+
                 if (Number(dbItem.quantity) < Number(item.quantity)) {
                     await transaction.rollback();
                     return res.status(400).json({
@@ -76,9 +98,12 @@ const createSale = async (req, res) => {
                 }, { transaction });
 
                 // Update item stock
-                await dbItem.update({
-                    quantity: Number(dbItem.quantity) - Number(item.quantity)
-                }, { transaction });
+                const newQuantity = Number(dbItem.quantity) - Number(item.quantity);
+                dbItem.quantity = newQuantity;
+                await dbItem.save({ transaction });
+
+                // Auto-sync item status based on new quantity
+                await syncItemStatusByQuantity(dbItem, { transaction });
 
                 // movement_type_id = 2 => sale (stock out), same as removed DB trigger logic
                 await StockMovement.create({
