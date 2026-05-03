@@ -23,9 +23,6 @@ const getAllUserRoles = async (req, res) => {
 const getAllUserStatuses = async (req, res) => {
     try {
         const items = await user_status.findAll();
-        console.log(items);
-
-
         const data = items.map((item) => {
             return {
                 "id": item.id,
@@ -44,8 +41,6 @@ const getAllUserStatuses = async (req, res) => {
 const getAllCategories = async (req, res) => {
     try {
         const categories = await category.findAll();
-        console.log(categories);
-
 
         const data = categories.map((item) => {
             return {
@@ -141,6 +136,7 @@ const getAllSuppliers = async (req, res) => {
             return {
                 "id": item.id,
                 "name": item.name,
+                "supplier_status_id": item.supplier_status_id,
             };
         });
 

@@ -1,4 +1,5 @@
 const { sequelize, models } = require('../config/db');
+const { syncItemStatusByQuantity } = require('../utils/itemStatusSync');
 
 const {
     grn: Grn,
@@ -319,6 +320,9 @@ const applyItemStockChange = async (itemId, quantityDelta, transaction) => {
     itemData.quantity = nextQuantity;
     await itemData.save({ transaction });
 
+    // Auto-sync item status (Active <-> Out of Stock) based on new quantity
+    await syncItemStatusByQuantity(itemData, { transaction });
+
     return { success: true };
 };
 
@@ -330,6 +334,7 @@ const createGrnStockMovement = async ({ itemId, grnId, userId, quantity, transac
         sale_id: null,
         user_id: userId || null,
         movement_type_id: 1,
+        createdAt: new Date(),
     }, { transaction });
 };
 
@@ -339,6 +344,19 @@ const buildGrnHeader = async (body, fallbackUserId) => {
 
     if (!supplierId) {
         return { success: false, status: 400, message: 'Valid supplier_id is required' };
+    }
+
+    const supplierRecord = await Supplier.findByPk(supplierId);
+    if (!supplierRecord) {
+        return { success: false, status: 404, message: 'Supplier not found' };
+    }
+
+    if (Number(supplierRecord.supplier_status_id) !== 1) {
+        return {
+            success: false,
+            status: 400,
+            message: `Cannot process GRN — Supplier "${supplierRecord.name}" is inactive.`,
+        };
     }
 
     if (!userId) {
@@ -591,10 +609,18 @@ const updateGrn = async (req, res) => {
                 return res.status(400).json({ success: false, message: 'supplier_id must be a positive integer' });
             }
 
-            const supplierExists = await Supplier.findByPk(parsedSupplierId, { transaction });
-            if (!supplierExists) {
+            const supplierRecord = await Supplier.findByPk(parsedSupplierId, { transaction });
+            if (!supplierRecord) {
                 await transaction.rollback();
                 return res.status(404).json({ success: false, message: `Supplier not found: ${parsedSupplierId}` });
+            }
+
+            if (Number(supplierRecord.supplier_status_id) !== 1) {
+                await transaction.rollback();
+                return res.status(400).json({
+                    success: false,
+                    message: `Cannot update GRN — Supplier "${supplierRecord.name}" is inactive.`,
+                });
             }
 
             grnRecord.supplier_id = parsedSupplierId;

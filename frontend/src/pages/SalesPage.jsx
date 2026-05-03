@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useContext } from 'react'
 import { toast } from 'react-toastify'
+import { AppContext } from '../context/AppContext'
 import { useItem } from '../services/useItem'
 import { useLookup } from '../services/useLookup'
 import { useCustomer } from '../services/useCustomer'
 import { useSale } from '../services/useSale'
+import { InvoicePDF, downloadPDF } from '../components/ReportPDFs'
 
 const normalizeCategory = (item) =>
   item?.category?.name ||
@@ -14,9 +16,22 @@ const normalizeCategory = (item) =>
 
 const toCurrency = (value) => `Rs ${Number(value || 0).toFixed(2)}`
 
+const ITEM_STATUS_ID = { ACTIVE: 1, INACTIVE: 2, DISCONTINUED: 3 }
+
 const getItemStock = (item) => Number(item?.current_stock ?? item?.quantity ?? 0)
 
-const getItemStockStatus = (item) => {
+// Returns false if the item is Inactive or Discontinued (admin-controlled status)
+const isItemSellable = (item) => {
+  const statusId = Number(item?.item_status_id ?? 1)
+  return statusId === ITEM_STATUS_ID.ACTIVE
+}
+
+// Returns a display label that respects admin-set status first, then stock level
+const getItemDisplayStatus = (item) => {
+  const statusId = Number(item?.item_status_id ?? 1)
+  if (statusId === ITEM_STATUS_ID.INACTIVE) return 'Inactive'
+  if (statusId === ITEM_STATUS_ID.DISCONTINUED) return 'Discontinued'
+
   const stock = getItemStock(item)
   if (stock === 0) return 'Out of Stock'
 
@@ -27,15 +42,18 @@ const getItemStockStatus = (item) => {
 const getStockBadgeColor = (status) => {
   if (status === 'Out of Stock') return 'bg-red-50 text-red-600'
   if (status === 'Low Stock') return 'bg-yellow-50 text-yellow-600'
+  if (status === 'Inactive') return 'bg-slate-100 text-slate-500'
+  if (status === 'Discontinued') return 'bg-orange-50 text-orange-600'
   return 'bg-emerald-50 text-emerald-600'
 }
 
 export const SalesPage = () => {
+  const { userData } = useContext(AppContext)
   const { items, isLoadingItems, reloadItems } = useItem()
   const { categories: lookupCategories } = useLookup()
   const { customers, isLoadingCustomers, addCustomer, updateCustomer, deleteCustomer } = useCustomer()
   const { createSale } = useSale()
-  const PRODUCTS_PER_PAGE = 12
+  const PRODUCTS_PER_PAGE = 8
 
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All Products')
@@ -125,8 +143,16 @@ export const SalesPage = () => {
   }, [customers, customerPhoneSearch])
 
   const addToCart = (product) => {
+    // Block Inactive and Discontinued items — they must never be sold
+    if (!isItemSellable(product)) {
+      const statusId = Number(product?.item_status_id ?? 1)
+      const label = statusId === ITEM_STATUS_ID.DISCONTINUED ? 'discontinued' : 'inactive'
+      toast.error(`Cannot sell this item — it is marked as ${label}.`)
+      return
+    }
+
     const stockAvailable = getItemStock(product)
-    
+
     setCart((prevCart) => {
       const existingItem = prevCart.find((entry) => Number(entry.id) === Number(product.id))
 
@@ -135,7 +161,7 @@ export const SalesPage = () => {
           toast.error(`Cannot add more than available stock (${stockAvailable}).`)
           return prevCart
         }
-        
+
         return prevCart.map((entry) =>
           Number(entry.id) === Number(product.id)
             ? { ...entry, quantity: entry.quantity + 1 }
@@ -363,6 +389,23 @@ export const SalesPage = () => {
       if (response.success) {
         toast.success(response.message || 'Sale recorded successfully')
         
+        const invoiceNumber = `INV-${response.saleData?.sale_id || Date.now().toString().slice(-4)}`
+        const receiptData = {
+          invoiceNumber,
+          cashierName: userData?.name || ' ',
+          paymentMethod: 'Cash',
+          items: cart,
+          subtotal,
+          tax: 0,
+          discount: 0,
+          grandTotal,
+          paid,
+          changeDue,
+          customer: selectedCustomer || { name: 'Walk-in Customer' },
+          date: new Date().toLocaleString()
+        }
+        await downloadPDF(InvoicePDF, receiptData, `Invoice-${invoiceNumber}.pdf`)
+
         // Reload items data to update the product cards with new stock levels
         if (reloadItems) {
             await reloadItems()
@@ -399,7 +442,7 @@ export const SalesPage = () => {
   const changeDue = paid > grandTotal ? paid - grandTotal : 0
 
   return (
-    <main className="ml-0 mt-0 p-4 sm:p-6 lg:p-8 min-h-screen">
+    <main className="p-4 sm:p-6 lg:p-8">
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         <section className="xl:col-span-8 space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
@@ -432,7 +475,7 @@ export const SalesPage = () => {
               <button
                 type="button"
                 onClick={clearFilters}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+                className="px-4 py-3 rounded-xl font-semibold text-sm border border-slate-200 bg-white text-slate-600 hover:text-primary hover:border-primary/40 transition-colors"
               >
                 Reset Filters
               </button>
@@ -454,45 +497,56 @@ export const SalesPage = () => {
             ) : (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
-                  {paginatedProducts.map((product) => (
-                    <article
-                      key={product.id}
-                      className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 flex flex-col gap-3 hover:border-primary/30 hover:bg-white transition-colors"
-                    >
-                      <div className="min-h-13">
-                        <h3 className="text-lg font-bold text-on-surface leading-tight wrap-break-word">{product.item_name}</h3>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="inline-flex text-[11px] uppercase tracking-tight font-bold px-2.5 py-1 rounded-full bg-slate-200 text-slate-600">
-                          {normalizeCategory(product)}
-                        </span>
-                        <span className="text-sm font-semibold text-slate-700">{getItemStock(product)} units</span>
-                      </div>
-                      <div>
-                        {(() => {
-                          const statusText = getItemStockStatus(product)
-                          return (
-                            <span
-                              className={`inline-flex text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tracking-tight ${getStockBadgeColor(statusText)}`}
-                            >
-                              {statusText}
-                            </span>
-                          )
-                        })()}
-                      </div>
-                      <div className="mt-auto flex items-center justify-between gap-3">
-                        <p className="text-xl font-extrabold text-primary">{toCurrency(product.selling_price)}</p>
-                        <button
-                          type="button"
-                          className="flex items-center justify-center h-10 w-10 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition shadow-sm"
-                          onClick={() => addToCart(product)}
-                          aria-label={`Add ${product.item_name} to cart`}
-                        >
-                          <span className="material-symbols-outlined text-[24px]">add</span>
-                        </button>
-                      </div>
-                    </article>
-                  ))}
+                  {paginatedProducts.map((product) => {
+                    const sellable = isItemSellable(product)
+                    const displayStatus = getItemDisplayStatus(product)
+                    const canAddToCart = sellable && getItemStock(product) > 0
+
+                    return (
+                      <article
+                        key={product.id}
+                        className={`rounded-2xl border p-4 flex flex-col gap-3 transition-colors ${
+                          sellable
+                            ? 'border-slate-200 bg-slate-50/60 hover:border-primary/30 hover:bg-white'
+                            : 'border-slate-200 bg-slate-50/30 opacity-70'
+                        }`}
+                      >
+                        <div className="min-h-13">
+                          <h3 className="text-lg font-bold text-on-surface leading-tight wrap-break-word">{product.item_name}</h3>
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="inline-flex text-[11px] uppercase tracking-tight font-bold px-2.5 py-1 rounded-full bg-slate-200 text-slate-600">
+                            {normalizeCategory(product)}
+                          </span>
+                          <span className="text-sm font-semibold text-slate-700">{getItemStock(product)} units</span>
+                        </div>
+                        <div>
+                          <span
+                            className={`inline-flex text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tracking-tight ${getStockBadgeColor(displayStatus)}`}
+                          >
+                            {displayStatus}
+                          </span>
+                        </div>
+                        <div className="mt-auto flex items-center justify-between gap-3">
+                          <p className="text-xl font-extrabold text-primary">{toCurrency(product.selling_price)}</p>
+                          <button
+                            type="button"
+                            className={`flex items-center justify-center h-10 w-10 rounded-full transition shadow-sm ${
+                              canAddToCart
+                                ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
+                                : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                            }`}
+                            onClick={() => addToCart(product)}
+                            disabled={!canAddToCart}
+                            aria-label={`Add ${product.item_name} to cart`}
+                            title={!sellable ? `Item is ${displayStatus.toLowerCase()} and cannot be sold` : !canAddToCart ? 'Out of stock' : ''}
+                          >
+                            <span className="material-symbols-outlined text-[24px]">add</span>
+                          </button>
+                        </div>
+                      </article>
+                    )
+                  })}
                 </div>
 
                 {!filteredProducts.length && (
@@ -504,36 +558,66 @@ export const SalesPage = () => {
 
                 {filteredProducts.length > 0 && (
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-5 px-1">
-                    <p className="text-xs text-slate-500 font-medium">
-                      Showing {filteredProducts.length ? `${(currentPage - 1) * PRODUCTS_PER_PAGE + 1} - ${Math.min(currentPage * PRODUCTS_PER_PAGE, filteredProducts.length)}` : 0} of {filteredProducts.length} products
+                    <p className="text-xs text-slate-500 font-medium shrink-0">
+                      Showing{' '}
+                      <span className="font-bold text-slate-700">
+                        {filteredProducts.length ? `${(currentPage - 1) * PRODUCTS_PER_PAGE + 1}–${Math.min(currentPage * PRODUCTS_PER_PAGE, filteredProducts.length)}` : 0}
+                      </span>
+                      {' '}of{' '}
+                      <span className="font-bold text-slate-700">{filteredProducts.length}</span>
+                      {' '}products
                     </p>
-                    <div className="flex items-center gap-2">
+
+                    <div className="flex items-center gap-1">
                       <button
-                        type="button"
                         onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                         disabled={currentPage === 1}
-                        className={`p-2 rounded-lg border border-slate-200 transition-all ${currentPage === 1 ? 'bg-slate-50 text-slate-400 cursor-not-allowed opacity-50' : 'bg-slate-50 text-slate-600 hover:bg-primary hover:text-white'}`}
+                        type="button"
+                        className={`p-1.5 rounded-lg border transition-all ${currentPage === 1 ? 'border-slate-200 bg-white text-slate-300 cursor-not-allowed' : 'border-slate-200 bg-white text-slate-600 hover:bg-primary hover:text-white hover:border-primary'}`}
                         aria-label="Previous page"
                       >
                         <span className="material-symbols-outlined text-[18px]" data-icon="chevron_left">chevron_left</span>
                       </button>
-                      <div className="flex items-center gap-1">
-                        {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
-                          <button
-                            key={page}
-                            type="button"
-                            onClick={() => setCurrentPage(page)}
-                            className={`w-8 h-8 rounded-lg text-xs font-bold ${page === currentPage ? 'bg-primary text-white' : 'bg-slate-50 text-slate-600 hover:bg-primary hover:text-white border border-slate-200'}`}
-                          >
-                            {page}
-                          </button>
-                        ))}
-                      </div>
+
+                      {(() => {
+                        const maxVisible = 7
+                        let pages = []
+                        if (totalPages <= maxVisible) {
+                          pages = Array.from({ length: totalPages }, (_, i) => i + 1)
+                        } else {
+                          const half = Math.floor(maxVisible / 2)
+                          let start = Math.max(2, currentPage - half)
+                          let end = Math.min(totalPages - 1, start + maxVisible - 3)
+                          if (end === totalPages - 1) start = Math.max(2, end - (maxVisible - 3))
+
+                          pages = [1]
+                          if (start > 2) pages.push('...')
+                          for (let p = start; p <= end; p++) pages.push(p)
+                          if (end < totalPages - 1) pages.push('...')
+                          pages.push(totalPages)
+                        }
+
+                        return pages.map((page, idx) =>
+                          page === '...'
+                            ? <span key={`ellipsis-${idx}`} className="px-1 text-slate-400 text-xs select-none">···</span>
+                            : (
+                              <button
+                                key={page}
+                                onClick={() => setCurrentPage(page)}
+                                type="button"
+                                className={`min-w-[32px] h-8 px-2 rounded-lg text-xs font-bold transition-all border ${page === currentPage ? 'bg-primary text-white border-primary shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-primary hover:text-white hover:border-primary'}`}
+                              >
+                                {page}
+                              </button>
+                            )
+                        )
+                      })()}
+
                       <button
-                        type="button"
                         onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                         disabled={currentPage === totalPages}
-                        className={`p-2 rounded-lg border border-slate-200 transition-all ${currentPage === totalPages ? 'bg-slate-50 text-slate-400 cursor-not-allowed opacity-50' : 'bg-slate-50 text-slate-600 hover:bg-primary hover:text-white'}`}
+                        type="button"
+                        className={`p-1.5 rounded-lg border transition-all ${currentPage === totalPages ? 'border-slate-200 bg-white text-slate-300 cursor-not-allowed' : 'border-slate-200 bg-white text-slate-600 hover:bg-primary hover:text-white hover:border-primary'}`}
                         aria-label="Next page"
                       >
                         <span className="material-symbols-outlined text-[18px]" data-icon="chevron_right">chevron_right</span>
@@ -578,7 +662,7 @@ export const SalesPage = () => {
                   setCustomerNameInput('')
                 }}
               >
-                {showCustomerPanel ? 'Close' : '+ Add New'}
+                {showCustomerPanel ? 'Close' : '+ Add'}
               </button>
             </div>
 
@@ -591,6 +675,15 @@ export const SalesPage = () => {
                   placeholder="Type phone number"
                   value={customerPhoneSearch}
                   onChange={handlePhoneSearchChange}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      if (searchedCustomer) {
+                        setActiveCustomerAction('select')
+                        selectCustomer(searchedCustomer)
+                      }
+                    }
+                  }}
                 />
 
                 {isLoadingCustomers ? (
@@ -705,39 +798,44 @@ export const SalesPage = () => {
             <div className="mt-4 max-h-[42vh] overflow-auto pr-1 no-scrollbar">
               {cart.length === 0 && <p className="text-sm text-slate-500">No items selected yet.</p>}
 
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 {cart.map((entry) => (
-                  <div key={entry.id} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-                    <div className="flex items-center gap-2.5">
+                  <div key={entry.id} className="group rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md">
+                    <div className="flex items-start justify-between gap-3 mb-3">
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm text-on-surface truncate">{entry.name}</p>
+                        <p className="font-bold text-sm text-on-surface truncate">{entry.name}</p>
                         <p className="text-xs text-slate-500 mt-0.5">{toCurrency(entry.price)} / unit</p>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="text-right">
+                        <p className="font-extrabold text-sm text-primary">{toCurrency(entry.price * entry.quantity)}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1 bg-slate-50 rounded-lg p-1 border border-slate-200">
                         <button
                           type="button"
-                          className="w-7 h-7 rounded-md border border-slate-300 text-slate-600 hover:bg-white"
+                          className="w-8 h-8 rounded-md flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm hover:text-rose-600 transition-all"
                           onClick={() => updateQuantity(entry.id, -1)}
                         >
-                          -
+                          <span className="material-symbols-outlined text-[18px]">remove</span>
                         </button>
-                        <span className="w-6 text-center text-sm font-bold text-on-surface">{entry.quantity}</span>
+                        <span className="w-8 text-center text-sm font-bold text-on-surface">{entry.quantity}</span>
                         <button
                           type="button"
-                          className="w-7 h-7 rounded-md border border-slate-300 text-slate-600 hover:bg-white"
+                          className="w-8 h-8 rounded-md flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm hover:text-emerald-600 transition-all"
                           onClick={() => updateQuantity(entry.id, 1)}
                         >
-                          +
-                        </button>
-                        <button
-                          type="button"
-                          className="w-7 h-7 rounded-md border border-rose-200 text-rose-600 hover:bg-rose-50 flex items-center justify-center"
-                          onClick={() => removeCartItem(entry.id)}
-                          aria-label={`Delete ${entry.name} from cart`}
-                        >
-                          <span className="material-symbols-outlined text-[16px]" data-icon="delete">delete</span>
+                          <span className="material-symbols-outlined text-[18px]">add</span>
                         </button>
                       </div>
+                      <button
+                        type="button"
+                        className="w-8 h-8 rounded-lg border border-rose-100 bg-rose-50/50 flex items-center justify-center text-rose-500 hover:bg-rose-100 hover:text-rose-600 transition-colors"
+                        onClick={() => removeCartItem(entry.id)}
+                        aria-label={`Delete ${entry.name} from cart`}
+                      >
+                        <span className="material-symbols-outlined text-[18px]" data-icon="delete">delete</span>
+                      </button>
                     </div>
                   </div>
                 ))}

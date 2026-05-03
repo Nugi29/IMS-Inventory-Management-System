@@ -9,7 +9,6 @@ import { AppContext } from "./context/AppContext"
 import { UserPage } from "./pages/UserPage"
 import { ItemPage } from "./pages/ItemPage"
 import { SalesPage } from "./pages/SalesPage"
-import HomeContent from "./components/HomeContent"
 import { Userform } from "./components/Userform"
 import { ItemForm } from "./components/ItemForm"
 import { PoPage } from "./pages/PoPage"
@@ -18,6 +17,10 @@ import { GrnPage } from "./pages/GrnPage"
 import { SupplierForm } from "./components/SupplierForm"
 import { Dashboard } from "./pages/dashboard"
 import { UserProfile } from "./pages/UserProfile"
+import { Reports } from "./pages/Reports"
+import { StockMovementPage } from "./pages/StockMovementPage"
+import { StockAdjustmentForm } from "./components/StockAdjustmentForm"
+import { InvoiceDetail } from "./components/InvoiceDetail"
 
 
 const ProtectedRoute = () => {
@@ -43,17 +46,16 @@ function App() {
             <Route path="/userform" element={<Userform />} />
             <Route path="/items" element={<ItemPage />} />
             <Route path="/itemform" element={<ItemForm />} />
-            <Route path="/categories" element={<HomeContent />} />
             <Route path="/po" element={<PoPage />} />
             <Route path="/poform" element={<PoForm />} />
             <Route path="/sales" element={<SalesPage />} />
+            <Route path="/invoice/:id" element={<InvoiceDetail />} />
             <Route path="/grns" element={<GrnPage />} />
-            <Route path="/grn" element={<HomeContent />} />
-            <Route path="/sales" element={<HomeContent />} />
-            <Route path="/stock-movement" element={<HomeContent />} />
+            <Route path="/stock-movement" element={<StockMovementPage />} />
+            <Route path="/stock-adjustments" element={<StockMovementPage />} />
+            <Route path="/stock-adjustment-form" element={<StockAdjustmentForm />} />
             <Route path="/users" element={<UserPage />} />
-            <Route path="/reports" element={<HomeContent />} />
-            <Route path="/settings" element={<HomeContent />} />
+            <Route path="/reports" element={<Reports />} />
             <Route path="/suppliers" element={<SupplierPage />} />
             <Route path="/supplierform" element={<SupplierForm />} />
           </Route>

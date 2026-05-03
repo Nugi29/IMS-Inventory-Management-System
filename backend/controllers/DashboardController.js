@@ -233,7 +233,7 @@ const getPurchaseActivityData = async () => {
 const getLiveFeedData = async () => {
 	const rows = await StockMovement.findAll({
 		include: [
-			{ model: Item, as: 'item', attributes: ['id', 'name'] },
+			{ model: Item, as: 'item', attributes: ['id', 'name', 'selling_price'] },
 			{ model: User, as: 'user', attributes: ['id', 'name'] },
 			{ model: MovementType, as: 'movement_type', attributes: ['id', 'name'] },
 		],
@@ -241,15 +241,23 @@ const getLiveFeedData = async () => {
 		limit: 6,
 	});
 
+	return rows.map((row) => {
+		const qty = toNumber(row.quantity);
+		const unitPrice = toNumber(row.item?.selling_price);
+		const amount = Number((qty * unitPrice).toFixed(2));
 
-	return rows.map((row) => ({
-		id: row.id,
-		title: `${row.movement_type?.name || 'Stock Movement'}: ${row.item?.name || 'Item'}`,
-		description: `${toNumber(row.quantity)} units`,
-		actor: row.user?.name || 'System',
-		movement_type: row.movement_type?.name || 'Stock',
-		timestamp: row.createdAt,
-	}));
+		return {
+			id: row.id,
+			title: `${row.movement_type?.name || 'Stock Movement'}: ${row.item?.name || 'Item'}`,
+			description: `${qty} units`,
+			amount,
+			actor: row.user?.name || 'System',
+			movement_type: row.movement_type?.name || 'Stock',
+			sale_id: row.sale_id,
+			grn_id: row.grn_id,
+			timestamp: row.createdAt,
+		};
+	});
 };
 
 const getDashboardOverview = async (req, res) => {

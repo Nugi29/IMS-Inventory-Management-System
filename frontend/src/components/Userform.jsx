@@ -341,25 +341,25 @@ export const Userform = () => {
 
                     {/* Action Buttons */}
                     <div className="flex shrink-0 flex-col-reverse gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-end">
-                        {mode === 'update' && (
-                            <button
-                                type="button"
-                                onClick={handleDelete}
-                                disabled={isBusy}
+                            {mode === 'update' && (
+                                <button
+                                    type="button"
+                                    onClick={handleDelete}
+                                    disabled={isBusy}
                                 className="rounded-lg border-2 border-red-200 bg-red-50 px-5 py-2.5 text-sm font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-                            >
+                                >
                                 {isDeleting ? 'Deleting...' : 'Delete user'}
-                            </button>
-                        )}
+                                </button>
+                            )}
 
-                        <button
-                            type="submit"
-                            disabled={isBusy}
+                            <button
+                                type="submit"
+                                disabled={isBusy}
                             className="rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
-                        >
+                            >
                             {isSaving ? 'Saving...' : mode === 'update' ? 'Save changes' : 'Create user'}
-                        </button>
-                    </div>
+                            </button>
+                        </div>
                 </form>
             </section>
         </main>

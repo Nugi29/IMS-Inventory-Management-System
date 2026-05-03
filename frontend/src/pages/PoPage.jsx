@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, useContext } from 'react'
+import { AppContext } from '../context/AppContext'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import { useLookup } from '../services/useLookup'
 import { usePo } from '../services/usePo'
 
 const ALL_SUPPLIERS = 'All Suppliers'
 const ALL_STATUS = 'All Status'
-const ITEMS_PER_PAGE = 2
+const ITEMS_PER_PAGE = 4
 
 const normalizeText = (value) => String(value || '').toLowerCase().replace(/\s+/g, ' ').trim()
 
@@ -36,6 +38,7 @@ const buildLabelByIdMap = (lookupItems) => {
 export const PoPage = () => {
     const { pos, isLoadingPos, reloadPos } = usePo()
     const navigate = useNavigate()
+    const { userData } = useContext(AppContext)
     const {
         suppliers: suppLookup = [],
         poStatuses: poStatusLookup = [],
@@ -224,13 +227,46 @@ export const PoPage = () => {
         )
     }
 
+    const exportCsv = () => {
+        if (!filteredPos.length) {
+            toast.error('No purchase order data to export.')
+            return
+        }
+
+        const rows = filteredPos.map((po) => ({
+            id: po?.id ?? po?.po_id ?? '-',
+            date: getDateLabel(po),
+            supplier: getSupplierName(po),
+            total_amount: getPoTotalAmount(po),
+            status: getStatusLabel(po),
+        }))
+
+        const headers = Object.keys(rows[0])
+        const csvContent = [
+            headers.join(','),
+            ...rows.map((row) =>
+                headers.map((key) => `"${String(row[key] ?? '').replaceAll('"', '""')}"`).join(',')
+            ),
+        ].join('\n')
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.setAttribute('download', `purchase-orders-${Date.now()}.csv`)
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+    }
+
     return (
         <main className="ml-0 mt-0 p-4 sm:p-6 lg:p-8">
             {/* Filter Bar: Asymmetric Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8 items-center">
                 <div className="lg:col-span-8 flex flex-col md:flex-row gap-4">
                     <div className="relative flex-1">
-                        <span className="material-symbols-outlined absolute left-4 top-10 -translate-y-1/2 text-slate-400" data-icon="filter_list">filter_list</span>
+                        <span className="material-symbols-outlined absolute left-4 top-10 -translate-y-1/2 text-slate-400" data-icon="search">search</span>
                         <input
                             className="w-full bg-white border border-slate-200 dark:border-slate-800 rounded-xl pl-12 pr-4 py-4 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none"
                             placeholder="Filter by PO Number or ID..."
@@ -294,168 +330,209 @@ export const PoPage = () => {
                 </div>
             </div>
 
-            {/* Data Table Section */}
-            <div className="bg-white border border-slate-200 dark:border-slate-800 rounded-4xl shadow-sm overflow-hidden p-2">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-separate border-spacing-y-1">
-                        <thead>
-                            <tr className="text-on-surface-variant">
-                                <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider font-label">ID</th>
-                                <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider font-label">Date</th>
-                                <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider font-label">Supplier</th>
-                                <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider font-label">Total Amount</th>
-                                <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider font-label text-center">Status</th>
-                                <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider font-label text-right">Action</th>
+            {/* Items Data Table */}
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+
+                {/* Table Header Info Bar */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/60">
+                    <p className="text-xs font-semibold text-slate-500 tracking-wide uppercase">
+                        {filteredPos.length} purchase order{filteredPos.length !== 1 ? 's' : ''} found
+                    </p>
+                    <p className="text-xs text-slate-400">
+                        Page <span className="font-bold text-slate-600">{safeCurrentPage}</span> of <span className="font-bold text-slate-600">{totalPages}</span>
+                    </p>
+                </div>
+
+                <table className="w-full text-left">
+                    <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200">
+                            <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">ID</th>
+                            <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Date</th>
+                            <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Supplier</th>
+                            <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 text-right">Total Amount</th>
+                            <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center">Status</th>
+                            <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                        {isLoadingPos && (
+                            <tr>
+                                <td colSpan={6} className="px-6 py-16 text-center">
+                                    <span className="material-symbols-outlined animate-spin text-primary text-2xl block mx-auto mb-2">sync</span>
+                                    <p className="text-sm text-slate-500 font-medium">Loading purchase orders...</p>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody className="space-y-2">
-                            {isLoadingPos && (
-                                <tr>
-                                    <td colSpan={6} className="px-6 py-10 text-center text-slate-500">Loading purchase orders...</td>
-                                </tr>
-                            )}
+                        )}
 
-                            {!isLoadingPos && paginatedPos.map((po, index) => {
-                                const status = getStatusLabel(po)
-                                const rowBg = index % 2 === 1 ? 'bg-surface-container-low/30' : ''
-                                const isDraft = isDraftStatus(status)
-                                const showGrnAction = canCreateGrn(status)
+                        {!isLoadingPos && paginatedPos.map((po, index) => {
+                            const status = getStatusLabel(po)
+                            const isDraft = isDraftStatus(status)
+                            const showGrnAction = canCreateGrn(status)
 
-                                return (
-                                    <tr key={po?.id || po?.po_id || po?.po_no || `${index}`} className={`bg-slate-50/50 ${rowBg} hover:bg-slate-100/50 transition-colors group`}>
-                                        <td className="px-6 py-4 rounded-l-xl text-sm font-bold text-slate-600">{po?.id ?? po?.po_id ?? '-'}</td>
-                                        <td className="px-6 py-4 text-sm text-slate-600">{getDateLabel(po)}</td>
-                                        <td className="px-6 py-6">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">{getSupplierTag(po)}</div>
-                                                <span className="text-sm font-semibold text-on-surface">{getSupplierName(po)}</span>
+                            return (
+                                <tr
+                                    key={po?.id || po?.po_id || po?.po_no || `${index}`}
+                                    className="hover:bg-slate-50/80 transition-colors group"
+                                >
+                                    <td className="px-6 py-4">
+                                        <p className="font-semibold text-sm text-slate-800 leading-snug">{po?.id ?? po?.po_id ?? '-'}</p>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <p className="text-sm text-slate-600">{getDateLabel(po)}</p>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs shrink-0">
+                                                {getSupplierTag(po)}
                                             </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-sm font-headline font-extrabold">{getTotalLabel(po)}</td>
-                                        <td className="px-6 py-4 text-center">
-                                            <span className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-widest ${getStatusChipClass(status)}`}>{status}</span>
-                                        </td>
-                                        <td className="px-6 py-4 text-right rounded-r-xl">
-                                            <div className="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                                {showGrnAction && (
-                                                    <button
-                                                        className="p-2 hover:bg-white rounded-lg transition-colors text-emerald-600 hover:text-emerald-700"
-                                                        type="button"
-                                                        aria-label={`Create GRN for ${getPoNumber(po)}`}
-                                                        title="Open GRN"
-                                                        onClick={() => navigate('/grns', { state: { source: 'po', po } })}
-                                                    >
-                                                        <span className="material-symbols-outlined text-xl" data-icon="fact_check">fact_check</span>
-                                                    </button>
-                                                )}
+                                            <span className="text-sm font-semibold text-slate-800">{getSupplierName(po)}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <span className="font-bold text-slate-800 text-sm">{getTotalLabel(po)}</span>
+                                    </td>
+                                    <td className="px-6 py-4 text-center">
+                                        <span className={`inline-flex items-center text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-tight ${getStatusChipClass(status)}`}>
+                                            {status}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                                            {showGrnAction && (
                                                 <button
-                                                    className="p-2 hover:bg-white rounded-lg transition-colors text-slate-400 hover:text-primary"
+                                                    className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors"
                                                     type="button"
-                                                    aria-label={`View ${getPoNumber(po)}`}
-                                                    onClick={() => navigate('/poform', { state: { mode: 'view', po, poId: po?.id || po?.po_id || po?._id } })}
+                                                    aria-label={`Create GRN for ${getPoNumber(po)}`}
+                                                    title="Open GRN"
+                                                    onClick={() => navigate('/grns', { state: { source: 'po', po } })}
                                                 >
-                                                    <span className="material-symbols-outlined text-xl" data-icon="visibility">visibility</span>
+                                                    <span className="material-symbols-outlined text-[18px]" data-icon="fact_check">fact_check</span>
                                                 </button>
-                                                <button
-                                                    className="p-2 hover:bg-white rounded-lg transition-colors text-slate-400 hover:text-primary"
-                                                    type="button"
-                                                    aria-label={`Edit ${getPoNumber(po)}`}
-                                                    title={isDraft ? 'Edit draft purchase order' : 'Edit purchase order'}
-                                                    onClick={() => navigate('/poform', { state: { mode: 'update', po, poId: po?.id || po?.po_id || po?._id } })}
-                                                >
-                                                    <span className="material-symbols-outlined text-xl" data-icon="edit">edit</span>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                )
-                            })}
-
-                            {!isLoadingPos && !filteredPos.length && (
-                                <tr>
-                                    <td colSpan={6} className="px-6 py-14 text-center text-slate-500">
-                                        <p className="text-sm font-semibold text-on-surface">No purchase orders found</p>
-                                        <p className="text-xs mt-1">Try changing your filters or reset them to view all purchase orders.</p>
+                                            )}
+                                            <button
+                                                className="p-1.5 rounded-lg hover:bg-primary/10 text-slate-400 hover:text-primary transition-colors"
+                                                type="button"
+                                                aria-label={`View ${getPoNumber(po)}`}
+                                                title="View details"
+                                                onClick={() => navigate('/poform', { state: { mode: 'view', po, poId: po?.id || po?.po_id || po?._id } })}
+                                            >
+                                                <span className="material-symbols-outlined text-[18px]" data-icon="visibility">visibility</span>
+                                            </button>
+                                            <button
+                                                className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors"
+                                                type="button"
+                                                aria-label={`Edit ${getPoNumber(po)}`}
+                                                title={isDraft ? 'Edit draft purchase order' : 'Edit purchase order'}
+                                                onClick={() => navigate('/poform', { state: { mode: 'update', po, poId: po?.id || po?.po_id || po?._id } })}
+                                            >
+                                                <span className="material-symbols-outlined text-[18px]" data-icon="edit">edit</span>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                            )
+                        })}
 
-                <div className="flex flex-col sm:flex-row items-center justify-between p-6 gap-4 mt-2">
-                    <p className="text-xs text-slate-500 font-medium font-label">
-                        Showing <span className="font-bold text-on-surface">{filteredPos.length ? `${startIndex + 1} - ${Math.min(endIndex, filteredPos.length)}` : 0}</span> of <span className="font-bold text-on-surface">{filteredPos.length}</span> items
+                        {!isLoadingPos && !filteredPos.length && (
+                            <tr>
+                                <td colSpan={6} className="px-6 py-20 text-center">
+                                    <span className="material-symbols-outlined text-4xl text-slate-300 block mb-3">shopping_cart</span>
+                                    <p className="text-sm font-semibold text-slate-600">No purchase orders found</p>
+                                    <p className="text-xs text-slate-400 mt-1">Try adjusting your filters or search term.</p>
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+
+                {/* Pagination Footer */}
+                <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 bg-slate-50/60 border-t border-slate-100 gap-4">
+
+                    {/* Count */}
+                    <p className="text-xs text-slate-500 font-medium shrink-0">
+                        Showing{' '}
+                        <span className="font-bold text-slate-700">
+                            {filteredPos.length ? `${startIndex + 1}–${Math.min(endIndex, filteredPos.length)}` : 0}
+                        </span>
+                        {' '}of{' '}
+                        <span className="font-bold text-slate-700">{filteredPos.length}</span>
+                        {' '}purchase orders
                     </p>
-                    <div className="flex items-center gap-2">
+
+                    {/* Page Numbers */}
+                    <div className="flex items-center gap-1">
+                        {/* Prev */}
                         <button
-                            className={`p-2 rounded-lg border border-slate-200 transition-all ${safeCurrentPage === 1 ? 'bg-slate-50 text-slate-400 cursor-not-allowed opacity-50' : 'bg-slate-50 text-slate-600 hover:bg-primary hover:text-white'}`}
-                            type="button"
-                            onClick={() => setCurrentPage((prev) => Math.max(1, Math.min(prev, totalPages) - 1))}
+                            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                             disabled={safeCurrentPage === 1}
+                            type="button"
+                            className={`p-1.5 rounded-lg border transition-all ${safeCurrentPage === 1 ? 'border-slate-200 bg-white text-slate-300 cursor-not-allowed' : 'border-slate-200 bg-white text-slate-600 hover:bg-primary hover:text-white hover:border-primary'}`}
                             aria-label="Previous page"
                         >
-                            <span className="material-symbols-outlined" data-icon="chevron_left">chevron_left</span>
+                            <span className="material-symbols-outlined text-[18px]">chevron_left</span>
                         </button>
 
-                        <div className="flex items-center gap-1">
-                            {Array.from({ length: totalPages }, (_, index) => {
-                                const pageNumber = index + 1
-                                const isActive = pageNumber === safeCurrentPage
+                        {/* Windowed page numbers */}
+                        {(() => {
+                            const maxVisible = 7
+                            let pages = []
+                            if (totalPages <= maxVisible) {
+                                pages = Array.from({ length: totalPages }, (_, i) => i + 1)
+                            } else {
+                                const half = Math.floor(maxVisible / 2)
+                                let start = Math.max(2, safeCurrentPage - half)
+                                let end = Math.min(totalPages - 1, start + maxVisible - 3)
+                                if (end === totalPages - 1) start = Math.max(2, end - (maxVisible - 3))
 
-                                return (
-                                    <button
-                                        key={pageNumber}
-                                        className={`w-8 h-8 rounded-lg text-xs font-bold ${isActive ? 'bg-primary text-white' : 'bg-slate-50 text-slate-600 hover:bg-primary hover:text-white border border-slate-200'}`}
-                                        type="button"
-                                        onClick={() => setCurrentPage(pageNumber)}
-                                        aria-label={`Page ${pageNumber}`}
-                                    >
-                                        {pageNumber}
-                                    </button>
-                                )
-                            })}
-                        </div>
+                                pages = [1]
+                                if (start > 2) pages.push('...')
+                                for (let p = start; p <= end; p++) pages.push(p)
+                                if (end < totalPages - 1) pages.push('...')
+                                pages.push(totalPages)
+                            }
 
+                            return pages.map((page, idx) =>
+                                page === '...'
+                                    ? <span key={`ellipsis-${idx}`} className="px-1 text-slate-400 text-xs select-none">···</span>
+                                    : (
+                                        <button
+                                            key={page}
+                                            onClick={() => setCurrentPage(page)}
+                                            type="button"
+                                            className={`min-w-[32px] h-8 px-2 rounded-lg text-xs font-bold transition-all border ${page === safeCurrentPage ? 'bg-primary text-white border-primary shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-primary hover:text-white hover:border-primary'}`}
+                                        >
+                                            {page}
+                                        </button>
+                                    )
+                            )
+                        })()}
+
+                        {/* Next */}
                         <button
-                            className={`p-2 rounded-lg border border-slate-200 transition-all ${safeCurrentPage === totalPages ? 'bg-slate-50 text-slate-400 cursor-not-allowed opacity-50' : 'bg-slate-50 text-slate-600 hover:bg-primary hover:text-white'}`}
-                            type="button"
-                            onClick={() => setCurrentPage((prev) => Math.min(totalPages, Math.min(prev, totalPages) + 1))}
+                            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                             disabled={safeCurrentPage === totalPages}
+                            type="button"
+                            className={`p-1.5 rounded-lg border transition-all ${safeCurrentPage === totalPages ? 'border-slate-200 bg-white text-slate-300 cursor-not-allowed' : 'border-slate-200 bg-white text-slate-600 hover:bg-primary hover:text-white hover:border-primary'}`}
                             aria-label="Next page"
                         >
-                            <span className="material-symbols-outlined" data-icon="chevron_right">chevron_right</span>
+                            <span className="material-symbols-outlined text-[18px]">chevron_right</span>
                         </button>
                     </div>
+
+                    {/* Export */}
+                    {userData?.role?.name?.toLowerCase() === 'admin' && (
+                        <button
+                            type="button"
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors shrink-0"
+                            onClick={exportCsv}
+                            aria-label="Export purchase orders to CSV"
+                        >
+                            <span className="material-symbols-outlined text-[16px]">download</span>
+                            Export CSV
+                        </button>
+                    )}
                 </div>
             </div>
-
-            <section >
-                {/* Summary Metrics */}
-                <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-8">
-                    <div className="p-4 bg-white border border-slate-200 dark:border-slate-800 rounded-2xl">
-                        <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-2 font-label">This Month Purchases</p>
-                        <p className="text-3xl font-headline font-extrabold text-on-surface">{poDecisionMetrics.thisMonthPurchases}</p>
-                    </div>
-                    <div className="p-4 bg-white border border-slate-200 dark:border-slate-800 rounded-2xl">
-                        <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-2 font-label">Avg PO Value</p>
-                        <p className="text-3xl font-headline font-extrabold text-on-surface">
-                            Rs {poDecisionMetrics.avgOrderValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                        </p>
-                    </div>
-                    <div className="p-4 bg-emerald-50/60 border border-emerald-200 dark:border-emerald-800 rounded-2xl">
-                        <p className="text-[10px] uppercase font-bold tracking-widest text-emerald-700 mb-2 font-label">Top Supplier</p>
-                        <div className="flex items-center gap-3">
-                            <p className="text-2xl font-headline font-extrabold text-emerald-700">{poDecisionMetrics.topSupplier}</p>
-                        </div>
-                    </div>
-                    <div className="p-4 bg-red-50/60 border border-red-200 dark:border-red-800 rounded-2xl">
-                        <p className="text-[10px] uppercase font-bold tracking-widest text-red-600 mb-2 font-label">Cancelled Orders</p>
-                        <p className="text-3xl font-headline font-extrabold text-red-600">{poDecisionMetrics.cancelledOrders}</p>
-                    </div>
-                </div>
-            </section>
-
         </main>
     )
 }
