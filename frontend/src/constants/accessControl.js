@@ -82,10 +82,10 @@ export const NAV_ITEMS = [
   { label: 'Purchase Orders', icon: 'receipt', path: '/po', permission: 'purchaseOrders' },
   { label: 'GRN', icon: 'input', path: '/grns', permission: 'grn' },
   { label: 'Sales', icon: 'point_of_sale', path: '/sales', permission: 'sales' },
-  { label: 'Stock Movement', icon: 'compare_arrows', path: '/stock-movement', permission: 'stockMovement' },
+  { label: 'Stocks', icon: 'compare_arrows', path: '/stock-movement', permission: 'stockMovement' },
   { label: 'Users', icon: 'group', path: '/users', permission: 'users' },
   { label: 'Reports', icon: 'assessment', path: '/reports', permission: 'reports' },
-  { label: 'Settings', icon: 'settings', path: '/settings', permission: 'settings' },
+  // { label: 'Settings', icon: 'settings', path: '/settings', permission: 'settings' },
 ]
 
 export const normalizeRoleKey = (role) => {

@@ -94,7 +94,7 @@ export function useSale() {
         if (data?.success) {
           const saleData = {
             ...payload,
-            sale_id: data?.sale_id || data?.saleId || data?.id,
+            sale_id: data?.sale?.id || data?.sale_id || data?.saleId || data?.id,
             total: total,
             change_due: Number(payload.paid_amount) - total,
             timestamp: new Date().toISOString(),

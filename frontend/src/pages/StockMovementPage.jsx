@@ -1,15 +1,14 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, useContext } from 'react'
+import { AppContext } from '../context/AppContext'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { useStockMovement } from '../services/useStockMovement'
 import { useUser } from '../services/useUser'
 
-const ROWS_PER_PAGE = 5
+const ROWS_PER_PAGE = 4
 const ALL_MOVEMENT_TYPES = 'All Movement Types'
 const ALL_PERIODS = 'all'
 const ALL_USERS = 'All Users'
-
-// â"€â"€â"€ Helper Functions â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 const normalizeText = (value) => String(value || '').toLowerCase().trim()
 
@@ -132,6 +131,7 @@ const isWithinPeriod = (movementTime, periodDays) => {
 export const StockMovementPage = () => {
   const location = useLocation()
   const navigate = useNavigate()
+  const { userData } = useContext(AppContext)
 
   const isAdjustmentModule = location.pathname.includes('/stock-adjustments')
 
@@ -148,7 +148,6 @@ export const StockMovementPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
 
-  // â"€â"€â"€ Derived Data: Filter Options â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
   const movementTypes = useMemo(() => {
     const types = movements.map((movement) => getMovementType(movement)).filter(Boolean)
@@ -181,7 +180,6 @@ export const StockMovementPage = () => {
     return Array.from(userMap.values()).sort((a, b) => a.name.localeCompare(b.name))
   }, [movements, systemUsers])
 
-  // â"€â"€â"€ Filtering Logic â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
   const filteredMovements = useMemo(() => {
     return movements
@@ -220,68 +218,14 @@ export const StockMovementPage = () => {
       })
   }, [movements, isAdjustmentModule, selectedType, selectedUser, searchTerm, selectedPeriod])
 
-  // â"€â"€â"€ Pagination â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
   const totalPages = Math.max(1, Math.ceil(filteredMovements.length / ROWS_PER_PAGE))
   const safeCurrentPage = Math.min(currentPage, totalPages)
   const startIndex = (safeCurrentPage - 1) * ROWS_PER_PAGE
   const endIndex = startIndex + ROWS_PER_PAGE
   const paginatedMovements = filteredMovements.slice(startIndex, endIndex)
-  const visiblePageNumbers = useMemo(() => {
-    const maxVisiblePages = 7
 
-    if (totalPages <= maxVisiblePages) {
-      return Array.from({ length: totalPages }, (_, index) => index + 1)
-    }
 
-    const halfWindow = Math.floor(maxVisiblePages / 2)
-    let startPage = Math.max(1, safeCurrentPage - halfWindow)
-    let endPage = startPage + maxVisiblePages - 1
-
-    if (endPage > totalPages) {
-      endPage = totalPages
-      startPage = Math.max(1, endPage - maxVisiblePages + 1)
-    }
-
-    return Array.from({ length: endPage - startPage + 1 }, (_, index) => startPage + index)
-  }, [safeCurrentPage, totalPages])
-
-  // â"€â"€â"€ Statistics â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
-
-  const movementStats = useMemo(() => {
-    const totalMovements = movements.length
-    let grnCount = 0
-    let saleCount = 0
-    let adjustmentCount = 0
-
-    filteredMovements.forEach((movement) => {
-      const typeId = Number(
-        movement?.movement_type?.id
-        ?? movement?.movement_type_id
-        ?? movement?.movementTypeId,
-      )
-
-      const isGrn = typeId === 1 || movement?.grn_id || movement?.grn?.id
-      const isSale = typeId === 2 || movement?.sale_id || movement?.sale?.id
-      const isAdjustment = typeId === 3
-        || movement?.stock_adjustment_id
-        || movement?.stock_adjustment?.id
-        || normalizeText(getMovementType(movement)).includes('adjust')
-
-      if (isGrn) grnCount += 1
-      else if (isSale) saleCount += 1
-      else if (isAdjustment) adjustmentCount += 1
-    })
-
-    return {
-      totalMovements,
-      grnCount,
-      saleCount,
-      adjustmentCount,
-    }
-  }, [filteredMovements, movements.length])
-
-  // â"€â"€â"€ Actions â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
   const clearFilters = useCallback(() => {
     setSelectedType(ALL_MOVEMENT_TYPES)
@@ -333,34 +277,9 @@ export const StockMovementPage = () => {
     })
   }, [navigate, location.pathname])
 
-  // â"€â"€â"€ Render â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
   return (
     <main className="ml-0 mt-0 p-4 sm:p-6 lg:p-8">
-      {/* Statistics Section */}
-      {!isAdjustmentModule && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-4">
-            <p className="text-xs text-slate-500 font-semibold uppercase">Total Movements</p>
-            <p className="text-2xl font-bold text-slate-800 mt-1">{movementStats.totalMovements}</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 rounded-xl p-4">
-            <p className="text-xs text-emerald-600 font-semibold uppercase">GRN</p>
-            <p className="text-2xl font-bold text-emerald-700 mt-1">{movementStats.grnCount}</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-rose-50 to-rose-100 border border-rose-200 rounded-xl p-4">
-            <p className="text-xs text-rose-600 font-semibold uppercase">Sale</p>
-            <p className="text-2xl font-bold text-rose-700 mt-1">{movementStats.saleCount}</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-xl p-4">
-            <p className="text-xs text-amber-600 font-semibold uppercase">Adjustment</p>
-            <p className="text-2xl font-bold text-amber-700 mt-1">{movementStats.adjustmentCount}</p>
-          </div>
-        </div>
-      )}
 
       {/* Filter Bar: Flexible Layout */}
       <div className="flex flex-col lg:flex-row flex-wrap gap-4 mb-8 items-center justify-between">
@@ -454,32 +373,45 @@ export const StockMovementPage = () => {
       </div>
 
       {/* Data Table Section */}
-      <div className="bg-white border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+
+        {/* Table Header Info Bar */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/60">
+            <p className="text-xs font-semibold text-slate-500 tracking-wide uppercase">
+                {filteredMovements.length} movement{filteredMovements.length !== 1 ? 's' : ''} found
+            </p>
+            <p className="text-xs text-slate-400">
+                Page <span className="font-bold text-slate-600">{safeCurrentPage}</span> of <span className="font-bold text-slate-600">{totalPages}</span>
+            </p>
+        </div>
+
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-separate border-spacing-y-1 p-4">
+          <table className="w-full text-left">
             <thead>
-              <tr className="bg-slate-50">
-                <th className="px-6 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Item</th>
-                <th className="px-6 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Type</th>
-                <th className="px-6 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Quantity</th>
-                <th className="px-6 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Created At</th>
-                <th className="px-6 py-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">User</th>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Item</th>
+                <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Type</th>
+                <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Quantity</th>
+                <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Created At</th>
+                <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">User</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {isLoadingMovements && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
-                    <span className="material-symbols-outlined animate-spin inline mr-2">sync</span>
-                    Loading stock movements...
+                  <td colSpan={5} className="px-6 py-16 text-center">
+                    <span className="material-symbols-outlined animate-spin text-primary text-2xl block mx-auto mb-2">sync</span>
+                    <p className="text-sm text-slate-500 font-medium">Loading stock movements...</p>
                   </td>
                 </tr>
               )}
 
               {!isLoadingMovements && !paginatedMovements.length && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
-                    No stock movements found for the selected filters.
+                  <td colSpan={5} className="px-6 py-20 text-center">
+                    <span className="material-symbols-outlined text-4xl text-slate-300 block mb-3">manage_history</span>
+                    <p className="text-sm font-semibold text-slate-600">No stock movements found</p>
+                    <p className="text-xs text-slate-400 mt-1">Try adjusting your filters or search term.</p>
                   </td>
                 </tr>
               )}
@@ -505,32 +437,28 @@ export const StockMovementPage = () => {
                 return (
                   <tr
                     key={movement?.id || movement?.movement_id || index}
-                    className={`transition-colors ${isRowClickable ? 'cursor-pointer hover:bg-slate-50' : ''}`}
+                    className={`hover:bg-slate-50/80 transition-colors group ${isRowClickable ? 'cursor-pointer' : ''}`}
                     onClick={isRowClickable ? () => openAdjustmentDetails(movement) : undefined}
                     title={isRowClickable ? 'Click to view adjustment details' : undefined}
                   >
-                    <td className="px-6 py-5">
-                      <div className="flex flex-col">
-                        <p className="font-semibold text-slate-800 text-sm">{getMovementItemName(movement)}</p>
-                        <p className="text-xs text-slate-500">SKU: {getMovementSku(movement)}</p>
-                      </div>
+                    <td className="px-6 py-4">
+                      <p className="font-semibold text-sm text-slate-800 leading-snug">{getMovementItemName(movement)}</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5 font-mono">{getMovementSku(movement)}</p>
                     </td>
-                    <td className="px-6 py-5">
-                      <span className={`inline-flex px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-tight ${getTypeChipClass(type)}`}>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-tight ${getTypeChipClass(type)}`}>
                         {type}
                       </span>
                     </td>
-                    <td className="px-6 py-5">
-                      <p className="font-semibold text-slate-800 text-sm">{displayQuantity}</p>
+                    <td className="px-6 py-4">
+                      <p className="font-bold text-slate-800 text-sm">{displayQuantity}</p>
                     </td>
-                    <td className="px-6 py-5">
-                      <div className="flex flex-col">
-                        <p className="font-bold text-slate-800 text-base">{dateTime.primary}</p>
-                        <p className="text-[11px] text-slate-500 font-medium mt-0.5">{dateTime.secondary}</p>
-                      </div>
+                    <td className="px-6 py-4">
+                      <p className="font-bold text-slate-800 text-sm">{dateTime.primary}</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5 font-mono">{dateTime.secondary}</p>
                     </td>
-                    <td className="px-6 py-5">
-                      <p className="font-medium text-slate-700 text-sm">{getMovementUser(movement)}</p>
+                    <td className="px-6 py-4">
+                      <p className="font-medium text-slate-600 text-sm">{getMovementUser(movement)}</p>
                     </td>
                   </tr>
                 )
@@ -540,58 +468,91 @@ export const StockMovementPage = () => {
         </div>
 
         {/* Pagination Footer */}
-        <div className="px-6 py-4 bg-slate-50 flex flex-col sm:flex-row items-center gap-3 border-t border-slate-200">
-          <p className="text-xs text-slate-500 font-medium">
-            Showing <span className="font-semibold text-slate-800">{filteredMovements.length ? startIndex + 1 : 0} - {Math.min(startIndex + ROWS_PER_PAGE, filteredMovements.length)}</span>
-            {' '}of <span className="font-semibold text-slate-800">{filteredMovements.length}</span> movements
+        <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 bg-slate-50/60 border-t border-slate-100 gap-4">
+
+          {/* Count */}
+          <p className="text-xs text-slate-500 font-medium shrink-0">
+            Showing{' '}
+            <span className="font-bold text-slate-700">
+              {filteredMovements.length ? `${startIndex + 1}–${Math.min(endIndex, filteredMovements.length)}` : 0}
+            </span>
+            {' '}of{' '}
+            <span className="font-bold text-slate-700">{filteredMovements.length}</span>
+            {' '}movements
           </p>
 
-          <div className="flex items-center gap-2 sm:ml-auto">
+          {/* Page Numbers */}
+          <div className="flex items-center gap-1">
+            {/* Prev */}
             <button
               onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
               disabled={safeCurrentPage === 1}
-              className={`p-2 rounded-lg border border-slate-200 transition-all ${safeCurrentPage === 1 ? 'bg-slate-50 text-slate-400 cursor-not-allowed opacity-50' : 'bg-slate-50 text-slate-600 hover:bg-primary hover:text-white'}`}
-              aria-label="Previous page"
               type="button"
+              className={`p-1.5 rounded-lg border transition-all ${safeCurrentPage === 1 ? 'border-slate-200 bg-white text-slate-300 cursor-not-allowed' : 'border-slate-200 bg-white text-slate-600 hover:bg-primary hover:text-white hover:border-primary'}`}
+              aria-label="Previous page"
             >
-              <span className="material-symbols-outlined" data-icon="chevron_left">chevron_left</span>
+              <span className="material-symbols-outlined text-[18px]">chevron_left</span>
             </button>
-            <div className="flex items-center gap-1">
-              {visiblePageNumbers.map((pageNumber) => {
-                const isActive = pageNumber === safeCurrentPage
 
-                return (
-                  <button
-                    key={pageNumber}
-                    onClick={() => setCurrentPage(pageNumber)}
-                    className={`w-8 h-8 rounded-lg text-xs font-bold ${isActive ? 'bg-primary text-white' : 'bg-slate-50 text-slate-600 hover:bg-primary hover:text-white border border-slate-200'}`}
-                    type="button"
-                  >
-                    {pageNumber}
-                  </button>
-                )
-              })}
-            </div>
+            {/* Windowed page numbers */}
+            {(() => {
+              const maxVisible = 7
+              let pages = []
+              if (totalPages <= maxVisible) {
+                pages = Array.from({ length: totalPages }, (_, i) => i + 1)
+              } else {
+                const half = Math.floor(maxVisible / 2)
+                let start = Math.max(2, safeCurrentPage - half)
+                let end = Math.min(totalPages - 1, start + maxVisible - 3)
+                if (end === totalPages - 1) start = Math.max(2, end - (maxVisible - 3))
+
+                pages = [1]
+                if (start > 2) pages.push('...')
+                for (let p = start; p <= end; p++) pages.push(p)
+                if (end < totalPages - 1) pages.push('...')
+                pages.push(totalPages)
+              }
+
+              return pages.map((page, idx) =>
+                page === '...'
+                  ? <span key={`ellipsis-${idx}`} className="px-1 text-slate-400 text-xs select-none">···</span>
+                  : (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      type="button"
+                      className={`min-w-[32px] h-8 px-2 rounded-lg text-xs font-bold transition-all border ${page === safeCurrentPage ? 'bg-primary text-white border-primary shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-primary hover:text-white hover:border-primary'}`}
+                    >
+                      {page}
+                    </button>
+                  )
+              )
+            })()}
+
+            {/* Next */}
             <button
               onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
               disabled={safeCurrentPage === totalPages}
-              className={`p-2 rounded-lg border border-slate-200 transition-all ${safeCurrentPage === totalPages ? 'bg-slate-50 text-slate-400 cursor-not-allowed opacity-50' : 'bg-slate-50 text-slate-600 hover:bg-primary hover:text-white'}`}
-              aria-label="Next page"
               type="button"
+              className={`p-1.5 rounded-lg border transition-all ${safeCurrentPage === totalPages ? 'border-slate-200 bg-white text-slate-300 cursor-not-allowed' : 'border-slate-200 bg-white text-slate-600 hover:bg-primary hover:text-white hover:border-primary'}`}
+              aria-label="Next page"
             >
-              <span className="material-symbols-outlined" data-icon="chevron_right">chevron_right</span>
+              <span className="material-symbols-outlined text-[18px]">chevron_right</span>
             </button>
           </div>
 
-          <button
-            type="button"
-            className="px-4 py-2 rounded-lg font-semibold text-sm border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors"
-            onClick={exportCsv}
-            aria-label="Export movements to CSV"
-          >
-            <span className="material-symbols-outlined text-sm mr-1 align-middle" data-icon="download">download</span>
-            Export
-          </button>
+          {/* Export */}
+          {userData?.role?.name?.toLowerCase() === 'admin' && (
+            <button
+              type="button"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors shrink-0"
+              onClick={exportCsv}
+              aria-label="Export movements to CSV"
+            >
+              <span className="material-symbols-outlined text-[16px]">download</span>
+              Export CSV
+            </button>
+          )}
         </div>
       </div>
     </main>

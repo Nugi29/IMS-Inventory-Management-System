@@ -334,6 +334,7 @@ const createGrnStockMovement = async ({ itemId, grnId, userId, quantity, transac
         sale_id: null,
         user_id: userId || null,
         movement_type_id: 1,
+        createdAt: new Date(),
     }, { transaction });
 };
 

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, useContext } from 'react'
+import { AppContext } from '../context/AppContext'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { useLookup } from '../services/useLookup'
@@ -37,6 +38,7 @@ const buildLabelByIdMap = (lookupItems) => {
 export const PoPage = () => {
     const { pos, isLoadingPos, reloadPos } = usePo()
     const navigate = useNavigate()
+    const { userData } = useContext(AppContext)
     const {
         suppliers: suppLookup = [],
         poStatuses: poStatusLookup = [],
@@ -518,15 +520,17 @@ export const PoPage = () => {
                     </div>
 
                     {/* Export */}
-                    <button
-                        type="button"
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors shrink-0"
-                        onClick={exportCsv}
-                        aria-label="Export purchase orders to CSV"
-                    >
-                        <span className="material-symbols-outlined text-[16px]">download</span>
-                        Export CSV
-                    </button>
+                    {userData?.role?.name?.toLowerCase() === 'admin' && (
+                        <button
+                            type="button"
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors shrink-0"
+                            onClick={exportCsv}
+                            aria-label="Export purchase orders to CSV"
+                        >
+                            <span className="material-symbols-outlined text-[16px]">download</span>
+                            Export CSV
+                        </button>
+                    )}
                 </div>
             </div>
         </main>

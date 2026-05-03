@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useContext } from 'react'
+import { AppContext } from '../context/AppContext'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { useSupplier } from '../services/useSupplier'
@@ -43,6 +44,7 @@ const formatSupplierStatus = (status) => {
 
 const SupplierPage = () => {
     const navigate = useNavigate()
+    const { userData } = useContext(AppContext)
     const { suppliers, isLoadingSuppliers } = useSupplier()
     const [searchTerm, setSearchTerm] = useState('')
     const [selectedStatus, setSelectedStatus] = useState('all')
@@ -374,15 +376,17 @@ const SupplierPage = () => {
                     </div>
 
                     {/* Export */}
-                    <button
-                        type="button"
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors shrink-0"
-                        onClick={exportCsv}
-                        aria-label="Export suppliers to CSV"
-                    >
-                        <span className="material-symbols-outlined text-[16px]">download</span>
-                        Export CSV
-                    </button>
+                    {userData?.role?.name?.toLowerCase() === 'admin' && (
+                        <button
+                            type="button"
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors shrink-0"
+                            onClick={exportCsv}
+                            aria-label="Export suppliers to CSV"
+                        >
+                            <span className="material-symbols-outlined text-[16px]">download</span>
+                            Export CSV
+                        </button>
+                    )}
                 </div>
             </div>
         </main>

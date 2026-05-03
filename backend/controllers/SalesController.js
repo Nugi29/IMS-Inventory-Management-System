@@ -112,7 +112,8 @@ const createSale = async (req, res) => {
                     grn_id: null,
                     sale_id: newSale.id,
                     user_id,
-                    movement_type_id: 2
+                    movement_type_id: 2,
+                    createdAt: new Date()
                 }, { transaction });
 
                 createdSaleItems.push(saleItem);

@@ -52,6 +52,12 @@ const loginUser = async (req, res) => {
         if (!existingUser) {
             return res.status(401).json({ success: false, message: 'Invalid username or password' });
         }
+
+        const userStatus = await existingUser.getUser_status();
+        if (userStatus && (userStatus.name === 'Inactive' || userStatus.name === 'Suspended')) {
+            return res.status(403).json({ success: false, message: 'Account is inactive or suspended' });
+        }
+
         const isMatch = await bcrypt.compare(password, existingUser.password);
         if (!isMatch) {
             return res.status(401).json({ success: false, message: 'Invalid username or password' });

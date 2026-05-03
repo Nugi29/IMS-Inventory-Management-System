@@ -112,7 +112,7 @@ const createStockMovement = async (req, res) => {
             sale_id: toPositiveInt(sale_id),
             stock_adjustment_id: toPositiveInt(stock_adjustment_id),
             user_id: toPositiveInt(user_id) || toPositiveInt(req.userId),
-            created_at: new Date(),
+            createdAt: new Date(),
         }, { transaction });
 
         await transaction.commit();
@@ -205,7 +205,7 @@ const getStockMovements = async (req, res) => {
                 sku: data.item?.sku || data.item?.code || '-',
                 reason: adjustmentReason,
                 remarks: adjustmentReason,
-                created_at: data.created_at || new Date().toISOString(),
+                created_at: data.createdAt || data.created_at || new Date().toISOString(),
             };
         });
 

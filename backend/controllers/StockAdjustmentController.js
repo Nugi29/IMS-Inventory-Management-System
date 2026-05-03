@@ -98,6 +98,7 @@ const createStockAdjustment = async (req, res) => {
             sale_id: null,
             user_id: parsedUserId,
             movement_type_id: adjustmentMovementTypeId,
+            createdAt: new Date(),
         }, { transaction });
 
         await transaction.commit();

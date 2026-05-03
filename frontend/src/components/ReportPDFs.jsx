@@ -512,6 +512,93 @@ export function GrnDetailPDF({ grn, items, totals, supplierName, poNumber, grnDa
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// 10. INVOICE PDF
+// ══════════════════════════════════════════════════════════════════════════════
+export function InvoicePDF({ invoiceNumber, cashierName, paymentMethod, items, subtotal, tax, discount, grandTotal, paid, changeDue, customer, date }) {
+  return (
+    <Document>
+      <Page size="A4" style={S.page}>
+        <PDFHeader title="Invoice" subtitle="" badge="RECEIPT" />
+        
+        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 20, backgroundColor: "#f8fafc", padding: 12, borderRadius: 6, borderWidth: 1, borderColor: "#e2e8f0" }}>
+          <View>
+            <Text style={{ fontSize: 8, color: "#64748b", fontFamily: "Helvetica-Bold", textTransform: "uppercase", marginBottom: 4 }}>Invoice No</Text>
+            <Text style={{ fontSize: 10, color: "#0f172a", fontFamily: "Helvetica-Bold" }}>{invoiceNumber}</Text>
+          </View>
+          <View>
+            <Text style={{ fontSize: 8, color: "#64748b", fontFamily: "Helvetica-Bold", textTransform: "uppercase", marginBottom: 4 }}>Date</Text>
+            <Text style={{ fontSize: 10, color: "#0f172a", fontFamily: "Helvetica-Bold" }}>{date}</Text>
+          </View>
+          <View>
+            <Text style={{ fontSize: 8, color: "#64748b", fontFamily: "Helvetica-Bold", textTransform: "uppercase", marginBottom: 4 }}>Cashier</Text>
+            <Text style={{ fontSize: 10, color: "#0f172a", fontFamily: "Helvetica-Bold" }}>{cashierName}</Text>
+          </View>
+        </View>
+
+        <View style={{ marginBottom: 20 }}>
+          <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: "#0f172a", marginBottom: 4 }}>Bill To: {customer?.name || 'Walk-in Customer'}</Text>
+        </View>
+
+        <PDFTable
+          title="Order Details"
+          headers={["Item", "Qty", "Unit Price", "Total"]}
+          rows={(items || []).map(item => [
+            item.name,
+            String(item.quantity),
+            fmtCurrency(item.price),
+            fmtCurrency(item.price * item.quantity),
+          ])}
+        />
+
+        <View style={{ alignItems: "flex-end", marginTop: 10 }}>
+          <View style={{ width: 250 }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+              <Text style={{ fontSize: 9, color: "#64748b" }}>Subtotal:</Text>
+              <Text style={{ fontSize: 9, color: "#334155", fontFamily: "Helvetica-Bold" }}>{fmtCurrency(subtotal)}</Text>
+            </View>
+            {tax > 0 && (
+              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+                <Text style={{ fontSize: 9, color: "#64748b" }}>Tax (VAT):</Text>
+                <Text style={{ fontSize: 9, color: "#334155", fontFamily: "Helvetica-Bold" }}>{fmtCurrency(tax)}</Text>
+              </View>
+            )}
+            {discount > 0 && (
+              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+                <Text style={{ fontSize: 9, color: "#64748b" }}>Discount:</Text>
+                <Text style={{ fontSize: 9, color: "#dc2626", fontFamily: "Helvetica-Bold" }}>-{fmtCurrency(discount)}</Text>
+              </View>
+            )}
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6, paddingTop: 6, borderTopWidth: 1, borderTopColor: "#e2e8f0" }}>
+              <Text style={{ fontSize: 12, color: "#0f172a", fontFamily: "Helvetica-Bold" }}>Grand Total:</Text>
+              <Text style={{ fontSize: 12, color: "#2563eb", fontFamily: "Helvetica-Bold" }}>{fmtCurrency(grandTotal)}</Text>
+            </View>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6, paddingTop: 6, borderTopWidth: 1, borderTopColor: "#e2e8f0" }}>
+              <Text style={{ fontSize: 9, color: "#64748b" }}>Amount Paid:</Text>
+              <Text style={{ fontSize: 9, color: "#334155", fontFamily: "Helvetica-Bold" }}>{fmtCurrency(paid)}</Text>
+            </View>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+              <Text style={{ fontSize: 9, color: "#64748b" }}>Change Due:</Text>
+              <Text style={{ fontSize: 9, color: "#334155", fontFamily: "Helvetica-Bold" }}>{fmtCurrency(changeDue)}</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={{ marginTop: 40, alignItems: "center" }}>
+          <Text style={{ fontSize: 8, color: "#94a3b8", fontStyle: "italic", marginBottom: 4 }}>
+            Thank you for your business. We hope to see you again soon!
+          </Text>
+          <Text style={{ fontSize: 8, color: "#94a3b8", fontStyle: "italic" }}>
+            This is a computer-generated receipt and does not require a physical signature.
+          </Text>
+        </View>
+
+        <PDFFooter title={`Invoice ${invoiceNumber}`} />
+      </Page>
+    </Document>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // Export trigger helper
 // ══════════════════════════════════════════════════════════════════════════════
 export async function downloadPDF(DocComponent, props, filename) {
