@@ -528,8 +528,8 @@ const SalesChart = ({ trend }) => {
 
 
 
-const StockDistributionCard = ({ items }) => {
-  const capacity = 84
+const StockDistributionCard = ({ items, capacityPercent = 0 }) => {
+  const capacity = Math.round(clampPercent(capacityPercent))
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -660,7 +660,23 @@ const LiveFeedCard = ({ entries = [], right }) => {
                   {entry.displayTimeExact || entry.displayTime || entry.timeLabel || 'Unknown time'}
                 </span>
               </div>
-              <p className="text-[10px] font-medium text-slate-500">{entry.displayTime || 'Unknown time'}</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[10px] font-medium text-slate-500">{entry.displayTime || 'Unknown time'}</p>
+                {entry.amount != null && (() => {
+                  const amountToneClass = {
+                    green:  'bg-emerald-50 text-emerald-700',
+                    yellow: 'bg-amber-50  text-amber-700',
+                    red:    'bg-rose-50   text-rose-600',
+                    blue:   'bg-blue-50   text-blue-700',
+                    slate:  'bg-slate-100 text-slate-600',
+                  }[entry.tone] ?? 'bg-slate-100 text-slate-600'
+                  return (
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${amountToneClass}`}>
+                      {entry.amount < 0 ? '-' : '+'}{fmtMoney(Math.abs(entry.amount))}
+                    </span>
+                  )
+                })()}
+              </div>
               {entry.description && (
                 <div className="rounded-lg border border-slate-200 bg-white p-2">
                   <p className="text-[10px] font-medium leading-5 text-slate-600">{entry.description}</p>
@@ -878,6 +894,7 @@ const Dashboard = () => {
           id: entry?.id || row.index,
           title: entry?.title || entry?.label || 'System event',
           actor: entry?.actor || entry?.source || 'System',
+          amount: entry?.amount != null ? safeToNumber(entry.amount) : null,
           createdAt: timing.createdAt,
           timeLabel: eventTimeLabel,
           displayTime: timing.displayTime,
@@ -1296,7 +1313,12 @@ const Dashboard = () => {
       <section className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-12">
         {permissions.inventory && (
           <div className="lg:col-span-4">
-            <StockDistributionCard items={stockDistribution} />
+            <StockDistributionCard
+              items={stockDistribution}
+              capacityPercent={inventoryHealth.total > 0
+                ? Math.round((inventoryHealth.healthy / inventoryHealth.total) * 100)
+                : stockValueCard.healthyRatio}
+            />
           </div>
         )}
         {permissions.sales && (
