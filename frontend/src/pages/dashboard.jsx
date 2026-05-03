@@ -1171,128 +1171,132 @@ const Dashboard = () => {
     })
   }
 
+  // Count visible KPI cards: Sales Pulse + Sales Flow both need sales (count as 2), plus inventory and grn
+  const kpiCount = (permissions.sales ? 2 : 0) + (permissions.inventory ? 1 : 0) + (permissions.grn ? 1 : 0)
+  const kpiGridStyle = { gridTemplateColumns: `repeat(${Math.max(1, kpiCount)}, minmax(0, 1fr))` }
+
   return (
     <main className="min-h-screen bg-slate-100 p-4 sm:p-6 lg:p-8">
       <section className="relative mb-6 overflow-hidden rounded-3xl border border-blue-100 bg-linear-to-br from-blue-50 via-white to-slate-50 p-5 shadow-sm sm:p-6 lg:p-7">
         <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-blue-200/50 blur-3xl" />
         <div className="absolute -bottom-20 -left-20 h-40 w-40 rounded-full bg-indigo-200/40 blur-3xl" />
 
-        <div className="relative mb-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="relative mb-4 grid grid-cols-1 gap-3" style={{ gridTemplateColumns: `repeat(${Math.max(1, kpiCount)}, minmax(0, 1fr))` }}>
           {permissions.sales && (
             <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
               <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">Sales Pulse</p>
               <p className="text-lg font-bold text-slate-900">{fmtCompactMoney(salesPulseKpi.totalSalesToday)}</p>
-            <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-600">
-              <span>{salesPulseKpi.totalSalesCount} txns</span>
-              <span>Avg bill {fmtCompactMoney(salesPulseKpi.avgTicket)}</span>
+              <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-600">
+                <span>{salesPulseKpi.totalSalesCount} txns</span>
+                <span>Avg bill {fmtCompactMoney(salesPulseKpi.avgTicket)}</span>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${clampPercent(salesPulseKpi.todayIndexPct / 2)}%`,
+                    background: 'linear-gradient(90deg, #3b82f6 0%, #06b6d4 100%)',
+                  }}
+                />
+              </div>
+              <p className="mt-2 text-[11px] font-semibold text-slate-500">
+                {salesPulseKpi.todayVsAvgPct >= 0 ? '+' : ''}{salesPulseKpi.todayVsAvgPct.toFixed(1)}% vs 7-day avg
+              </p>
             </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${clampPercent(salesPulseKpi.todayIndexPct / 2)}%`,
-                  background: 'linear-gradient(90deg, #3b82f6 0%, #06b6d4 100%)',
-                }}
-              />
-            </div>
-            <p className="mt-2 text-[11px] font-semibold text-slate-500">
-              {salesPulseKpi.todayVsAvgPct >= 0 ? '+' : ''}{salesPulseKpi.todayVsAvgPct.toFixed(1)}% vs 7-day avg
-            </p>
-          </div>
           )}
 
           {permissions.sales && (
             <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
               <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">Sales Flow</p>
-            <div className={`inline-flex rounded-lg border px-2 py-1 text-[11px] font-semibold ${trendToneClass}`}>
-              {decisionModel.trendChange >= 0 ? '+' : ''}{decisionModel.trendChange.toFixed(1)}%
-            </div>
-            <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
-              <div className="rounded-lg bg-slate-50 px-2 py-1.5">
-                <p className="font-semibold text-slate-500">7-day total</p>
-                <p className="font-bold text-slate-800">{fmtCompactMoney(salesPulseKpi.weekTotal)}</p>
+              <div className={`inline-flex rounded-lg border px-2 py-1 text-[11px] font-semibold ${trendToneClass}`}>
+                {decisionModel.trendChange >= 0 ? '+' : ''}{decisionModel.trendChange.toFixed(1)}%
               </div>
-              <div className="rounded-lg bg-slate-50 px-2 py-1.5">
-                <p className="font-semibold text-slate-500">Daily avg</p>
-                <p className="font-bold text-slate-800">{fmtCompactMoney(salesPulseKpi.weekAvg)}</p>
+              <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
+                <div className="rounded-lg bg-slate-50 px-2 py-1.5">
+                  <p className="font-semibold text-slate-500">7-day total</p>
+                  <p className="font-bold text-slate-800">{fmtCompactMoney(salesPulseKpi.weekTotal)}</p>
+                </div>
+                <div className="rounded-lg bg-slate-50 px-2 py-1.5">
+                  <p className="font-semibold text-slate-500">Daily avg</p>
+                  <p className="font-bold text-slate-800">{fmtCompactMoney(salesPulseKpi.weekAvg)}</p>
+                </div>
               </div>
+              <p className="mt-2 text-[11px] font-semibold text-slate-500">
+                Best day {salesPulseKpi.bestDay.label}: {fmtCompactMoney(salesPulseKpi.bestDay.amount)}
+              </p>
             </div>
-            <p className="mt-2 text-[11px] font-semibold text-slate-500">
-              Best day {salesPulseKpi.bestDay.label}: {fmtCompactMoney(salesPulseKpi.bestDay.amount)}
-            </p>
-          </div>
           )}
 
           {permissions.inventory && (
             <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
-            <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">Inventory Health</p>
-            <div className="flex items-end justify-between gap-3">
-              <div>
-                <p className="text-xl font-bold text-slate-900">{inventoryHealth.riskPercent}%</p>
-                <p className="text-[11px] font-semibold text-slate-500">Needs action</p>
+              <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">Inventory Health</p>
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <p className="text-xl font-bold text-slate-900">{inventoryHealth.riskPercent}%</p>
+                  <p className="text-[11px] font-semibold text-slate-500">Needs action</p>
+                </div>
+                <p className="text-[11px] font-semibold text-slate-500">
+                  {inventoryHealth.total} items tracked
+                </p>
               </div>
-              <p className="text-[11px] font-semibold text-slate-500">
-                {inventoryHealth.total} items tracked
-              </p>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${clampPercent(inventoryHealth.riskPercent)}%`,
+                    background: 'linear-gradient(90deg, #f59e0b 0%, #f43f5e 100%)',
+                  }}
+                />
+              </div>
+              <div className="mt-2 grid grid-cols-3 gap-2 text-[11px]">
+                <div className="rounded-lg bg-emerald-50 px-2 py-1 font-semibold text-emerald-700">Healthy {inventoryHealth.healthy}</div>
+                <div className="rounded-lg bg-amber-50 px-2 py-1 font-semibold text-amber-700">Low {inventoryHealth.lowStock}</div>
+                <div className="rounded-lg bg-rose-50 px-2 py-1 font-semibold text-rose-700">Out {inventoryHealth.outOfStock}</div>
+              </div>
             </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${clampPercent(inventoryHealth.riskPercent)}%`,
-                  background: 'linear-gradient(90deg, #f59e0b 0%, #f43f5e 100%)',
-                }}
-              />
-            </div>
-            <div className="mt-2 grid grid-cols-3 gap-2 text-[11px]">
-              <div className="rounded-lg bg-emerald-50 px-2 py-1 font-semibold text-emerald-700">Healthy {inventoryHealth.healthy}</div>
-              <div className="rounded-lg bg-amber-50 px-2 py-1 font-semibold text-amber-700">Low {inventoryHealth.lowStock}</div>
-              <div className="rounded-lg bg-rose-50 px-2 py-1 font-semibold text-rose-700">Out {inventoryHealth.outOfStock}</div>
-            </div>
-          </div>
           )}
 
           {permissions.grn && (
             <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
               <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">Inbound Ops</p>
-            <div className="flex items-end justify-between gap-3">
-              <div>
-                <p className="text-xl font-bold text-slate-900">{inboundSnapshot.fullyReceivedRate}%</p>
-                <p className="text-[11px] font-semibold text-slate-500">Fully received rate</p>
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <p className="text-xl font-bold text-slate-900">{inboundSnapshot.fullyReceivedRate}%</p>
+                  <p className="text-[11px] font-semibold text-slate-500">Fully received rate</p>
+                </div>
+                <p className="text-[11px] font-semibold text-slate-500">
+                  {inboundSnapshot.partiallyReceivedCount} partially received
+                </p>
               </div>
-              <p className="text-[11px] font-semibold text-slate-500">
-                {inboundSnapshot.partiallyReceivedCount} partially received
-              </p>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${clampPercent(inboundSnapshot.fullyReceivedRate)}%`,
+                    background: 'linear-gradient(90deg, #3b82f6 0%, #4f46e5 100%)',
+                  }}
+                />
+              </div>
+              <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-600">
+                <span>
+                  Fully {inboundSnapshot.fullyReceivedCount} / Total {inboundSnapshot.total}
+                </span>
+                <span>Value {fmtCompactMoney(inboundSnapshot.todayInboundValue)}</span>
+              </div>
+              <p className="mt-1 text-[11px] font-semibold text-slate-500">{inboundSnapshot.activeSuppliers} suppliers active</p>
             </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${clampPercent(inboundSnapshot.fullyReceivedRate)}%`,
-                  background: 'linear-gradient(90deg, #3b82f6 0%, #4f46e5 100%)',
-                }}
-              />
-            </div>
-            <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-600">
-              <span>
-                Fully {inboundSnapshot.fullyReceivedCount} / Total {inboundSnapshot.total}
-              </span>
-              <span>Value {fmtCompactMoney(inboundSnapshot.todayInboundValue)}</span>
-            </div>
-            <p className="mt-1 text-[11px] font-semibold text-slate-500">{inboundSnapshot.activeSuppliers} suppliers active</p>
-          </div>
           )}
         </div>
 
         {quickLinks.length > 0 && (
           <div className="relative rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="flex flex-wrap gap-2">
               {quickLinks.map((link) => (
                 <button
                   key={link.id}
                   type="button"
                   onClick={() => navigate(link.path)}
-                  className={`inline-flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-150 active:scale-95 ${
+                  className={`inline-flex flex-1 basis-36 items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-150 active:scale-95 ${
                     link.priority
                       ? 'bg-blue-600 text-white shadow-md shadow-blue-200 hover:bg-blue-700'
                       : 'border border-blue-100 bg-blue-50 text-blue-700 hover:border-blue-200 hover:bg-blue-100'
@@ -1310,198 +1314,186 @@ const Dashboard = () => {
         )}
       </section>
 
-      <section className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-12">
-        {permissions.inventory && (
-          <div className="lg:col-span-4">
-            <StockDistributionCard
-              items={stockDistribution}
-              capacityPercent={inventoryHealth.total > 0
-                ? Math.round((inventoryHealth.healthy / inventoryHealth.total) * 100)
-                : stockValueCard.healthyRatio}
-            />
-          </div>
-        )}
-        {permissions.sales && (
-          <div className={`${permissions.inventory ? 'lg:col-span-8' : 'lg:col-span-12'}`}>
-            <TopSellingCategoriesCard items={topSellingCategories} />
-          </div>
-        )}
-      </section>
-
-      <section className="mb-4 grid grid-cols-1 items-stretch gap-5 lg:grid-cols-12 ">
-        <div className="lg:col-span-8">
-          {permissions.sales ? (
-            <SectionCard
-              title="Sales Trend"
-              subtitle="Revenue for the last 7 days"
-              className="flex h-full flex-col"
-              contentClassName="flex flex-1 flex-col"
-              right={
-                <span className="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700">
-                  <span className="material-symbols-outlined text-sm">insights</span>
-                  Peak {fmtCompactMoney(salesTrendPeak)}
-                </span>
-              }
-            >
-              <SalesChart trend={salesTrend} />
-            </SectionCard>
-          ) : (
-            permissionBlock('Sales Trend')
-          )}
-        </div>
-        <div className="lg:col-span-4">
-          <SectionCard
-            title="Stock Value"
-            subtitle="Full valuation with live refresh"
-            className="flex h-full flex-col"
-            contentClassName="flex flex-1 flex-col"
-            right={
-              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-                Live
-              </span>
-            }
-          >
-            <p className="text-[32px] leading-none font-bold tracking-tight text-slate-900">{fmtMoney(stockValueCard.totalStockValue)}</p>
-
-            <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="font-semibold text-slate-500">Avg per item</p>
-                <p className="mt-1 text-sm font-bold text-slate-900">{fmtMoney(stockValueCard.averagePerItem)}</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="font-semibold text-slate-500">Stock / sales</p>
-                <p className="mt-1 text-sm font-bold text-slate-900">{stockValueCard.stockToSales.toFixed(1)}x</p>
-              </div>
-            </div>
-
-            <div className="mt-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
-              <div className="flex items-center justify-between gap-2 text-[11px] font-semibold text-blue-700">
-                <span>Coverage runway</span>
-                <span>{stockValueCard.coverageDays > 0 ? `${stockValueCard.coverageDays.toFixed(1)} days` : '-'}</span>
-              </div>
-              <p className="mt-1 text-[11px] font-medium text-blue-700">{stockValueCard.coverageLabel}</p>
-            </div>
-
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200">
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${clampPercent(stockValueCard.healthyRatio)}%`,
-                  background: 'linear-gradient(90deg, #10b981 0%, #3b82f6 100%)',
-                }}
+      {(permissions.inventory || permissions.sales) && (
+        <section className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-12">
+          {permissions.inventory && (
+            <div className={permissions.sales ? 'lg:col-span-4' : 'lg:col-span-12'}>
+              <StockDistributionCard
+                items={stockDistribution}
+                capacityPercent={inventoryHealth.total > 0
+                  ? Math.round((inventoryHealth.healthy / inventoryHealth.total) * 100)
+                  : stockValueCard.healthyRatio}
               />
             </div>
-
-            <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-500">
-              <span>{stockValueCard.totalItems} items tracked</span>
-              <span>{stockValueCard.lowStockCount} low stock</span>
+          )}
+          {permissions.sales && (
+            <div className={permissions.inventory ? 'lg:col-span-8' : 'lg:col-span-12'}>
+              <TopSellingCategoriesCard items={topSellingCategories} />
             </div>
+          )}
+        </section>
+      )}
 
-            <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-                <p className="font-semibold text-amber-700">Low stock share</p>
-                <p className="mt-1 text-sm font-bold text-amber-700">{stockValueCard.lowStockShare.toFixed(1)}%</p>
-              </div>
-              <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">
-                <p className="font-semibold text-rose-700">At risk value</p>
-                <p className="mt-1 text-sm font-bold text-rose-700">{fmtCompactMoney(stockValueCard.lowStockValueEstimate)}</p>
-              </div>
+      {(permissions.sales || permissions.inventory) && (
+        <section className="mb-4 grid grid-cols-1 items-stretch gap-5 lg:grid-cols-12">
+          {permissions.sales && (
+            <div className={permissions.inventory ? 'lg:col-span-8' : 'lg:col-span-12'}>
+              <SectionCard
+                title="Sales Trend"
+                subtitle="Revenue for the last 7 days"
+                className="flex h-full flex-col"
+                contentClassName="flex flex-1 flex-col"
+                right={
+                  <span className="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700">
+                    <span className="material-symbols-outlined text-sm">insights</span>
+                    Peak {fmtCompactMoney(salesTrendPeak)}
+                  </span>
+                }
+              >
+                <SalesChart trend={salesTrend} />
+              </SectionCard>
             </div>
-
-            <p className="mt-auto pt-3 text-[11px] font-medium text-slate-500">
-              Updated {relTime(stockValueRefreshAt)}. Refreshes every 30s and on window focus.
-            </p>
-          </SectionCard>
-        </div>
-      </section>
-
-      <section className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
-        {permissions.sales ? (
-          <SectionCard
-            title="Recent Sales"
-            subtitle={`All ${recentSales.length} transactions`}
-            contentClassName="h-96 overflow-y-auto pr-1"
-          >
-            <div className="space-y-2">
-              {recentSales.map((sale, index) => (
-                <div
-                  key={sale?.id || index}
-                  className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5"
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-slate-800">{sale?.invoice_no || `INV-${sale?.id || index}`}</p>
-                    <p className="text-xs text-slate-500">{relTime(sale?.sale_date)} • {sale?.payment_method || 'Sale'}</p>
+          )}
+          {permissions.inventory && (
+            <div className={permissions.sales ? 'lg:col-span-4' : 'lg:col-span-12'}>
+              <SectionCard
+                title="Stock Value"
+                subtitle="Full valuation with live refresh"
+                className="flex h-full flex-col"
+                contentClassName="flex flex-1 flex-col"
+                right={
+                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                    Live
+                  </span>
+                }
+              >
+                <p className="text-[32px] leading-none font-bold tracking-tight text-slate-900">{fmtMoney(stockValueCard.totalStockValue)}</p>
+                <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <p className="font-semibold text-slate-500">Avg per item</p>
+                    <p className="mt-1 text-sm font-bold text-slate-900">{fmtMoney(stockValueCard.averagePerItem)}</p>
                   </div>
-                  <p className="text-sm font-bold text-slate-900">{fmtMoney(sale?.total_amount)}</p>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <p className="font-semibold text-slate-500">Stock / sales</p>
+                    <p className="mt-1 text-sm font-bold text-slate-900">{stockValueCard.stockToSales.toFixed(1)}x</p>
+                  </div>
                 </div>
-              ))}
-              {!recentSales.length && <p className="py-4 text-center text-sm text-slate-500">No recent sales.</p>}
+                <div className="mt-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
+                  <div className="flex items-center justify-between gap-2 text-[11px] font-semibold text-blue-700">
+                    <span>Coverage runway</span>
+                    <span>{stockValueCard.coverageDays > 0 ? `${stockValueCard.coverageDays.toFixed(1)} days` : '-'}</span>
+                  </div>
+                  <p className="mt-1 text-[11px] font-medium text-blue-700">{stockValueCard.coverageLabel}</p>
+                </div>
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200">
+                  <div
+                    className="h-full rounded-full"
+                    style={{ width: `${clampPercent(stockValueCard.healthyRatio)}%`, background: 'linear-gradient(90deg, #10b981 0%, #3b82f6 100%)' }}
+                  />
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-slate-500">
+                  <span>{stockValueCard.totalItems} items tracked</span>
+                  <span>{stockValueCard.lowStockCount} low stock</span>
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                    <p className="font-semibold text-amber-700">Low stock share</p>
+                    <p className="mt-1 text-sm font-bold text-amber-700">{stockValueCard.lowStockShare.toFixed(1)}%</p>
+                  </div>
+                  <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">
+                    <p className="font-semibold text-rose-700">At risk value</p>
+                    <p className="mt-1 text-sm font-bold text-rose-700">{fmtCompactMoney(stockValueCard.lowStockValueEstimate)}</p>
+                  </div>
+                </div>
+                <p className="mt-auto pt-3 text-[11px] font-medium text-slate-500">
+                  Updated {relTime(stockValueRefreshAt)}. Refreshes every 30s and on window focus.
+                </p>
+              </SectionCard>
             </div>
-          </SectionCard>
-        ) : (
-          permissionBlock('Recent Sales')
-        )}
+          )}
+        </section>
+      )}
 
-        {permissions.inventory ? (
-          <SectionCard
-            title="Inventory Alerts"
-            subtitle="Low stock and out-of-stock items"
-            contentClassName="h-96 overflow-y-auto pr-1"
-          >
-            <div className="space-y-2">
-              {inventoryAlerts.map((item, index) => {
-                const level = clampPercent(item?.level_percent)
-                const isOut = Boolean(item?.is_out_of_stock)
-                const isClickable = permissions.purchaseOrders
-                return (
-                  <button
-                    key={item?.id || index}
-                    type="button"
-                    onClick={() => handleInventoryAlertClick(item)}
-                    disabled={!isClickable}
-                    className={`w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-left transition ${isClickable ? 'cursor-pointer hover:border-blue-300 hover:bg-blue-50/40' : 'cursor-default'}`}
-                    title={isClickable ? 'Create purchase order for this item' : 'No purchase order permission'}
+      {(permissions.sales || permissions.inventory) && (
+        <section className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+          {permissions.sales && (
+            <SectionCard
+              title="Recent Sales"
+              subtitle={`All ${recentSales.length} transactions`}
+              contentClassName="h-96 overflow-y-auto pr-1"
+            >
+              <div className="space-y-2">
+                {recentSales.map((sale, index) => (
+                  <div
+                    key={sale?.id || index}
+                    className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5"
                   >
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <p className="truncate text-sm font-semibold text-slate-800">{item?.item_name || 'Unnamed item'}</p>
-                      <span className={`text-xs font-bold ${isOut ? 'text-rose-600' : 'text-amber-600'}`}>
-                        {isOut ? 'OUT' : `${item?.quantity || 0} left`}
-                      </span>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">{sale?.invoice_no || `INV-${sale?.id || index}`}</p>
+                      <p className="text-xs text-slate-500">{relTime(sale?.sale_date)} • {sale?.payment_method || 'Sale'}</p>
                     </div>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
-                      <div className={`h-full rounded-full ${isOut ? 'bg-rose-500' : 'bg-amber-500'}`} style={{ width: `${isOut ? 0 : clampPercent(level)}%` }} />
-                    </div>
-                  </button>
-                )
-              })}
-              {!inventoryAlerts.length && <p className="py-4 text-center text-sm text-slate-500">No low stock alerts.</p>}
-            </div>
-          </SectionCard>
-        ) : (
-          permissionBlock('Inventory Alerts')
-        )}
-      </section>
-
-      <section className="grid grid-cols-1 gap-4">
-        <div>
-          {permissions.stockMovement ? (
-            <LiveFeedCard
-              entries={liveFeedEntries}
-              right={<span className="text-xs font-semibold text-slate-600">Total: {fmtMoney(recentSalesTotal)}</span>}
-            />
-          ) : (
-            permissionBlock('Live Feed')
+                    <p className="text-sm font-bold text-slate-900">{fmtMoney(sale?.total_amount)}</p>
+                  </div>
+                ))}
+                {!recentSales.length && <p className="py-4 text-center text-sm text-slate-500">No recent sales.</p>}
+              </div>
+            </SectionCard>
           )}
+          {permissions.inventory && (
+            <SectionCard
+              title="Inventory Alerts"
+              subtitle="Low stock and out-of-stock items"
+              contentClassName="h-96 overflow-y-auto pr-1"
+            >
+              <div className="space-y-2">
+                {inventoryAlerts.map((item, index) => {
+                  const level = clampPercent(item?.level_percent)
+                  const isOut = Boolean(item?.is_out_of_stock)
+                  const isClickable = permissions.purchaseOrders
+                  return (
+                    <button
+                      key={item?.id || index}
+                      type="button"
+                      onClick={() => handleInventoryAlertClick(item)}
+                      disabled={!isClickable}
+                      className={`w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-left transition ${isClickable ? 'cursor-pointer hover:border-blue-300 hover:bg-blue-50/40' : 'cursor-default'}`}
+                      title={isClickable ? 'Create purchase order for this item' : 'No purchase order permission'}
+                    >
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        <p className="truncate text-sm font-semibold text-slate-800">{item?.item_name || 'Unnamed item'}</p>
+                        <span className={`text-xs font-bold ${isOut ? 'text-rose-600' : 'text-amber-600'}`}>
+                          {isOut ? 'OUT' : `${item?.quantity || 0} left`}
+                        </span>
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
+                        <div className={`h-full rounded-full ${isOut ? 'bg-rose-500' : 'bg-amber-500'}`} style={{ width: `${isOut ? 0 : clampPercent(level)}%` }} />
+                      </div>
+                    </button>
+                  )
+                })}
+                {!inventoryAlerts.length && <p className="py-4 text-center text-sm text-slate-500">No low stock alerts.</p>}
+              </div>
+            </SectionCard>
+          )}
+        </section>
+      )}
+
+      {(permissions.stockMovement || permissions.sales || permissions.grn) && (
+        <section className="mb-4 grid grid-cols-1 gap-4">
+          <LiveFeedCard
+            entries={liveFeedEntries}
+            right={permissions.sales && <span className="text-xs font-semibold text-slate-600">Total: {fmtMoney(recentSalesTotal)}</span>}
+          />
+        </section>
+      )}
+
+      {(isLoadingDashboard || isLoadingItems || isLoadingSales) && (
+        <div className="fixed bottom-6 right-6 inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-lg">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-blue-500" />
+          Loading dashboard data
         </div>
-      </section>
-
-          {(isLoadingDashboard || isLoadingItems || isLoadingSales) && (
-            <div className="fixed bottom-6 right-6 inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-lg">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-blue-500" />
-              Loading dashboard data
-            </div>
-          )}
+      )}
 
       {permissions.users && (
         <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
