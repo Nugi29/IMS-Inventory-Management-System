@@ -13,6 +13,7 @@ const stockAdjustmentRoutes = require('./routes/stockAdjustmentRoutes');
 const supplierRoutes = require('./routes/supplierRoutes');
 const itemRoutes = require('./routes/itemRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
+const reportsRoutes = require('./routes/reportRoutes');
 
 const app = express();
 
@@ -31,7 +32,6 @@ app.use('/api/reports', reportsRoutes);
 
 app.use('/api/stock-movements', stockMovementRoutes);
 app.use('/api/stock-adjustments', stockAdjustmentRoutes);
-app.use('/api/supplier', supplierRoutes);app.use('/api/dashboard', dashboardRoutes);
 
 
 app.get('/', (req, res) => {
