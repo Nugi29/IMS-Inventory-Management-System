@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import { useSupplier } from '../services/useSupplier'
 
 const normalizeSupplierStatus = (status) => {
@@ -42,30 +43,17 @@ const formatSupplierStatus = (status) => {
 
 const SupplierPage = () => {
     const navigate = useNavigate()
-    const { suppliers, isLoadingSuppliers, reloadSuppliers } = useSupplier()
+    const { suppliers, isLoadingSuppliers } = useSupplier()
     const [searchTerm, setSearchTerm] = useState('')
     const [selectedStatus, setSelectedStatus] = useState('all')
     const [currentPage, setCurrentPage] = useState(1)
 
-    const ITEMS_PER_PAGE = 6
-
-    const handleRefresh = async () => {
-        setSearchTerm('')
-        setSelectedStatus('all')
-        setCurrentPage(1)
-        await reloadSuppliers()
-    }
+    const ITEMS_PER_PAGE = 4
 
     const normalizedSuppliers = useMemo(() => {
         return suppliers.map((supplier) => {
             const normalizedStatus = normalizeSupplierStatus(
                 supplier?.supplier_status?.name
-                ?? supplier?.supplier_status?.status_name
-                ?? supplier?.supplier_status?.label
-                ?? supplier?.supplier_status?.title
-                ?? supplier?.supplier_status?.status
-                ?? supplier?.supplier_status?.value
-                ?? supplier?.supplier_status
             )
 
             const supplierStatusId = Number(
@@ -137,68 +125,51 @@ const SupplierPage = () => {
         }
     }, [currentPage, totalPages])
 
-    const totalSuppliers = normalizedSuppliers.length
-    const activeSuppliers = normalizedSuppliers.filter((supplier) => supplier.supplier_status === 'active').length
-    const inactiveSuppliers = normalizedSuppliers.filter((supplier) => supplier.supplier_status === 'inactive').length
-
     const clearFilters = () => {
         setSearchTerm('')
         setSelectedStatus('all')
         setCurrentPage(1)
     }
 
-    const getStatusClasses = (status) => {
-        const normalizedStatus = status.toLowerCase()
+    const exportCsv = () => {
+        if (!filteredSuppliers.length) {
+            toast.error('No supplier data to export.')
+            return
+        }
 
-        if (normalizedStatus === 'active') return 'bg-emerald-50 text-emerald-600'
-        if (normalizedStatus === 'inactive') return 'bg-rose-50 text-rose-600'
-        if (normalizedStatus === 'pending') return 'bg-amber-50 text-amber-700'
+        const rows = filteredSuppliers.map((supplier) => ({
+            name: supplier.name || '',
+            phone: supplier.phone || '',
+            email: supplier.email || '',
+            address: supplier.address || '',
+            status: formatSupplierStatus(supplier.supplier_status),
+        }))
 
-        return 'bg-slate-100 text-slate-600'
+        const headers = Object.keys(rows[0])
+        const csvContent = [
+            headers.join(','),
+            ...rows.map((row) =>
+                headers.map((key) => `"${String(row[key] ?? '').replaceAll('"', '""')}"`).join(',')
+            ),
+        ].join('\n')
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.setAttribute('download', `suppliers-${Date.now()}.csv`)
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
     }
 
     return (
-        <main className="ml-0 mt-0 min-h-screen p-4 sm:p-6 lg:p-8">
-            <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
-                <button
-                    type="button"
-                    onClick={() => {
-                        setSelectedStatus('all')
-                        setCurrentPage(1)
-                    }}
-                    className={`p-6 bg-white border border-slate-200 dark:border-slate-800 rounded-2xl text-left shadow-sm transition ${selectedStatus === 'all' ? 'ring-2 ring-primary/20 border-primary/40' : 'hover:border-primary/30'}`}
-                >
-                    <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-2">Total Suppliers</p>
-                    <p className="text-3xl font-headline font-extrabold text-on-surface">{totalSuppliers}</p>
-                </button>
-                <button
-                    type="button"
-                    onClick={() => {
-                        setSelectedStatus('active')
-                        setCurrentPage(1)
-                    }}
-                    className={`p-6 bg-white border border-slate-200 dark:border-slate-800 rounded-2xl text-left shadow-sm transition ${selectedStatus === 'active' ? 'ring-2 ring-primary/20 border-primary/40' : 'hover:border-primary/30'}`}
-                >
-                    <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-2">Active Suppliers</p>
-                    <p className="text-3xl font-headline font-extrabold text-on-surface">{activeSuppliers}</p>
-                </button>
-                <button
-                    type="button"
-                    onClick={() => {
-                        setSelectedStatus('inactive')
-                        setCurrentPage(1)
-                    }}
-                    className={`p-6 bg-white border border-slate-200 dark:border-slate-800 rounded-2xl text-left shadow-sm transition ${selectedStatus === 'inactive' ? 'ring-2 ring-primary/20 border-primary/40' : 'hover:border-primary/30'}`}
-                >
-                    <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-2">Inactive Suppliers</p>
-                    <p className="text-3xl font-headline font-extrabold text-on-surface">{inactiveSuppliers}</p>
-                </button>
-            </div>
-
+        <main className="p-4 sm:p-6 lg:p-8">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8 items-center">
                 <div className="lg:col-span-8 flex flex-col md:flex-row gap-4">
                     <div className="relative flex-1">
-                        <span className="material-symbols-outlined absolute left-4 top-10 -translate-y-1/2 text-slate-400" data-icon="filter_list">filter_list</span>
+                        <span className="material-symbols-outlined absolute left-4 top-10 -translate-y-1/2 text-slate-400" data-icon="search">search</span>
                         <input
                             className="w-full bg-white border border-slate-200 dark:border-slate-800 rounded-xl pl-12 pr-4 py-4 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none"
                             placeholder="Search supplier name, phone, email, or address..."
@@ -246,118 +217,172 @@ const SupplierPage = () => {
                 </div>
             </div>
 
-            <div className="bg-white border border-slate-200 dark:border-slate-800 rounded-4xl shadow-sm overflow-hidden p-2">
-                <div className="overflow-x-auto">
-                    <table className="w-full border-separate border-spacing-y-1 text-left">
-                        <thead>
-                            <tr className="text-on-surface-variant">
-                                <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider font-label">Supplier</th>
-                                <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider font-label">Phone</th>
-                                <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider font-label">Email</th>
-                                <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider font-label">Address</th>
-                                <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider font-label text-center">Status</th>
-                                <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-wider font-label text-right">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {isLoadingSuppliers && (
-                                <tr>
-                                    <td colSpan={6} className="px-6 py-10 text-center text-slate-500">
-                                        Loading suppliers...
-                                    </td>
-                                </tr>
-                            )}
-
-                            {!isLoadingSuppliers && paginatedSuppliers.map((supplier) => (
-                                <tr key={supplier.id || supplier.name} className="bg-slate-50/50 hover:bg-slate-100/50 transition-colors group">
-                                    <td className="px-6 py-4 rounded-l-xl text-sm font-bold text-on-surface">
-                                        <div className="flex items-center gap-4">
-                                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-sm font-bold text-white">
-                                                {supplier.name
-                                                    .split(' ')
-                                                    .filter(Boolean)
-                                                    .map((part) => part[0])
-                                                    .slice(0, 2)
-                                                    .join('')
-                                                    .toUpperCase() || 'S'}
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-semibold text-on-surface">{supplier.name || '-'}</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-slate-500">{supplier.phone || '-'}</td>
-                                    <td className="px-6 py-4 text-sm text-slate-500">{supplier.email || '-'}</td>
-                                    <td className="px-6 py-4 text-sm text-slate-500">{supplier.address || '-'}</td>
-                                    <td className="px-6 py-4 text-center">
-                                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 ${supplier.supplier_status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-600'} font-bold text-[10px] rounded-full uppercase tracking-tight font-label`}>
-                                            <span className={`w-1.5 h-1.5 rounded-full ${supplier.supplier_status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`}></span>
-                                            {formatSupplierStatus(supplier.supplier_status)}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-right rounded-r-xl">
-                                        <div className="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                className="p-2 hover:bg-white rounded-lg transition-colors text-slate-400 hover:text-primary"
-                                                aria-label={`Edit ${supplier.name || 'supplier'}`}
-                                                type="button"
-                                                onClick={() => navigate('/supplierform', { state: { mode: 'update', supplier } })}
-                                            >
-                                                <span className="material-symbols-outlined text-[20px]">edit</span>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-
-                            {!isLoadingSuppliers && !filteredSuppliers.length && (
-                                <tr>
-                                    <td colSpan={6} className="px-6 py-14 text-center text-slate-500">
-                                        <p className="text-sm font-semibold text-on-surface">No suppliers found</p>
-                                        <p className="mt-1 text-xs">The backend returned no matching supplier records.</p>
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                {/* Table Header Info Bar */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/60">
+                    <p className="text-xs font-semibold text-slate-500 tracking-wide uppercase">
+                        {filteredSuppliers.length} supplier{filteredSuppliers.length !== 1 ? 's' : ''} found
+                    </p>
+                    <p className="text-xs text-slate-400">
+                        Page <span className="font-bold text-slate-600">{currentPage}</span> of <span className="font-bold text-slate-600">{totalPages}</span>
+                    </p>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center justify-between p-6 gap-4 mt-2">
-                    <p className="text-xs text-slate-500 font-medium font-label">
-                        Showing <span className="font-bold text-on-surface">{filteredSuppliers.length ? `${startIndex + 1} - ${Math.min(endIndex, filteredSuppliers.length)}` : 0}</span> of <span className="font-bold text-on-surface">{filteredSuppliers.length}</span> suppliers
+                <table className="w-full text-left">
+                    <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200">
+                            <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Supplier</th>
+                            <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Phone</th>
+                            <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Email</th>
+                            <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Address</th>
+                            <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center">Status</th>
+                            <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                        {isLoadingSuppliers && (
+                            <tr>
+                                <td colSpan={6} className="px-6 py-16 text-center">
+                                    <span className="material-symbols-outlined animate-spin text-primary text-2xl block mx-auto mb-2">sync</span>
+                                    <p className="text-sm text-slate-500 font-medium">Loading suppliers...</p>
+                                </td>
+                            </tr>
+                        )}
+
+                        {!isLoadingSuppliers && paginatedSuppliers.map((supplier) => (
+                            <tr
+                                key={supplier.id || supplier.name}
+                                className="hover:bg-slate-50/80 transition-colors group"
+                            >
+                                <td className="px-6 py-4">
+                                    <p className="font-semibold text-sm text-slate-800 leading-snug">{supplier.name || '—'}</p>
+                                </td>
+                                <td className="px-6 py-4 text-sm text-slate-600 font-medium">
+                                    {supplier.phone || <span className="text-slate-300">—</span>}
+                                </td>
+                                <td className="px-6 py-4 text-sm text-slate-600 font-medium">
+                                    {supplier.email || <span className="text-slate-300">—</span>}
+                                </td>
+                                <td className="px-6 py-4 text-sm text-slate-600 font-medium">
+                                    {supplier.address || <span className="text-slate-300">—</span>}
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                    <span className={`inline-flex items-center text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-tight ${supplier.supplier_status === 'active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
+                                        {formatSupplierStatus(supplier.supplier_status)}
+                                    </span>
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                    <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                                        <button
+                                            className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors"
+                                            onClick={() => navigate('/supplierform', { state: { mode: 'update', supplier } })}
+                                            aria-label={`Edit ${supplier.name}`}
+                                            title="Edit supplier"
+                                            type="button"
+                                        >
+                                            <span className="material-symbols-outlined text-[18px]">edit</span>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+
+                        {!isLoadingSuppliers && !filteredSuppliers.length && (
+                            <tr>
+                                <td colSpan={6} className="px-6 py-20 text-center">
+                                    <span className="material-symbols-outlined text-4xl text-slate-300 block mb-3">local_shipping</span>
+                                    <p className="text-sm font-semibold text-slate-600">No suppliers found</p>
+                                    <p className="text-xs text-slate-400 mt-1">Try adjusting your filters or search term.</p>
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+
+                {/* Pagination Footer */}
+                <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 bg-slate-50/60 border-t border-slate-100 gap-4">
+
+                    {/* Count */}
+                    <p className="text-xs text-slate-500 font-medium shrink-0">
+                        Showing{' '}
+                        <span className="font-bold text-slate-700">
+                            {filteredSuppliers.length ? `${startIndex + 1}–${Math.min(endIndex, filteredSuppliers.length)}` : 0}
+                        </span>
+                        {' '}of{' '}
+                        <span className="font-bold text-slate-700">{filteredSuppliers.length}</span>
+                        {' '}suppliers
                     </p>
-                    <div className="flex items-center gap-2">
+
+                    {/* Page Numbers */}
+                    <div className="flex items-center gap-1">
+                        {/* Prev */}
                         <button
                             onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                             disabled={currentPage === 1}
-                            className={`p-2 rounded-lg border border-slate-200 transition-all ${currentPage === 1 ? 'bg-slate-50 text-slate-400 cursor-not-allowed opacity-50' : 'bg-slate-50 text-slate-600 hover:bg-primary hover:text-white'}`}
+                            type="button"
+                            className={`p-1.5 rounded-lg border transition-all ${currentPage === 1 ? 'border-slate-200 bg-white text-slate-300 cursor-not-allowed' : 'border-slate-200 bg-white text-slate-600 hover:bg-primary hover:text-white hover:border-primary'}`}
+                            aria-label="Previous page"
                         >
-                            <span className="material-symbols-outlined">chevron_left</span>
+                            <span className="material-symbols-outlined text-[18px]">chevron_left</span>
                         </button>
-                        <div className="flex items-center gap-1">
-                            {Array.from({ length: totalPages }, (_, index) => {
-                                const pageNumber = index + 1
-                                const isActive = pageNumber === currentPage
 
-                                return (
-                                    <button
-                                        key={pageNumber}
-                                        onClick={() => setCurrentPage(pageNumber)}
-                                        className={`w-8 h-8 rounded-lg text-xs font-bold ${isActive ? 'bg-primary text-white' : 'bg-slate-50 text-slate-600 hover:bg-primary hover:text-white border border-slate-200'}`}
-                                    >
-                                        {pageNumber}
-                                    </button>
-                                )
-                            })}
-                        </div>
+                        {/* Windowed page numbers */}
+                        {(() => {
+                            const maxVisible = 7
+                            let pages = []
+                            if (totalPages <= maxVisible) {
+                                pages = Array.from({ length: totalPages }, (_, i) => i + 1)
+                            } else {
+                                const half = Math.floor(maxVisible / 2)
+                                let start = Math.max(2, currentPage - half)
+                                let end = Math.min(totalPages - 1, start + maxVisible - 3)
+                                if (end === totalPages - 1) start = Math.max(2, end - (maxVisible - 3))
+
+                                pages = [1]
+                                if (start > 2) pages.push('...')
+                                for (let p = start; p <= end; p++) pages.push(p)
+                                if (end < totalPages - 1) pages.push('...')
+                                pages.push(totalPages)
+                            }
+
+                            return pages.map((page, idx) =>
+                                page === '...'
+                                    ? <span key={`ellipsis-${idx}`} className="px-1 text-slate-400 text-xs select-none">···</span>
+                                    : (
+                                        <button
+                                            key={page}
+                                            onClick={() => setCurrentPage(page)}
+                                            type="button"
+                                            className={`min-w-[32px] h-8 px-2 rounded-lg text-xs font-bold transition-all border ${page === currentPage ? 'bg-primary text-white border-primary shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-primary hover:text-white hover:border-primary'}`}
+                                        >
+                                            {page}
+                                        </button>
+                                    )
+                            )
+                        })()}
+
+                        {/* Next */}
                         <button
                             onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                             disabled={currentPage === totalPages}
-                            className={`p-2 rounded-lg border border-slate-200 transition-all ${currentPage === totalPages ? 'bg-slate-50 text-slate-400 cursor-not-allowed opacity-50' : 'bg-slate-50 text-slate-600 hover:bg-primary hover:text-white'}`}
+                            type="button"
+                            className={`p-1.5 rounded-lg border transition-all ${currentPage === totalPages ? 'border-slate-200 bg-white text-slate-300 cursor-not-allowed' : 'border-slate-200 bg-white text-slate-600 hover:bg-primary hover:text-white hover:border-primary'}`}
+                            aria-label="Next page"
                         >
-                            <span className="material-symbols-outlined">chevron_right</span>
+                            <span className="material-symbols-outlined text-[18px]">chevron_right</span>
                         </button>
                     </div>
+
+                    {/* Export */}
+                    <button
+                        type="button"
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors shrink-0"
+                        onClick={exportCsv}
+                        aria-label="Export suppliers to CSV"
+                    >
+                        <span className="material-symbols-outlined text-[16px]">download</span>
+                        Export CSV
+                    </button>
                 </div>
             </div>
         </main>

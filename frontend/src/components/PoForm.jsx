@@ -535,11 +535,17 @@ export const PoForm = () => {
 
     const suppliers = useMemo(() => {
         const lookupSuppliers = supplierLookup
+            .filter((s) => {
+                // If it's an existing PO, we might want to show the current supplier even if inactive
+                // But for new POs, we only show Active (1)
+                const isCurrentSupplier = String(s.id) === String(formData.supplierId);
+                return Number(s.supplier_status_id) === 1 || isCurrentSupplier;
+            })
             .map((supplier) => ({ id: getLookupId(supplier), label: getLookupLabel(supplier) }))
             .filter((supplier) => supplier.id && supplier.label)
 
         return [...new Map(lookupSuppliers.map((supplier) => [String(supplier.id), supplier])).values()]
-    }, [supplierLookup])
+    }, [supplierLookup, formData.supplierId])
 
     const poStatuses = useMemo(() => {
         const lookupStatuses = poStatusLookup

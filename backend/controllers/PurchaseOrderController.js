@@ -64,6 +64,20 @@ const createPurchaseOrder = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Valid supplier_id is required' });
         }
 
+        const supplierRecord = await Supplier.findByPk(parsedSupplierId, { transaction });
+        if (!supplierRecord) {
+            await transaction.rollback();
+            return res.status(404).json({ success: false, message: 'Supplier not found' });
+        }
+
+        if (Number(supplierRecord.supplier_status_id) !== 1) {
+            await transaction.rollback();
+            return res.status(400).json({
+                success: false,
+                message: `Cannot create purchase order — Supplier "${supplierRecord.name}" is inactive.`,
+            });
+        }
+
         if (!createdBy) {
             await transaction.rollback();
             return res.status(401).json({ success: false, message: 'Unauthorized' });
@@ -174,6 +188,19 @@ const updatePurchaseOrder = async (req, res) => {
             if (!parsedSupplierId) {
                 return res.status(400).json({ success: false, message: 'supplier_id must be a positive integer' });
             }
+
+            const supplierRecord = await Supplier.findByPk(parsedSupplierId);
+            if (!supplierRecord) {
+                return res.status(404).json({ success: false, message: 'Supplier not found' });
+            }
+
+            if (Number(supplierRecord.supplier_status_id) !== 1) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Cannot update purchase order — Supplier "${supplierRecord.name}" is inactive.`,
+                });
+            }
+
             purchaseOrder.supplier_id = parsedSupplierId;
         }
 

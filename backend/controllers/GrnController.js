@@ -345,6 +345,19 @@ const buildGrnHeader = async (body, fallbackUserId) => {
         return { success: false, status: 400, message: 'Valid supplier_id is required' };
     }
 
+    const supplierRecord = await Supplier.findByPk(supplierId);
+    if (!supplierRecord) {
+        return { success: false, status: 404, message: 'Supplier not found' };
+    }
+
+    if (Number(supplierRecord.supplier_status_id) !== 1) {
+        return {
+            success: false,
+            status: 400,
+            message: `Cannot process GRN — Supplier "${supplierRecord.name}" is inactive.`,
+        };
+    }
+
     if (!userId) {
         return { success: false, status: 401, message: 'Unauthorized' };
     }
@@ -595,10 +608,18 @@ const updateGrn = async (req, res) => {
                 return res.status(400).json({ success: false, message: 'supplier_id must be a positive integer' });
             }
 
-            const supplierExists = await Supplier.findByPk(parsedSupplierId, { transaction });
-            if (!supplierExists) {
+            const supplierRecord = await Supplier.findByPk(parsedSupplierId, { transaction });
+            if (!supplierRecord) {
                 await transaction.rollback();
                 return res.status(404).json({ success: false, message: `Supplier not found: ${parsedSupplierId}` });
+            }
+
+            if (Number(supplierRecord.supplier_status_id) !== 1) {
+                await transaction.rollback();
+                return res.status(400).json({
+                    success: false,
+                    message: `Cannot update GRN — Supplier "${supplierRecord.name}" is inactive.`,
+                });
             }
 
             grnRecord.supplier_id = parsedSupplierId;

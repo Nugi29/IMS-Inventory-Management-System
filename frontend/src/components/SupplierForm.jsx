@@ -194,8 +194,10 @@ export const SupplierForm = () => {
                                         id="phone"
                                         className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                                         placeholder="e.g. 0771234567"
-                                        type="text"
+                                        type="tel"
                                         name="phone"
+                                        inputMode="tel"
+                                        pattern="[0-9+-]*"
                                         value={formData.phone}
                                         onChange={handleChange}
                                     />
