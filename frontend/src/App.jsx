@@ -22,7 +22,6 @@ import { StockMovementPage } from "./pages/StockMovementPage"
 import { StockAdjustmentForm } from "./components/StockAdjustmentForm"
 import { InvoiceDetail } from "./components/InvoiceDetail"
 
-
 const ProtectedRoute = () => {
   const { token } = useContext(AppContext)
 
