@@ -29,7 +29,6 @@ app.use('/api/items', itemRoutes);
 app.use('/api/supplier', supplierRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/reports', reportsRoutes);
-
 app.use('/api/stock-movements', stockMovementRoutes);
 app.use('/api/stock-adjustments', stockAdjustmentRoutes);
 
@@ -44,7 +43,7 @@ const startServer = async () => {
   try {
     await connectDB();
     app.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}/`);
+      console.log(`Server running...`);
     });
   } catch (error) {
     console.error('Failed to start server:', error.message);
