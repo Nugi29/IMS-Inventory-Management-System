@@ -7,6 +7,7 @@ const ENDPOINTS = {
   create: "/api/items/create-item",
   update: "/api/items/update-item",
   remove: "/api/items/delete-item",
+  nextSku: "/api/items/next-sku",
 };
 
 export function useItem() {
@@ -109,9 +110,22 @@ export function useItem() {
     }
   };
 
+  // ── helpers ───────────────────────────────────────────────────────────────
+
+  const getNextSku = async (categoryId) => {
+    try {
+      const { data } = await axios.get(`${endpoint(ENDPOINTS.nextSku)}?category_id=${categoryId}`, headers());
+      if (data?.success) return data.nextSku;
+      return null;
+    } catch (err) {
+      console.error("Error fetching next SKU:", err);
+      return null;
+    }
+  };
+
   useEffect(() => { loadItems(); }, [loadItems]);
 
-  return { items, isLoadingItems, reloadItems: loadItems, addItem, updateItem, deleteItem };
+  return { items, isLoadingItems, reloadItems: loadItems, addItem, updateItem, deleteItem, getNextSku };
 }
 
 export const useItems = useItem;

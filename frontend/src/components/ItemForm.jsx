@@ -7,7 +7,7 @@ import { useLookup } from '../services/useLookup'
 export const ItemForm = () => {
     const navigate = useNavigate()
     const location = useLocation()
-    const { items, addItem, updateItem, deleteItem } = useItem()
+    const { items, addItem, updateItem, deleteItem, getNextSku } = useItem()
     const { 
         categories: fetchedCategories, 
         itemStatuses, 
@@ -39,6 +39,19 @@ export const ItemForm = () => {
         getItemStatuses?.()
         getAllSuppliers?.()
     }, [refreshCategories, getItemStatuses, getAllSuppliers])
+
+    // Auto-generate SKU when category changes (only for new items)
+    useEffect(() => {
+        const fetchNextSku = async () => {
+            if (mode === 'add' && formData.category_id) {
+                const nextSku = await getNextSku(formData.category_id)
+                if (nextSku) {
+                    setFormData(prev => ({ ...prev, sku: nextSku }))
+                }
+            }
+        }
+        fetchNextSku()
+    }, [formData.category_id, mode])
 
     const categories = useMemo(() => {
         if (fetchedCategories && fetchedCategories.length > 0) {
@@ -348,8 +361,8 @@ export const ItemForm = () => {
                                         readOnly={isReadOnly}
                                         placeholder="0"
                                         min="0"
-                                        className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm placeholder-slate-400 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
-                                        disabled={isReadOnly}
+                                        className="w-full bg-slate-100 border border-slate-200 rounded-lg px-4 py-2 text-sm placeholder-slate-400 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
+                                        disabled
                                     />
                                 </div>
                                 <div className="space-y-2">
