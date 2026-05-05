@@ -8,7 +8,14 @@ export const ItemForm = () => {
     const navigate = useNavigate()
     const location = useLocation()
     const { items, addItem, updateItem, deleteItem } = useItem()
-    const { categories: fetchedCategories, itemStatuses, refreshCategories, getItemStatuses } = useLookup()
+    const { 
+        categories: fetchedCategories, 
+        itemStatuses, 
+        suppliers: fetchedSuppliers,
+        refreshCategories, 
+        getItemStatuses,
+        getAllSuppliers
+    } = useLookup()
 
     const mode = location.state?.mode === 'update' ? 'update' : location.state?.mode === 'view' ? 'view' : 'add'
     const selectedItem = location.state?.item
@@ -30,7 +37,8 @@ export const ItemForm = () => {
     useEffect(() => {
         refreshCategories?.()
         getItemStatuses?.()
-    }, [refreshCategories, getItemStatuses])
+        getAllSuppliers?.()
+    }, [refreshCategories, getItemStatuses, getAllSuppliers])
 
     const categories = useMemo(() => {
         if (fetchedCategories && fetchedCategories.length > 0) {
@@ -57,6 +65,15 @@ export const ItemForm = () => {
     }, [fetchedCategories, items])
 
     const suppliers = useMemo(() => {
+        if (fetchedSuppliers && fetchedSuppliers.length > 0) {
+            return fetchedSuppliers
+                .map((supplier) => ({
+                    id: supplier?.id || supplier?.supplierId || supplier?.supplier_id,
+                    label: supplier?.label || supplier?.name || supplier?.supplierName || supplier?.supplier_name,
+                }))
+                .filter((supplier) => supplier.id && supplier.label)
+        }
+        // Fallback to deriving from items if API call fails
         return items
             .map((item) => ({
                 id: item?.supplier?.id || item?.supplier?.supplierId || item?.supplier_id,
@@ -69,7 +86,7 @@ export const ItemForm = () => {
                 }
                 return unique
             }, [])
-    }, [items])
+    }, [fetchedSuppliers, items])
 
     const handleChange = (event) => {
         const { name, value } = event.target

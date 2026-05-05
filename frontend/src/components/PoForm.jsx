@@ -292,6 +292,7 @@ export const PoForm = () => {
         notes: '',
         shippingTerms: SHIPPING_TERMS[0],
         searchTerm: '',
+        sendToSupplier: false,
     })
 
     const [lineItems, setLineItems] = useState(() => [emptyLineItem(1)])
@@ -629,8 +630,8 @@ export const PoForm = () => {
     }
 
     const handleChange = (event) => {
-        const { name, value } = event.target
-        setFormData((prev) => ({ ...prev, [name]: value }))
+        const { name, value, type, checked } = event.target
+        setFormData((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }))
     }
 
     const handleLineItemChange = (key, field, value) => {
@@ -732,6 +733,7 @@ export const PoForm = () => {
             items: linePayload,
             po_items: linePayload,
             line_items: linePayload,
+            send_to_supplier: formData.sendToSupplier,
             createdAt: getOrderTimestamp(formData.orderDate),
         }
 
@@ -886,6 +888,20 @@ export const PoForm = () => {
                                                 {mode === 'add' ? 'Sent' : selectedStatusLabel}
                                             </div>
                                         )}
+                                    </div>
+                                    <div className="flex items-center space-x-2 pt-2">
+                                        <input
+                                            id="sendToSupplier"
+                                            name="sendToSupplier"
+                                            type="checkbox"
+                                            checked={formData.sendToSupplier}
+                                            onChange={handleChange}
+                                            disabled={isFormDisabled}
+                                            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <label htmlFor="sendToSupplier" className="text-sm font-medium text-slate-700 cursor-pointer">
+                                            Send to supplier via email
+                                        </label>
                                     </div>
                                 </div>
                             </div>
