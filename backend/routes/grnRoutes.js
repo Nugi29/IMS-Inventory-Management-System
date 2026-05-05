@@ -12,10 +12,13 @@ const {
 	getGrnByPurchaseOrder,
 	getGrnsByStatus,
 	getGrnsBySupplier,
+	sendGrnEmail,
 } = require('../controllers/GrnController');
 
 
 const router = express.Router();
+
+router.post('/send-email', authUser, sendGrnEmail);
 
 router.get('/status/:status', authUser, getGrnsByStatus);
 router.get('/supplier/:supplierId', authUser, getGrnsBySupplier);
