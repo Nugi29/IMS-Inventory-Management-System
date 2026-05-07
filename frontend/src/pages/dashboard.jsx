@@ -433,14 +433,6 @@ const getTopSellingCategories = (rows) => {
   }))
 }
 
-const permissionBlock = (title) => (
-  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-8 text-center">
-    <span className="material-symbols-outlined text-2xl text-slate-400">lock</span>
-    <p className="mt-2 text-sm font-semibold text-slate-700">No access to {title}</p>
-    <p className="text-xs text-slate-500">Your role does not allow this section.</p>
-  </div>
-)
-
 const SectionCard = ({ title, subtitle, children, right, className = '', contentClassName = '' }) => (
   <section className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm ${className}`}>
     <div className="mb-4 flex items-start justify-between gap-3">
