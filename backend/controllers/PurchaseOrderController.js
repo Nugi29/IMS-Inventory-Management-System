@@ -8,6 +8,8 @@ const {
     user: User,
     item: Item,
 } = models;
+const { sendPurchaseOrderEmail } = require('../utils/emailService');
+
 
 const purchaseOrderInclude = [
     { model: User, as: 'created_by_user' },
@@ -141,14 +143,26 @@ const createPurchaseOrder = async (req, res) => {
             }
         }
 
+
         await transaction.commit();
 
         const created = await PurchaseOrder.findByPk(purchaseOrder.id, {
             include: purchaseOrderInclude,
         });
 
+        // Send email if requested
+        if (req.body.send_to_supplier && created) {
+            // We don't await this to avoid delaying the response, 
+            // or we can await it if we want to ensure it's sent.
+            // The user said "after i create", so let's do it after commit.
+            sendPurchaseOrderEmail(created.supplier, created).catch(err => {
+                console.error('Background email sending failed:', err);
+            });
+        }
+
         return res.status(201).json({ success: true, purchaseOrder: created });
     } catch (error) {
+
         await transaction.rollback();
         console.error(error);
         return res.status(500).json({ success: false, message: error.message });

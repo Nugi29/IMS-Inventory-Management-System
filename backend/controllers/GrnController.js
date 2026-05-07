@@ -1,5 +1,6 @@
 const { sequelize, models } = require('../config/db');
 const { syncItemStatusByQuantity } = require('../utils/itemStatusSync');
+const { sendGrnEmail: sendGrnEmailUtil } = require('../utils/emailService');
 
 const {
     grn: Grn,
@@ -1230,6 +1231,28 @@ const createGrnFromPurchaseOrder = async (req, res) => {
     }
 };
 
+
+const sendGrnEmail = async (req, res) => {
+    try {
+        const { grn, items, totals, userName, userRole } = req.body;
+        
+        if (!grn || !grn.supplier) {
+            return res.status(400).json({ success: false, message: 'Invalid GRN data or missing supplier' });
+        }
+
+        const result = await sendGrnEmailUtil(grn.supplier, grn, items, totals, userName, userRole);
+        
+        if (result.success) {
+            return res.json({ success: true, message: 'GRN email sent successfully' });
+        } else {
+            return res.status(500).json({ success: false, message: result.message || result.error || 'Failed to send email' });
+        }
+    } catch (error) {
+        console.error('Error in sendGrnEmail controller:', error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
     createGrn,
     getAllGrns,
@@ -1242,4 +1265,5 @@ module.exports = {
     getGrnByPurchaseOrder,
     getGrnsByStatus,
     getGrnsBySupplier,
+    sendGrnEmail,
 };

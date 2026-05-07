@@ -1,3 +1,4 @@
+const { Sequelize } = require('sequelize');
 const { models } = require('../config/db');
 const { syncItemStatusByQuantity } = require('../utils/itemStatusSync');
 
@@ -242,10 +243,58 @@ const deleteItem = async (req, res) => {
     }
 };
 
+const getNextSku = async (req, res) => {
+    try {
+        const { category_id } = req.query;
+        if (!category_id) {
+            return res.status(400).json({ success: false, message: 'Category ID is required' });
+        }
+
+        const cat = await Category.findByPk(category_id);
+        if (!cat) {
+            return res.status(404).json({ success: false, message: 'Category not found' });
+        }
+
+        // Generate prefix: First 3 letters of category name, uppercase
+        const prefix = cat.name.substring(0, 3).toUpperCase();
+
+        // Find all items that have codes starting with this prefix
+        const itemsWithPrefix = await Item.findAll({
+            where: {
+                code: {
+                    [Sequelize.Op.like]: `${prefix}-%`
+                }
+            },
+            attributes: ['code']
+        });
+
+        let nextNumber = 1;
+
+        if (itemsWithPrefix.length > 0) {
+            const numbers = itemsWithPrefix.map(item => {
+                const parts = item.code.split('-');
+                const num = parseInt(parts[parts.length - 1], 10);
+                return isNaN(num) ? 0 : num;
+            });
+            const maxNumber = Math.max(...numbers);
+            nextNumber = maxNumber + 1;
+        }
+
+        const formatted = String(nextNumber).padStart(3, '0');
+        const nextSku = `${prefix}-${formatted}`;
+
+        return res.json({ success: true, nextSku });
+    } catch (error) {
+        console.error('getNextSku error:', error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
     createItem,
     getItem,
     getAllItems,
     updateItem,
     deleteItem,
+    getNextSku,
 };

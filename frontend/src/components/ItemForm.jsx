@@ -7,8 +7,15 @@ import { useLookup } from '../services/useLookup'
 export const ItemForm = () => {
     const navigate = useNavigate()
     const location = useLocation()
-    const { items, addItem, updateItem, deleteItem } = useItem()
-    const { categories: fetchedCategories, itemStatuses, refreshCategories, getItemStatuses } = useLookup()
+    const { items, addItem, updateItem, deleteItem, getNextSku } = useItem()
+    const { 
+        categories: fetchedCategories, 
+        itemStatuses, 
+        suppliers: fetchedSuppliers,
+        refreshCategories, 
+        getItemStatuses,
+        getAllSuppliers
+    } = useLookup()
 
     const mode = location.state?.mode === 'update' ? 'update' : location.state?.mode === 'view' ? 'view' : 'add'
     const selectedItem = location.state?.item
@@ -30,7 +37,21 @@ export const ItemForm = () => {
     useEffect(() => {
         refreshCategories?.()
         getItemStatuses?.()
-    }, [refreshCategories, getItemStatuses])
+        getAllSuppliers?.()
+    }, [refreshCategories, getItemStatuses, getAllSuppliers])
+
+    // Auto-generate SKU when category changes (only for new items)
+    useEffect(() => {
+        const fetchNextSku = async () => {
+            if (mode === 'add' && formData.category_id) {
+                const nextSku = await getNextSku(formData.category_id)
+                if (nextSku) {
+                    setFormData(prev => ({ ...prev, sku: nextSku }))
+                }
+            }
+        }
+        fetchNextSku()
+    }, [formData.category_id, mode])
 
     const categories = useMemo(() => {
         if (fetchedCategories && fetchedCategories.length > 0) {
@@ -57,6 +78,15 @@ export const ItemForm = () => {
     }, [fetchedCategories, items])
 
     const suppliers = useMemo(() => {
+        if (fetchedSuppliers && fetchedSuppliers.length > 0) {
+            return fetchedSuppliers
+                .map((supplier) => ({
+                    id: supplier?.id || supplier?.supplierId || supplier?.supplier_id,
+                    label: supplier?.label || supplier?.name || supplier?.supplierName || supplier?.supplier_name,
+                }))
+                .filter((supplier) => supplier.id && supplier.label)
+        }
+        // Fallback to deriving from items if API call fails
         return items
             .map((item) => ({
                 id: item?.supplier?.id || item?.supplier?.supplierId || item?.supplier_id,
@@ -69,7 +99,7 @@ export const ItemForm = () => {
                 }
                 return unique
             }, [])
-    }, [items])
+    }, [fetchedSuppliers, items])
 
     const handleChange = (event) => {
         const { name, value } = event.target
@@ -331,8 +361,8 @@ export const ItemForm = () => {
                                         readOnly={isReadOnly}
                                         placeholder="0"
                                         min="0"
-                                        className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm placeholder-slate-400 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
-                                        disabled={isReadOnly}
+                                        className="w-full bg-slate-100 border border-slate-200 rounded-lg px-4 py-2 text-sm placeholder-slate-400 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
+                                        disabled
                                     />
                                 </div>
                                 <div className="space-y-2">

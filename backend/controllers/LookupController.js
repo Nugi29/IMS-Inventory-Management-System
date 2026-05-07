@@ -135,6 +135,7 @@ const getAllSuppliers = async (req, res) => {
             return {
                 "id": item.id,
                 "name": item.name,
+                "email": item.email,
                 "supplier_status_id": item.supplier_status_id,
             };
         });

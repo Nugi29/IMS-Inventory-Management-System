@@ -365,6 +365,21 @@ export function useGrn() {
     loadGrns();
   }, [loadGrns]);
 
+  const sendGrnEmail = async (payload) => {
+    try {
+      const { data } = await axios.post(endpoint("/send-email"), payload, headers());
+      if (data?.success) {
+        return { success: true, message: data.message };
+      }
+      return { success: false, message: data?.message || "Failed to send GRN email" };
+    } catch (error) {
+      if (isSessionExpiredError(error)) {
+        return { success: false, message: SESSION_EXPIRED_MESSAGE };
+      }
+      return { success: false, message: buildErrorMessage(error, "Failed to send GRN email") };
+    }
+  };
+
   return {
     grns,
     isLoadingGrns,
@@ -379,6 +394,7 @@ export function useGrn() {
     createGrnFromPurchaseOrder,
     updateGrn,
     deleteGrn,
+    sendGrnEmail,
   };
 }
 

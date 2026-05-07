@@ -7,7 +7,6 @@ import { useGrn } from '../services/useGrn'
 import { downloadPDF, GrnDetailPDF } from '../components/ReportPDFs'
 import { AppContext } from '../context/AppContext'
 
-// â”€â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const ALL_SUPPLIERS = 'All Suppliers'
 const ALL_STATUS = 'All Statuses'
@@ -309,6 +308,7 @@ export const GrnPage = () => {
     getGrnsByStatus,
     getGrnsBySupplier,
     deleteGrn,
+    sendGrnEmail,
   } = useGrn()
 
   const [searchTerm,       setSearchTerm]       = useState('')
@@ -328,6 +328,7 @@ export const GrnPage = () => {
   const [relatedGrnsCumulativeReceivedByItem, setRelatedGrnsCumulativeReceivedByItem] = useState({})
   const [isLoadingItems,     setIsLoadingItems]     = useState(false)
   const [isLoadingPoReceipts,setIsLoadingPoReceipts]= useState(false)
+  const [isSendingEmail,     setIsSendingEmail]     = useState(false)
 
   useEffect(() => {
     loadLookupData()
@@ -933,9 +934,84 @@ export const GrnPage = () => {
         grnStatus,
         userName,
         userRole
-      }, `GRN_${getGrnNumber(selectedGrn)}.pdf`);
+      }, `${getGrnNumber(selectedGrn)}.pdf`);
     } catch (error) {
       toast.error('Failed to generate PDF: ' + error.message);
+    }
+  }
+
+  const handleSendGrnEmail = async () => {
+    if (!selectedGrnId || !selectedGrn) {
+      toast.error('Please select a GRN to send via email.');
+      return;
+    }
+
+    const supplierId = getGrnSupplierId(selectedGrn);
+    const supplierFromLookup = supplierLookup.find(s => String(getLookupId(s)) === String(supplierId));
+    const email = supplierFromLookup?.email || selectedGrn?.supplier?.email;
+    
+    if (!email) {
+      toast.error('Supplier email address not found. Please update supplier details.');
+      return;
+    }
+    
+    setIsSendingEmail(true);
+    try {
+      const items = grnItems.map(item => {
+        const totalQty    = getItemCanonicalTotalQty(item)
+        const receivedQty = getItemReceivedQty(item)
+        const cumulativeBalanceQty = getItemCumulativeBalanceQty(item, relatedGrnsCumulativeReceivedByItem)
+        const unitPrice   = getItemUnitPrice(item)
+        const subtotal    = receivedQty * unitPrice
+        const balanceValue = cumulativeBalanceQty * unitPrice
+
+        return {
+          name: item?.item?.item_name || item?.item?.name || item?.item_name || item?.description || `Item #${item?.item_id || '-'}`,
+          sku: item?.item?.sku || item?.item?.code || item?.sku || item?.code || '-',
+          totalQty,
+          receivedQty,
+          balanceQty: cumulativeBalanceQty,
+          unitPrice,
+          subtotal,
+          balanceValue
+        }
+      });
+      
+      const supplierName = getGrnSupplierName(selectedGrn);
+      const poNumber = getGrnPoNumber(selectedGrn);
+      const grnDate = getGrnDate(selectedGrn);
+      const grnStatus = getGrnStatus(selectedGrn, statusLabelById);
+      const userName = userData?.name || userData?.first_name || userData?.email || 'Unknown User';
+      const userRole = userData?.role?.name || 'Staff';
+
+      const result = await sendGrnEmail({
+        grn: {
+          ...selectedGrn,
+          grn_no: getGrnNumber(selectedGrn),
+          supplier: {
+            ...(supplierFromLookup || selectedGrn?.supplier || {}),
+            name: supplierName,
+            email: email
+          },
+          poNumber,
+          grn_date: grnDate,
+          status: grnStatus
+        },
+        items,
+        totals: grnTotals,
+        userName,
+        userRole
+      });
+
+      if (result.success) {
+        toast.success(result.message || 'GRN receipt sent to supplier email successfully');
+      } else {
+        toast.error(result.message || 'Failed to send GRN email');
+      }
+    } catch (error) {
+      toast.error('Error: ' + error.message);
+    } finally {
+      setIsSendingEmail(false);
     }
   }
 
@@ -1432,8 +1508,21 @@ export const GrnPage = () => {
               <div className="flex items-center gap-2">
                 {selectedGrn && (
                   <button
+                    onClick={handleSendGrnEmail}
+                    disabled={isSendingEmail}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider border border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:!text-white hover:border-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    aria-label="Send GRN via email"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">
+                      {isSendingEmail ? 'sync' : 'mail'}
+                    </span>
+                    {isSendingEmail ? 'Sending...' : 'Send Email'}
+                  </button>
+                )}
+                {selectedGrn && (
+                  <button
                     onClick={handlePrintGrnDetail}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider border border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-white transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider border border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:!text-white hover:border-primary transition-all"
                     aria-label="Print GRN details"
                   >
                     <span className="material-symbols-outlined text-[14px]">print</span>

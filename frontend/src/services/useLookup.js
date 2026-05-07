@@ -17,6 +17,7 @@ export function useLookup() {
     const [isLoadingLookup, setIsLoadingLookup] = useState(false);
 
     const normalizeLookupItem = (item) => ({
+        ...item,
         id: item?.id ?? item?.categoryId ?? item?.category_id ?? item?.roleId ?? item?.statusId ?? item?.userId ?? item?.supplierId ?? item?.poStatusId,
         label: item?.name ?? item?.categoryName ?? item?.category_name ?? item?.title ?? item?.roleName ?? item?.statusName ?? item?.userName ?? item?.supplierName ?? item?.poStatusName ?? item?.name,
     });
@@ -159,7 +160,11 @@ export function useLookup() {
         try {
             const { data } = await axios.get(`${backendUrl}/api/list/get-all-suppliers`);
             if (data?.success || Array.isArray(data)) {
-                setSuppliers(pickFirstArray(data, ['suppliers', 'supplierData', 'data']));
+                const supplierList = pickFirstArray(data, ['suppliers', 'supplierData', 'data'])
+                    .map(normalizeLookupItem)
+                    .filter((supplier) => supplier.id !== undefined && supplier.id !== null && supplier.label);
+
+                setSuppliers(supplierList);
                 return true;
             }
 
