@@ -611,7 +611,7 @@ const TopSellingCategoriesCard = ({ items }) => (
   </section>
 )
 
-const LiveFeedCard = ({ entries = [], right, onEntryClick }) => {
+const LiveFeedCard = ({ entries = [], right, onEntryClick, permissions }) => {
   const tones = {
     blue: 'bg-blue-600',
     red: 'bg-red-600',
@@ -638,7 +638,7 @@ const LiveFeedCard = ({ entries = [], right, onEntryClick }) => {
 
       <div className="relative space-y-3 before:absolute before:bottom-2 before:left-4 before:top-2 before:w-px before:bg-slate-200">
         {safeEntries.map((entry, index) => {
-          const isClickable = Boolean(entry.sale_id || entry.grn_id)
+          const isClickable = Boolean((entry.sale_id && permissions?.sales) || (entry.grn_id && permissions?.grn))
           return (
             <button
               key={entry.id || `${entry.title}-${index}`}
@@ -1183,9 +1183,9 @@ const Dashboard = () => {
   }
 
   const handleLiveFeedClick = (entry) => {
-    if (entry.sale_id) {
+    if (entry.sale_id && permissions.sales) {
       navigate(`/invoice/${entry.sale_id}`)
-    } else if (entry.grn_id) {
+    } else if (entry.grn_id && permissions.grn) {
       navigate('/grns', { state: { grnId: entry.grn_id } })
     }
   }
@@ -1508,6 +1508,7 @@ const Dashboard = () => {
           <LiveFeedCard
             entries={liveFeedEntries}
             onEntryClick={handleLiveFeedClick}
+            permissions={permissions}
             right={permissions.sales && <span className="text-xs font-semibold text-slate-600">Total: {fmtMoney(recentSalesTotal)}</span>}
           />
         </section>
