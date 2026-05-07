@@ -1185,6 +1185,8 @@ const Dashboard = () => {
   const handleLiveFeedClick = (entry) => {
     if (entry.sale_id) {
       navigate(`/invoice/${entry.sale_id}`)
+    } else if (entry.grn_id) {
+      navigate('/grns', { state: { grnId: entry.grn_id } })
     }
   }
 

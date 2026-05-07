@@ -602,11 +602,29 @@ export function InvoicePDF({ invoiceNumber, cashierName, paymentMethod, items, s
 // Export trigger helper
 // ══════════════════════════════════════════════════════════════════════════════
 export async function downloadPDF(DocComponent, props, filename) {
+  let finalFilename = filename;
+  const isInvoice = filename.toLowerCase().includes("invoice");
+  const isGrn = filename.toLowerCase().includes("grn");
+
+  if (!isInvoice && !isGrn) {
+    const now = new Date();
+    const datePart = now.toISOString().split("T")[0].replace(/-/g, "");
+    const timePart = now.toTimeString().split(" ")[0].replace(/:/g, "");
+    const timestamp = `${datePart}_${timePart}`;
+
+    if (finalFilename.toLowerCase().endsWith(".pdf")) {
+      finalFilename = finalFilename.replace(/\.pdf$/i, `_${timestamp}.pdf`);
+    } else {
+      finalFilename = `${finalFilename}_${timestamp}`;
+    }
+  }
+
   const blob = await pdf(<DocComponent {...props} />).toBlob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = filename;
+  a.download = finalFilename;
   a.click();
   URL.revokeObjectURL(url);
 }
+

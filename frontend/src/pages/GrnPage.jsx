@@ -297,6 +297,7 @@ export const GrnPage = () => {
   const {
     suppliers: supplierLookup = [],
     grnStatuses: grnStatusLookup = [],
+    poStatuses: poStatusLookup = [],
     loadLookupData,
   } = useLookup()
   const {
@@ -341,6 +342,17 @@ export const GrnPage = () => {
     if (sourcePoPrimary) setSelectedPoId(sourcePoPrimary)
   }, [sourcePoPrimary])
 
+  const sourceGrnId = location.state?.grnId ?? ''
+  useEffect(() => {
+    if (sourceGrnId) {
+      setSelectedGrnId(String(sourceGrnId))
+      // Optional: scroll to details
+      setTimeout(() => {
+        document.getElementById('grn-item-detail')?.scrollIntoView({ behavior: 'smooth' })
+      }, 100)
+    }
+  }, [sourceGrnId])
+
   const suppliers = useMemo(() =>
     supplierLookup
       .map((s) => ({ id: getLookupId(s), label: getLookupLabel(s) }))
@@ -352,6 +364,12 @@ export const GrnPage = () => {
       .map((s) => ({ id: getLookupId(s), label: getLookupLabel(s) }))
       .filter((s) => s.id && s.label),
   [grnStatusLookup])
+
+  const poStatusOptions = useMemo(() =>
+    poStatusLookup
+      .map((s) => ({ id: getLookupId(s), label: getLookupLabel(s) }))
+      .filter((s) => s.id && s.label),
+  [poStatusLookup])
 
   const statusLabelById = useMemo(() =>
     Object.fromEntries(statusOptions.map((s) => [String(s.id), s.label])),
@@ -373,11 +391,23 @@ export const GrnPage = () => {
     Object.fromEntries(pos.map((po) => [String(getPoId(po)), po])),
   [pos])
 
-  const poOptions = useMemo(() =>
-    pos
+  const poOptions = useMemo(() => {
+    const allowedStatusKeywords = ['sent', 'partially received']
+    const allowedStatusIds = poStatusOptions
+      .filter((s) => {
+        const label = normalizeText(s.label)
+        return allowedStatusKeywords.some(k => label.includes(k))
+      })
+      .map((s) => String(s.id))
+
+    return pos
+      .filter((po) => {
+        const statusId = String(getPoStatusId(po) || '')
+        return allowedStatusIds.includes(statusId)
+      })
       .map((po) => ({ id: String(getPoId(po)), number: getPoNumber(po) }))
-      .filter((po) => po.id),
-  [pos])
+      .filter((po) => po.id)
+  }, [pos, poStatusOptions])
 
   const selectedPo = useMemo(() =>
     selectedPoId ? (poById[String(selectedPoId)] ?? null) : null,
@@ -1495,7 +1525,7 @@ export const GrnPage = () => {
           </div>
 
           {/* Selected GRN Items card */}
-          <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-sm">
+          <div id="grn-item-detail" className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-sm">
             <div className="flex flex-col items-start justify-between gap-2 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Selected GRN - Item Detail</p>
