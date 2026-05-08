@@ -39,17 +39,22 @@ app.get('/', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-const startServer = async () => {
-  try {
-    await connectDB();
-    app.listen(PORT, () => {
-      console.log(`Server running...`);
-    });
-  } catch (error) {
-    console.error('Failed to start server:', error.message);
-    process.exit(1);
-  }
-};
+// Export the app for Vercel
+module.exports = app;
 
-startServer();
+// Only start the server if not running in a serverless environment
+if (process.env.NODE_ENV !== 'production') {
+  const startServer = async () => {
+    try {
+      await connectDB();
+      app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}...`);
+      });
+    } catch (error) {
+      console.error('Failed to start server:', error.message);
+    }
+  };
+  startServer();
+}
+
 
