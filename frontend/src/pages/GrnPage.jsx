@@ -1356,85 +1356,88 @@ export const GrnPage = () => {
                 </p>
             </div>
 
-            <table className="w-full text-left">
-                <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200">
-                        <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">GRN No.</th>
-                        <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">PO</th>
-                        <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Date</th>
-                        <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Supplier</th>
-                        <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center">Status</th>
-                        <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 text-right">Total</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                    {(isLoadingGrns || isRefreshingByFilter) && (
-                        <tr>
-                            <td colSpan={6} className="px-6 py-16 text-center">
-                                <span className="material-symbols-outlined animate-spin text-primary text-2xl block mx-auto mb-2">sync</span>
-                                <p className="text-sm text-slate-500 font-medium">Loading GRNs...</p>
-                            </td>
+            <div className="overflow-x-auto">
+                <table className="w-full text-left min-w-[800px] md:min-w-0">
+                    {/* ... table content remains same ... */}
+                    <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200">
+                            <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">GRN No.</th>
+                            <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">PO</th>
+                            <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Date</th>
+                            <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Supplier</th>
+                            <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center">Status</th>
+                            <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 text-right">Total</th>
                         </tr>
-                    )}
-
-                    {!isLoadingGrns && !isRefreshingByFilter && paginatedGrns.map((grn) => {
-                        const id       = String(getGrnId(grn))
-                        const selected = id === String(selectedGrnId)
-                        const status   = getGrnStatus(grn, statusLabelById)
-
-                        return (
-                            <tr
-                                key={id}
-                                className={`transition-colors cursor-pointer group ${
-                                    selected
-                                        ? 'bg-primary/5'
-                                        : 'hover:bg-slate-50/80'
-                                }`}
-                                role="button"
-                                tabIndex={0}
-                                onClick={() => setSelectedGrnId(id)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                        e.preventDefault()
-                                        setSelectedGrnId(id)
-                                    }
-                                }}
-                            >
-                                <td className="px-6 py-4">
-                                    <p className="font-semibold text-sm text-slate-800 leading-snug">{getGrnNumber(grn)}</p>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <p className="text-sm text-slate-600">{getGrnPoNumber(grn)}</p>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <p className="text-sm text-slate-600">{formatDateLabel(getGrnDate(grn))}</p>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <p className="text-sm font-semibold text-slate-800">{getGrnSupplierName(grn)}</p>
-                                </td>
-                                <td className="px-6 py-4 text-center">
-                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-tight ${getStatusChipClass(status)}`}>
-                                        {status}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                    <span className="font-bold text-slate-800 text-sm">{formatCurrency(grn?.total_amount || 0)}</span>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                        {(isLoadingGrns || isRefreshingByFilter) && (
+                            <tr>
+                                <td colSpan={6} className="px-6 py-16 text-center">
+                                    <span className="material-symbols-outlined animate-spin text-primary text-2xl block mx-auto mb-2">sync</span>
+                                    <p className="text-sm text-slate-500 font-medium">Loading GRNs...</p>
                                 </td>
                             </tr>
-                        )
-                    })}
-
-                    {!isLoadingGrns && !isRefreshingByFilter && !filteredGrns.length && (
-                        <tr>
-                            <td colSpan={6} className="px-6 py-20 text-center">
-                                <span className="material-symbols-outlined text-4xl text-slate-300 block mb-3">inventory_2</span>
-                                <p className="text-sm font-semibold text-slate-600">No GRNs found</p>
-                                <p className="text-xs text-slate-400 mt-1">Try changing your filters or create a new GRN.</p>
-                            </td>
-                        </tr>
-                    )}
-                </tbody>
-            </table>
+                        )}
+    
+                        {!isLoadingGrns && !isRefreshingByFilter && paginatedGrns.map((grn) => {
+                            const id       = String(getGrnId(grn))
+                            const selected = id === String(selectedGrnId)
+                            const status   = getGrnStatus(grn, statusLabelById)
+    
+                            return (
+                                <tr
+                                    key={id}
+                                    className={`transition-colors cursor-pointer group ${
+                                        selected
+                                            ? 'bg-primary/5'
+                                            : 'hover:bg-slate-50/80'
+                                    }`}
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => setSelectedGrnId(id)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault()
+                                            setSelectedGrnId(id)
+                                        }
+                                    }}
+                                >
+                                    <td className="px-6 py-4">
+                                        <p className="font-semibold text-sm text-slate-800 leading-snug">{getGrnNumber(grn)}</p>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <p className="text-sm text-slate-600">{getGrnPoNumber(grn)}</p>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <p className="text-sm text-slate-600">{formatDateLabel(getGrnDate(grn))}</p>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <p className="text-sm font-semibold text-slate-800">{getGrnSupplierName(grn)}</p>
+                                    </td>
+                                    <td className="px-6 py-4 text-center">
+                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-tight ${getStatusChipClass(status)}`}>
+                                            {status}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <span className="font-bold text-slate-800 text-sm">{formatCurrency(grn?.total_amount || 0)}</span>
+                                    </td>
+                                </tr>
+                            )
+                        })}
+    
+                        {!isLoadingGrns && !isRefreshingByFilter && !filteredGrns.length && (
+                            <tr>
+                                <td colSpan={6} className="px-6 py-20 text-center">
+                                    <span className="material-symbols-outlined text-4xl text-slate-300 block mb-3">inventory_2</span>
+                                    <p className="text-sm font-semibold text-slate-600">No GRNs found</p>
+                                    <p className="text-xs text-slate-400 mt-1">Try changing your filters or create a new GRN.</p>
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
 
             {/* Pagination Footer */}
             <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 bg-slate-50/60 border-t border-slate-100 gap-4">

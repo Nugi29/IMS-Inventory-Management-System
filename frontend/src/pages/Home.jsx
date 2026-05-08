@@ -24,13 +24,29 @@ const Home = () => {
   else if (location.pathname.includes('/settings')) currentModule = "Settings"
   else if (location.pathname.includes('/profile')) currentModule = "User Profile"
 
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(false)
+
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen)
+  }
+
   return (
-    <div>
-      <SideNavbar />
-      <Header loadedModule={currentModule} />
-      <main className="pt-16 ml-64">
-        <Outlet />
+    <div className="min-h-screen bg-slate-50">
+      <SideNavbar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
+      <Header loadedModule={currentModule} toggleSidebar={toggleSidebar} />
+      <main className="transition-all duration-300 pt-16 md:ml-64">
+        <div className="p-4 md:p-8">
+          <Outlet />
+        </div>
       </main>
+      
+      {/* Overlay for mobile when sidebar is open */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 md:hidden"
+          onClick={toggleSidebar}
+        />
+      )}
     </div>
   )
 }

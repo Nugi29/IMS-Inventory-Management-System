@@ -33,12 +33,12 @@ This project was developed by a team effort:
 - 🧩 Sequelize
 - 🐬 MySQL
 - 🔐 JSON Web Tokens
+- 📧 Brevo API (Mail Service)
 
 ### Frontend
 - ⚛️ React 19 with Vite 8
 - 🛣️ React Router 7
 - 🎨 Tailwind CSS 4
-- 🧱 Bootstrap 5
 - 📡 Axios
 - 🔔 React Toastify
 - 📈 Recharts

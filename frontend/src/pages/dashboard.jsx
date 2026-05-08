@@ -1192,7 +1192,7 @@ const Dashboard = () => {
         <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-blue-200/50 blur-3xl" />
         <div className="absolute -bottom-20 -left-20 h-40 w-40 rounded-full bg-indigo-200/40 blur-3xl" />
 
-        <div className="relative mb-4 grid grid-cols-1 gap-3" style={{ gridTemplateColumns: `repeat(${Math.max(1, kpiCount)}, minmax(0, 1fr))` }}>
+        <div className="relative mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {permissions.sales && (
             <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
               <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">Sales Pulse</p>

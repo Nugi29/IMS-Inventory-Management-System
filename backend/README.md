@@ -66,10 +66,20 @@ Create a `.env` file in `backend/` and configure:
 - `JWT_SECRET`
 - `PORT`
 - `DB_MODE`
+- `BREVO_API_KEY` — API key for Brevo (formerly Sendinblue)
+- `BREVO_SENDER_EMAIL` — The email address used as the sender
 
 ## ☁️ Deployment
 
 The backend includes a Vercel configuration at `backend/vercel.json` for production deployment.
+
+## 📧 Mail Service
+
+The system integrates with **Brevo (v3 API)** to send automated email notifications:
+
+- **Purchase Orders:** Automatically sends a PDF or summary to the supplier when a new PO is created (if selected).
+- **Goods Received Notes (GRN):** Allows users to send GRN receipts/invoices directly to suppliers from the management dashboard.
+
 
 ## 🌐 Live Demo
 

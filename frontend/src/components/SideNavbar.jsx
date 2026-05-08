@@ -5,7 +5,7 @@ import { NAV_ITEMS, hasPermission, resolveRoleConfig } from "../constants/access
 const FALLBACK_AVATAR =
     "https://lh3.googleusercontent.com/aida-public/AB6AXuDDomMYVtyZqZfIRbfYixjbaAmONSiEZhd1dcpKXZ7s87rXXbP8-qi1KSmghPkvKjpyzNPjetvI9Xx-P_YTwjOcXVj51L2DOreNWfouW9ptN3-UNzoQPwNmslkY3TRM5bRIvawgvj0gXoYCjZymLNhzQ0qM09dS29xYJUU81yuPBQVxxWWv0V9KceclekCDVtMqd0RmatB7mQ0yDlLAbeWVluJ6W-6F10SPDi5HeOmNswbE5J9Cz05zvpkK5ZT0Aw3LTtAGtNw-7HBr";
 
-const SideNavbar = () => {
+const SideNavbar = ({ isOpen, toggleSidebar }) => {
     const [menuOpen, setMenuOpen] = useState(false);
 
     const menuRef = useRef();
@@ -30,6 +30,10 @@ const SideNavbar = () => {
 
     const selectNav = (item) => {
         navigate(item.path);
+        // On mobile, close sidebar after navigation
+        if (window.innerWidth < 768) {
+            toggleSidebar();
+        }
     };
 
     const isItemActive = (itemPath) => {
@@ -66,28 +70,38 @@ const SideNavbar = () => {
     };
 
     return (
-        <aside className="h-screen w-64 fixed left-0 top-0 border-r border-slate-200 bg-white flex flex-col p-4">
+        <aside className={`h-screen w-64 fixed left-0 top-0 border-r border-slate-200 bg-white flex flex-col p-4 z-50 transition-transform duration-300 transform 
+            ${isOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}>
 
-            {/* Logo */}
-            <div className="mb-8 px-2 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center shadow-md">
-                    <span className="material-symbols-outlined text-white text-[20px]">
-                        inventory_2
-                    </span>
+            {/* Logo & Close for Mobile */}
+            <div className="mb-8 px-2 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center shadow-md">
+                        <span className="material-symbols-outlined text-white text-[20px]">
+                            inventory_2
+                        </span>
+                    </div>
+
+                    <div>
+                        <h1 className="text-xl font-bold text-slate-900">
+                            IMS
+                        </h1>
+                        <p className="text-[10px] uppercase tracking-widest text-slate-400">
+                            Premium Retail
+                        </p>
+                    </div>
                 </div>
 
-                <div>
-                    <h1 className="text-xl font-bold text-slate-900">
-                        IMS
-                    </h1>
-                    <p className="text-[10px] uppercase tracking-widest text-slate-400">
-                        Premium Retail
-                    </p>
-                </div>
+                <button 
+                    onClick={toggleSidebar}
+                    className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400"
+                >
+                    <span className="material-symbols-outlined text-[20px]">close</span>
+                </button>
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 space-y-0.5">
+            <nav className="flex-1 space-y-0.5 overflow-y-auto no-scrollbar">
                 {NAV_ITEMS.map((item) => {
                     const hasAccess = hasPermission(userRole, item.permission);
 

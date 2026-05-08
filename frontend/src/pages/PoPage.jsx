@@ -343,7 +343,8 @@ export const PoPage = () => {
                     </p>
                 </div>
 
-                <table className="w-full text-left">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left min-w-[800px] md:min-w-0">
                     <thead>
                         <tr className="bg-slate-50 border-b border-slate-200">
                             <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">ID</th>
