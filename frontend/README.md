@@ -1,16 +1,73 @@
-# React + Vite
+# Frontend - IMS Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This folder contains the React frontend application for the IMS Inventory Management System.
 
-Currently, two official plugins are available:
+## 🎨 Overview
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The frontend is built with React, Vite, Tailwind CSS, and Bootstrap. It delivers a modern admin dashboard for inventory, sales, purchase orders, suppliers, customers, stock movements, stock adjustments, and reports.
 
-## React Compiler
+## 🛠️ Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Frontend
+- ⚛️ React 19 with Vite 8
+- 🛣️ React Router 7
+- 🎨 Tailwind CSS 4
+- 📡 Axios
+- 🔔 React Toastify
+- 📈 Recharts
+- 🖨️ @react-pdf/renderer
 
-## Expanding the ESLint configuration
+### Hosting
+- ☁️ Vercel for deployment
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 🌐 Live Demo
+
+- https://ims-premium-inventory.vercel.app
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Node.js 18+ and npm
+
+### Install Dependencies
+
+```bash
+cd frontend
+npm install
+```
+
+### Run Locally
+
+```bash
+npm run dev
+```
+
+### Build for Production
+
+```bash
+npm run build
+```
+
+### Preview Production Build
+
+```bash
+npm run preview
+```
+
+## 📁 Project Structure
+
+- `src/components/` — reusable UI components and forms
+- `src/pages/` — application pages for dashboard, inventory, sales, supplier, user, and report screens
+- `src/services/` — API client hooks and HTTP service utilities
+- `src/context/` — global state and app context
+- `src/assets/` — static images and icons
+
+## 🔧 Notes
+
+- API communication is handled in `src/services/httpClient.js`.
+- Routing is powered by `react-router-dom`.
+- Charts are rendered using `recharts`.
+- Reports and printable exports use `@react-pdf/renderer`.
+- Tailwind CSS is integrated via `@tailwindcss/vite`.
+- Designed to work with the backend API deployed at `https://ims-backend-server.vercel.app/`.
