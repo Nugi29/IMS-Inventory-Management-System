@@ -18,14 +18,14 @@ const Login = () => {
     e.preventDefault();
 
     try {
-        const { data } = await axios.post(`${backendUrl}/api/user/login`, { username, password });
-        if (data.success) {
-          resetSessionExpiredState();
-          localStorage.setItem('token', data.token);
-          setToken(data.token);
-        } else {
-          toast.error(data.message);
-        }
+      const { data } = await axios.post(`${backendUrl}/api/user/login`, { username, password });
+      if (data.success) {
+        resetSessionExpiredState();
+        localStorage.setItem('token', data.token);
+        setToken(data.token);
+      } else {
+        toast.error(data.message);
+      }
     } catch (error) {
       toast.error(error.message);
     }
@@ -41,7 +41,7 @@ const Login = () => {
     <form onSubmit={onSubmitHandler} className='min-h-[80vh] flex items-center justify-center bg-linear-to-br px-4'>
       <div className='flex flex-col gap-6 m-auto items-start p-10 min-w-85 sm:min-w-96 bg-white border border-gray-200 rounded-2xl text-zinc-600 text-sm shadow-2xl backdrop-blur-sm'>
         <div className='w-full text-center'>
-          <p className='text-3xl font-bold text-gray-800 mb-2'>Welcome Back</p>
+          <p className='text-3xl font-bold text-gray-800 mb-2'>Welcome</p>
           <p className='text-gray-500 capitalize'>please log in</p>
         </div>
 

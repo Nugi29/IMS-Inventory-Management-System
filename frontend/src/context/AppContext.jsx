@@ -10,23 +10,34 @@ const AppContextProvider = (props) => {
 
     const [token, setToken] = useState(localStorage.getItem('token') ? localStorage.getItem('token') : false);
     const [userData, setUserData] = useState(false);
+    const [isInitializing, setIsInitializing] = useState(true);
+    const [initError, setInitError] = useState(null);
     
 
     const loadUserProfileData = async () => {
+        setIsInitializing(true);
+        setInitError(null);
         try {
             const { data } = await axios.get(`${backendUrl}/api/user/get-profile`, { headers: { token } });
             if (data.success) {
                 setUserData(data.userData);
+                setIsInitializing(false);
+                setInitError(null);
             } else {
-                toast.error(data.message);
+                setInitError(data.message || 'Failed to load user profile');
+                // Auto retry after 5 seconds if failed but still on loading screen
+                setTimeout(loadUserProfileData, 5000);
             }
         } catch (error) {
             if (isSessionExpiredError(error)) {
+                setIsInitializing(false);
                 return;
             }
 
             console.log(error);
-            toast.error(error.message);
+            setInitError(error.message || 'A connection error occurred');
+            // Auto retry after 5 seconds
+            setTimeout(loadUserProfileData, 5000);
         }
     };
 
@@ -34,6 +45,7 @@ const AppContextProvider = (props) => {
         localStorage.removeItem('token');
         setToken(false);
         setUserData(false);
+        setInitError(null);
     };
 
     const value = {
@@ -44,6 +56,10 @@ const AppContextProvider = (props) => {
         setUserData,
         loadUserProfileData,
         logout,
+        isInitializing,
+        setIsInitializing,
+        initError,
+        setInitError,
     };
 
     useEffect(() => {
@@ -51,6 +67,7 @@ const AppContextProvider = (props) => {
             loadUserProfileData();
         } else {
             setUserData(false);
+            setIsInitializing(false);
         }
     }, [token]);
 

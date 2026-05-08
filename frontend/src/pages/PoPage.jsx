@@ -445,6 +445,7 @@ export const PoPage = () => {
                         )}
                     </tbody>
                 </table>
+            </div>
 
                 {/* Pagination Footer */}
                 <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 bg-slate-50/60 border-t border-slate-100 gap-4">

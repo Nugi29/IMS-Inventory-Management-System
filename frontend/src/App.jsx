@@ -4,6 +4,7 @@ import Login from "./pages/Login"
 import Home from "./pages/Home"
 import SupplierPage from "./pages/SupplierPage"
 import { ToastContainer } from "react-toastify"
+import LoadingScreen from "./components/LoadingScreen"
 import "react-toastify/dist/ReactToastify.css"
 import { AppContext } from "./context/AppContext"
 import { UserPage } from "./pages/UserPage"
@@ -35,6 +36,18 @@ const AuthRoute = () => {
 }
 
 function App() {
+  const { isInitializing, initError, loadUserProfileData, logout } = useContext(AppContext)
+
+  if (isInitializing || initError) {
+    return (
+      <LoadingScreen 
+        error={initError} 
+        onRetry={loadUserProfileData} 
+        onLogout={logout} 
+      />
+    )
+  }
+
   return (
     <>
       <Routes>
