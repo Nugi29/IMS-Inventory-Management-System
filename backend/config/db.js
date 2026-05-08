@@ -28,6 +28,7 @@ const sequelize = new Sequelize(
       ? env('REMOTE_DB_PORT', env('MYSQLPORT'))
       : env('LOCAL_DB_PORT', 3306),
     dialect: env('DB_DIALECT', 'mysql'),
+    dialectModule: mysql2, // Force use of mysql2 for Vercel
     logging: false,
   }
 );
