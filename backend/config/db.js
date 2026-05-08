@@ -1,4 +1,5 @@
 const { Sequelize } = require('sequelize');
+const mysql2 = require('mysql2'); // Explicitly require for Vercel
 const initModels = require('../models/init-models');
 require('dotenv').config();
 
