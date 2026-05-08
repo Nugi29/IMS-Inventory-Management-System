@@ -1,9 +1,14 @@
-  {
+{
   "version": 2,
+  "buildCommand": "npm install",
   "builds": [
     {
       "src": "server.js",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["config/**", "controllers/**", "models/**", "routes/**", "middlewares/**", "utils/**", ".env*"],
+        "excludeFiles": "node_modules/**"
+      }
     }
   ],
   "routes": [
@@ -11,5 +16,9 @@
       "src": "/(.*)",
       "dest": "server.js"
     }
-  ]
+  ],
+  "env": {
+    "NODE_ENV": "production",
+    "DB_MODE": "remote"
+  }
 }
