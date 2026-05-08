@@ -1,8 +1,6 @@
-import React, { useContext, useState, useEffect } from 'react'
-import { AppContext } from '../context/AppContext';
+import React, {useState, useEffect } from 'react'
 
 const Header = ({ loadedModule }) => {
-    const user = useContext(AppContext).userData;
     const [time, setTime] = useState(new Date());
 
     useEffect(() => {

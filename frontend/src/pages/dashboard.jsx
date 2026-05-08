@@ -433,14 +433,6 @@ const getTopSellingCategories = (rows) => {
   }))
 }
 
-const permissionBlock = (title) => (
-  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-8 text-center">
-    <span className="material-symbols-outlined text-2xl text-slate-400">lock</span>
-    <p className="mt-2 text-sm font-semibold text-slate-700">No access to {title}</p>
-    <p className="text-xs text-slate-500">Your role does not allow this section.</p>
-  </div>
-)
-
 const SectionCard = ({ title, subtitle, children, right, className = '', contentClassName = '' }) => (
   <section className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm ${className}`}>
     <div className="mb-4 flex items-start justify-between gap-3">
@@ -611,7 +603,7 @@ const TopSellingCategoriesCard = ({ items }) => (
   </section>
 )
 
-const LiveFeedCard = ({ entries = [], right, onEntryClick }) => {
+const LiveFeedCard = ({ entries = [], right, onEntryClick, permissions }) => {
   const tones = {
     blue: 'bg-blue-600',
     red: 'bg-red-600',
@@ -638,7 +630,7 @@ const LiveFeedCard = ({ entries = [], right, onEntryClick }) => {
 
       <div className="relative space-y-3 before:absolute before:bottom-2 before:left-4 before:top-2 before:w-px before:bg-slate-200">
         {safeEntries.map((entry, index) => {
-          const isClickable = Boolean(entry.sale_id || entry.grn_id)
+          const isClickable = Boolean((entry.sale_id && permissions?.sales) || (entry.grn_id && permissions?.grn))
           return (
             <button
               key={entry.id || `${entry.title}-${index}`}
@@ -1183,9 +1175,9 @@ const Dashboard = () => {
   }
 
   const handleLiveFeedClick = (entry) => {
-    if (entry.sale_id) {
+    if (entry.sale_id && permissions.sales) {
       navigate(`/invoice/${entry.sale_id}`)
-    } else if (entry.grn_id) {
+    } else if (entry.grn_id && permissions.grn) {
       navigate('/grns', { state: { grnId: entry.grn_id } })
     }
   }
@@ -1508,6 +1500,7 @@ const Dashboard = () => {
           <LiveFeedCard
             entries={liveFeedEntries}
             onEntryClick={handleLiveFeedClick}
+            permissions={permissions}
             right={permissions.sales && <span className="text-xs font-semibold text-slate-600">Total: {fmtMoney(recentSalesTotal)}</span>}
           />
         </section>
