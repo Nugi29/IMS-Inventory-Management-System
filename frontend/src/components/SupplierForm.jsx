@@ -28,6 +28,28 @@ const normalizeSupplierStatusValue = (status) => {
     return '1'
 }
 
+const normalizePhoneNumber = (phone) => String(phone || '').trim().replace(/[\s()-]/g, '')
+
+const isValidPhoneNumber = (phone) => {
+    const value = normalizePhoneNumber(phone)
+
+    if (!value) {
+        return true
+    }
+
+    return /^\+?\d{7,15}$/.test(value)
+}
+
+const isValidEmailAddress = (email) => {
+    const value = String(email || '').trim()
+
+    if (!value) {
+        return true
+    }
+
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+}
+
 export const SupplierForm = () => {
     const navigate = useNavigate()
     const location = useLocation()
@@ -73,13 +95,25 @@ export const SupplierForm = () => {
             return
         }
 
+        if (!isValidPhoneNumber(formData.phone)) {
+            toast.error('Enter a valid phone number')
+            return
+        }
+
+        if (!isValidEmailAddress(formData.email)) {
+            toast.error('Enter a valid email address')
+            return
+        }
+
         const statusValue = Number(normalizeSupplierStatusValue(formData.supplier_status))
+        const normalizedPhone = normalizePhoneNumber(formData.phone)
+        const normalizedEmail = String(formData.email || '').trim().toLowerCase()
 
         const payload = {
             id: Number(formData.id || selectedSupplier?.id),
             name: formData.name.trim(),
-            phone: formData.phone.trim(),
-            email: formData.email.trim(),
+            phone: normalizedPhone,
+            email: normalizedEmail,
             address: formData.address.trim(),
             supplier_status_id: statusValue,
         }
@@ -90,39 +124,43 @@ export const SupplierForm = () => {
         }
 
         setIsSaving(true)
-        let response
+        try {
+            let response
 
-        if (mode === 'update') {
-            response = await updateSupplier(payload)
-        } else {
-            response = await addSupplier(payload)
+            if (mode === 'update') {
+                response = await updateSupplier(payload)
+            } else {
+                response = await addSupplier(payload)
 
-            // Backend create currently forces Active (id:1); if user chose Inactive (id:2), patch it right after create.
-            if (response?.success && statusValue !== 1) {
-                const createdId = Number(response?.supplier?.id)
+                // Backend create currently forces Active (id:1); if user chose Inactive (id:2), patch it right after create.
+                if (response?.success && statusValue !== 1) {
+                    const createdId = Number(response?.supplier?.id)
 
-                if (!createdId) {
-                    setIsSaving(false)
-                    toast.error('Supplier created, but failed to apply inactive status. Please edit and save again.')
-                    navigate('/suppliers')
-                    return
+                    if (!createdId) {
+                        toast.error('Supplier created, but failed to apply inactive status. Please edit and save again.')
+                        navigate('/suppliers')
+                        return
+                    }
+
+                    response = await updateSupplier({
+                        id: createdId,
+                        supplier_status_id: statusValue,
+                    })
                 }
-
-                response = await updateSupplier({
-                    id: createdId,
-                    supplier_status_id: statusValue,
-                })
             }
-        }
-        setIsSaving(false)
 
-        if (!response.success) {
-            toast.error(response.message)
-            return
-        }
+            if (!response.success) {
+                toast.error(response.message)
+                return
+            }
 
-        toast.success(response.message)
-        navigate('/suppliers')
+            toast.success(response.message)
+            navigate('/suppliers')
+        } catch (error) {
+            toast.error(error?.response?.data?.message || error?.message || 'Failed to save supplier')
+        } finally {
+            setIsSaving(false)
+        }
     }
 
     const handleDelete = async () => {
@@ -197,7 +235,7 @@ export const SupplierForm = () => {
                                         type="tel"
                                         name="phone"
                                         inputMode="tel"
-                                        pattern="[0-9+-]*"
+                                        autoComplete="tel"
                                         value={formData.phone}
                                         onChange={handleChange}
                                     />
@@ -213,6 +251,7 @@ export const SupplierForm = () => {
                                         placeholder="e.g. supplier@mail.com"
                                         type="email"
                                         name="email"
+                                        autoComplete="email"
                                         value={formData.email}
                                         onChange={handleChange}
                                     />
